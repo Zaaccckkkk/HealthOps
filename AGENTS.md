@@ -13,7 +13,7 @@
 
 ## Layout and scope
 
-- The implemented application is in `services/ingestion-api/src/healthops/`; the iOS adapter is in `ios/HealthOpsUploader/` (Swift sources English, no tokens, Team IDs or health exports).
+- The implemented application is in `services/ingestion-api/src/healthops/` (API, tools, assistant); the iOS adapter is in `ios/HealthOpsUploader/` (Swift sources English, no tokens, Team IDs or health exports).
 - Keep ingestion database migrations in `services/ingestion-api/migrations/`.
 - Container definitions belong in `infra/docker/`; run Compose and uv from the repo root.
 - Root `pyproject.toml` and `uv.lock` currently describe one Python package, not a completed
@@ -23,9 +23,10 @@
 
 ## Verification
 
-- Unit tests: `uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_ios_contract.py tests/test_public_content.py`.
+- Unit tests: `uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_eval_sets.py tests/test_ios_contract.py tests/test_public_content.py`.
 - iOS adapter: `cd ios/HealthOpsUploader && swift test`; build with `xcodebuild` using a DerivedData path outside the synced Desktop folder (see its README). Simulator-only; no real health data.
 - Full integration suite: `docker compose --profile test build test`, then
   `docker compose --profile test run --rm test` using only the isolated synthetic test DB.
 - Check lint/format, Markdown links and public-content policy. Report checks not run.
 - No cloud provisioning, real health-data uploads, git commits or pushes without user authority.
+- Assistant evaluation (`scripts/eval_assistant.py`) runs only against synthetic users; raw outputs stay in `.local/eval/`. Report model results as observed; never weaken tests to pass.

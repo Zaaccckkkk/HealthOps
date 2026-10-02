@@ -25,6 +25,7 @@ list-all endpoint. SQL row-level security is not implemented; isolation is in ap
 | GET `/v1/observations` | User-scoped history, oldest start time first |
 | DELETE `/v1/observations/{id}` | Delete one owned observation; unknown/other user's ID returns 404 |
 | GET `/v1/tools/...` | Deterministic history tools; see below |
+| POST `/v1/assistant/ask` | Single-turn assistant over the tools; see below |
 
 `ready` is an initial schema check, not proof that every migration or external provider works.
 
@@ -227,6 +228,73 @@ the window length and warning `provider_missing_in_window`, and the difference i
   `definitions` explains every statistic and warning code.
 
 Synthetic example response: [period-comparison.synthetic.json](../examples/period-comparison.synthetic.json).
+
+## Assistant v0 (single-turn question answering over the tools)
+
+Status: engineering implemented and tested with a scripted model; **model quality is measured
+separately** by `scripts/eval_assistant.py` against a local model and reported as observed.
+Disabled unless `HEALTHOPS_ASSISTANT_MODEL_BASE_URL` points at an OpenAI-compatible chat
+endpoint (local Ollama now; vLLM later). The orchestrator does not depend on a specific model
+server, but a compatible HTTP shape does not guarantee identical behaviour: changing the server
+requires rerunning the protocol tests and the evaluation.
+
+| Method / route | Meaning |
+|---|---|
+| POST `/v1/assistant/ask` | One question, bounded tool-calling loop, one structured answer; 503 when no model is configured |
+
+**Input.** `question` (1-2000 characters), `timezone` (required IANA name; the server injects it
+into every tool call and the model cannot choose another), optional `today` (evaluation mode
+only, otherwise 422; the response echoes the date actually used). Identity comes from the bearer
+token, verified in a short-lived session that is closed before the request waits for the
+model, so no pooled connection is held while the model thinks.
+
+**Time semantics.** The server resolves relative phrases into concrete dates and gives them to
+the model; the model never computes dates. Supported phrases: today, yesterday, this week
+(Monday through today), last week (previous Monday to Sunday), the week before last, three
+weeks ago (calendar weeks), past 7 and past 30 days (ending today, inclusive), the previous
+7 and previous 30 days (immediately before those), and "last night" for sleep (yesterday,
+because sleep intervals are assigned to their start day). Dates written in the question are
+used as written. Any other relative phrase is unsupported and must be declined, not guessed. The
+response returns the resolved dates.
+
+**Tool calls.** The model may call only `availability`, `daily_summary`, `period_comparison`
+(schemas generated from the tool parameter models, with no identity field and no timezone
+field) and `decline_request`. Arguments are validated with the same Pydantic models, the
+authenticated `user_id` and the request `timezone` are injected, and the tool's own limits
+(date range, window overlap, record budget) still apply. Tools run in a worker thread with a
+short-lived database session. Budgets: at most 4 tool calls and 6 model turns; a wall-clock
+deadline that covers queueing behind the concurrency gate, every model call and every tool
+call (a tool already running in a worker thread finishes on its own, its result is discarded);
+a character budget checked against the **whole** request sent to the model before every call
+(system prompt, question, tool schemas, model output and tool results; characters are a
+conservative proxy, not tokens); and a byte budget for evidence returned to the caller.
+Exceeding a budget is an explicit status, never silent truncation. One invalid tool call is
+returned to the model as a structured error; a second one stops the request.
+
+**Output.** `status` is one of `answered`, `insufficient_data` (no executed tool returned usable
+data: an empty availability series, a daily summary with no records, or a comparison with no
+window value on either side), `refused` (the model called `decline_request`), `tool_error`,
+`budget_exceeded`, `model_error`. `answer` is the model text or a fixed explanation for the other statuses.
+`tool_calls` lists name, validated arguments, status, tool warnings and duration. `evidence`
+holds the full tool results within the evidence budget; a result that does not fit is replaced
+by an explicit omission marker. `numeric_consistency` reports whether numbers in the answer
+appear in the tool results (`consistent`, `unmatched`, `not_applicable` when the answer has no
+numbers). **This is a diagnostic, not fact verification**: matching numbers can still be
+attached to the wrong direction, unit, window or provider. `time_semantics`, `model` (name,
+endpoint host, prompt version, sampling settings), `limits` and a fixed non-medical
+`disclaimer` complete the response. The model is instructed to report values in the tool's
+unit and granularity and never to average, total or convert across days itself; questions that
+need such aggregates are answered with per-day values or a period comparison, because only tool
+outputs may appear as numbers. `model.thinking` is `null`: the adapter does not control the
+model's reasoning mode and refuses a non-empty `assistant_thinking` setting until a
+backend-specific control is implemented and verified. Logs record tool names and durations,
+never questions or health data.
+
+**Evaluation.** Synthetic development and held-out sets live in `ml/eval/`, generated from one
+source of truth (`build_sets.py`) so that every expected window comes from the same time
+semantics and every data condition is computed from the synthetic history; a test fails on
+drift. Metrics and the manual rubric are described there. Numbers from a local quantized model are small-sample
+descriptive results, not deployment measurements.
 
 ## iOS upload adapter (implemented; Simulator-verified with synthetic data)
 

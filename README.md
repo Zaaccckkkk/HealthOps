@@ -23,8 +23,17 @@ a persisted pending page whose anchor commits only after the server confirms it.
 loop (HealthKit read -> consent -> FastAPI -> PostgreSQL -> tools) was exercised in the **iOS
 Simulator with synthetic samples**; see the [adapter README](ios/HealthOpsUploader/README.md).
 
+The fourth slice adds a single-turn assistant, `POST /v1/assistant/ask`: a bounded tool-calling
+loop in which a chat model may call only the three tools above (plus a decline tool), the server
+validates arguments, injects identity and resolves relative dates, and the response carries the
+answer, every tool call, full evidence, statuses and a numeric-consistency diagnostic. The
+assistant is disabled until an OpenAI-compatible model endpoint is configured; engineering is
+tested with a scripted model, and model quality is evaluated separately on synthetic data
+(`ml/eval/`, `scripts/eval_assistant.py`). No RAG, no conversation storage, no front end.
+
 This is a **local development foundation**, not a publicly deployable health platform.
-No physical-device upload, Google Health connector, RAG, LLM, or cloud deployment is included.
+No physical-device upload, Google Health connector, RAG, remote GPU serving, or cloud
+deployment is included.
 The existing `AppleHealthKitMVP` prototype outside this repository was inspected for mapping
 requirements but was not copied or modified. All committed sample data is synthetic.
 
@@ -92,7 +101,7 @@ The Linux container installation was verified independently and does not need th
 
 ```bash
 # Fast schema/tool/unit tests, no database required:
-uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_ios_contract.py tests/test_public_content.py
+uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_eval_sets.py tests/test_ios_contract.py tests/test_public_content.py
 uv run ruff check .
 uv run ruff format --check .
 python3 scripts/check_public_content.py
@@ -118,7 +127,12 @@ alignment, separate providers, identity injection, date-range overflow and expli
 Period-comparison tests cover mean-of-daily-means versus pooled means, daily-total preference
 without fallback on conflicts, zero totals, unused vendor summaries, provider union with null
 sides, non-overlapping windows and the shared unique-record budget.
-`tests/test_ios_contract.py` validates the Swift adapter's encoded output against the Python
+Assistant tests use a scripted model: identity and timezone injection, server-resolved dates,
+one retry on invalid arguments, unknown tools, a wall-clock deadline that includes queueing,
+whole-request context budget, evidence budget, per-tool insufficient-data judgement, decline
+handling, model errors and the today override; the HTTP adapter has protocol tests with a mock
+transport; the evaluation sets are checked against the time semantics and the synthetic
+history; the integration test runs real tools under the token identity. `tests/test_ios_contract.py` validates the Swift adapter's encoded output against the Python
 schema; on a host with Swift it regenerates the fixture, elsewhere that half is skipped.
 The Swift package has its own tests (`cd ios/HealthOpsUploader && swift test`) for mapping and
 the sync engine (first sync, no-op incremental sync, replay, failure with retained pending page,
@@ -162,8 +176,9 @@ services/
 ios/HealthOpsUploader/  Swift package (core + tests), SwiftUI app, XcodeGen spec and project
 infra/docker/        Container build definition
 tests/               Unit and real-PostgreSQL integration tests
-examples/            Synthetic request fixture and tool response example
-scripts/             Local HTTP smoke test and publication checks
+examples/            Synthetic request fixture and tool response examples
+ml/eval/             Synthetic assistant evaluation sets, rubric and history generator
+scripts/             Local HTTP smoke test, publication checks, assistant evaluation
 docs/                Public English API contract and architecture decisions
 compose.yaml         Local database, migration, API, isolated test services
 pyproject.toml       One Python package/environment for this first service
@@ -192,4 +207,7 @@ or a full English-language detector; manually review the staged diff before push
 
 Planned, not implemented: physical-device networking (LAN/TLS, a reachable host), background
 sync, Google Health upload, deletion sync, further tools (workout history), user default
-timezones, production identity, RAG, LLM serving and cloud provisioning.
+timezones, production identity, RAG, conversation storage, remote GPU serving and cloud
+provisioning. To try the assistant locally, point `HEALTHOPS_ASSISTANT_MODEL_BASE_URL` at an
+OpenAI-compatible endpoint (see `.env.example`); evaluation results are reported in the
+repository only as observed numbers from `scripts/eval_assistant.py`.

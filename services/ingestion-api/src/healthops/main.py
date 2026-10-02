@@ -1,17 +1,24 @@
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import AwareDatetime
 from sqlalchemy import delete, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
-from healthops.auth import SessionDep, UserDep
+from healthops.assistant.contracts import AskRequest, AskResponse
+from healthops.assistant.model import ChatModel, OpenAICompatibleChatModel
+from healthops.assistant.orchestrator import Assistant, AssistantSettings, TodayOverrideNotAllowed
+from healthops.assistant.prompts import PROMPT_VERSION
+from healthops.assistant.toolbox import Toolbox
+from healthops.auth import SessionDep, UserDep, bearer, current_user
 from healthops.config import Settings
 from healthops.db import build_engine
 from healthops.models import Observation, User
@@ -41,7 +48,38 @@ from healthops.tools.period_comparison import period_comparison_tool
 TimezoneQuery = Annotated[str, Query(min_length=1, max_length=80)]
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def build_assistant(
+    settings: Settings, session_factory: sessionmaker, chat_model: ChatModel | None
+):
+    """The assistant exists only when a model endpoint is configured or a model is injected."""
+    if chat_model is None:
+        if not settings.assistant_model_base_url:
+            return None
+        chat_model = OpenAICompatibleChatModel(
+            settings.assistant_model_base_url,
+            settings.assistant_model_name,
+            prompt_version=PROMPT_VERSION,
+            timeout_seconds=settings.assistant_model_timeout_seconds,
+            max_output_tokens=settings.assistant_max_output_tokens,
+            temperature=settings.assistant_temperature,
+            thinking=settings.assistant_thinking,
+        )
+    return Assistant(
+        chat_model,
+        Toolbox(session_factory),
+        AssistantSettings(
+            max_tool_calls=settings.assistant_max_tool_calls,
+            max_model_turns=settings.assistant_max_model_turns,
+            deadline_seconds=settings.assistant_deadline_seconds,
+            model_context_budget_chars=settings.assistant_model_context_budget_chars,
+            evidence_budget_bytes=settings.assistant_evidence_budget_bytes,
+            max_concurrency=settings.assistant_max_concurrency,
+            allow_today_override=settings.assistant_allow_today_override,
+        ),
+    )
+
+
+def create_app(settings: Settings | None = None, chat_model: ChatModel | None = None) -> FastAPI:
     settings = settings or Settings()
     settings.require_local()
     engine = build_engine(settings.database_url.get_secret_value())
@@ -53,6 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="HealthOps local ingestion API", version="0.1.0", lifespan=lifespan)
     app.state.session_factory = sessionmaker(engine, expire_on_commit=False)
+    app.state.assistant = build_assistant(settings, app.state.session_factory, chat_model)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, exc: RequestValidationError):
@@ -209,6 +248,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         try:
             return period_comparison_tool(session, user.id, params)
+        except ToolInputError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/v1/assistant/ask", response_model=AskResponse)
+    async def assistant_ask(
+        body: AskRequest,
+        request: Request,
+        credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+    ):
+        # Authentication uses its own short-lived session that is closed before the request
+        # waits for the concurrency gate or the model, so no pooled connection is held while
+        # the model thinks. Tools open their own short-lived sessions in a worker thread.
+        assistant: Assistant | None = request.app.state.assistant
+        if assistant is None:
+            raise HTTPException(503, "Assistant not configured: no model endpoint is set.")
+
+        def authenticate():
+            with request.app.state.session_factory() as session:
+                return current_user(session, credentials).id
+
+        user_id = await asyncio.to_thread(authenticate)
+        try:
+            return await assistant.ask(body, user_id)
+        except TodayOverrideNotAllowed as exc:
+            raise HTTPException(
+                422, "The today override is only allowed in evaluation mode."
+            ) from exc
         except ToolInputError as exc:
             raise HTTPException(422, str(exc)) from exc
 

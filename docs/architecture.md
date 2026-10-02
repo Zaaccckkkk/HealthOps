@@ -19,15 +19,16 @@ introduce service-specific packages/lockfiles when dependency or release isolati
 |---|---|---|
 | `services/ingestion-api/` | Implemented, locally tested | Typed observation ingestion and user history |
 | `services/ingestion-api/src/healthops/tools/` | Implemented, locally tested | Deterministic, user-scoped history tools served by the same process |
+| `services/ingestion-api/src/healthops/assistant/` | Implemented; engineering tested with a scripted model | Single-turn tool-calling orchestration; model quality evaluated separately |
+| `ml/eval/` | Implemented (synthetic question sets, rubric, history generator) | Assistant evaluation data; raw outputs stay local |
 | `infra/docker/` | Implemented, locally tested | Local container image build |
 | `tests/` | Implemented | Schema, API, database and repository-policy tests |
 | `ios/HealthOpsUploader/` | Implemented; Simulator-verified with synthetic data | Consented HealthKit upload with replay-safe incremental sync; old prototype is outside this repo and unchanged |
 | `services/wearable-connectors/` | Planned; not created | Provider adapters and sync workers when server-side sync is implemented |
-| `services/api-service/` | Planned; not created | User-facing orchestration, agent router and deterministic analytics tools |
+| `services/api-service/` | Planned; not created | Future home of orchestration and tools if a second runtime is justified; today both live in the ingestion API process |
 | `services/retrieval-service/` | Planned; not created | Knowledge ingestion, retrieval and citation metadata |
-| `services/llm-serving/` | Planned; not created | vLLM GPU inference, independently deployed from CPU services |
+| `services/llm-serving/` | Planned; not created | vLLM GPU inference. Development uses a local OpenAI-compatible endpoint; switching servers needs protocol tests and re-evaluation |
 | `schemas/` | Planned; not created | Versioned cross-language contracts; today the Swift adapter is checked against the Python schema by `tests/test_ios_contract.py` |
-| `ml/` | Planned; not created | Evaluation datasets, experiments and model-quality checks |
 | `infra/kubernetes/`, `infra/terraform/` | Planned; not created | Deployment/infrastructure definitions when authorized |
 
 Analytics tools, the agent router and a transparent recovery indicator start as Python
@@ -59,6 +60,12 @@ The iOS adapter feeds that boundary: HealthKit anchored query -> consent filter 
 mapping -> persisted pending page -> `POST /v1/observations/batch` -> anchor commit on success.
 Verified in the iOS Simulator against the loopback API with synthetic samples; no physical
 device, LAN exposure or TLS is involved.
+
+The assistant sits on top of the tools: authenticated route -> server-resolved time semantics
+-> model turn -> validated tool call with injected identity -> tool executed in a worker
+thread with a short-lived session -> bounded result returned to the model -> structured answer
+with evidence, statuses and a numeric-consistency diagnostic. The model never sees identity,
+never computes dates and cannot name any tool outside the registry.
 
 Deterministic tools read that history back: authenticated route -> typed tool parameters ->
 user-scoped, bounded SQL -> Decimal computation in Python -> typed result with statistical
@@ -95,6 +102,10 @@ It does not yet collect wearable data itself. No iOS sources were copied into th
 - One explicit statistical timezone per tool query rather than per-record `source_timezone`:
   a daily series must have one day boundary to be interpretable. Vendor daily records that do
   not align with that boundary are reported as unaligned, never shifted or split.
+- Assistant engineering and model quality are verified separately: scripted-model tests prove
+  budgets, identity injection and statuses; the evaluation script measures a real local model
+  on synthetic data and reports whatever it finds. A local Q4 model's quality and latency are
+  not a measurement of a future vLLM deployment.
 - uv lockfile for Python dependencies. Base images use version tags, not immutable digests;
   a future deployment release should pin tested digests and establish security-update cadence.
 
@@ -105,7 +116,8 @@ rate limits/body-size gateway limits, Cloud SQL/GCS provisioning, backups and fu
 account deletion, source OAuth/token renewal, background workers, background or automatic
 device sync, physical-device networking, Google Health upload, source update/delete sync,
 structured workouts/check-ins, further analytics (workout history), user default timezone
-settings, RAG/pgvector, LLM tool orchestration, vLLM/GPU, GKE and Bayesian models.
+settings, RAG/pgvector, conversation storage, streaming answers, remote GPU serving (vLLM),
+GKE and Bayesian models.
 
 An eight-metric observation schema is not a complete health-domain model. Subjective check-ins,
 sleep stages, workouts and sets will have their own contracts when implemented. The Swift
