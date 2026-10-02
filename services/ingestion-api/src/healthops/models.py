@@ -42,6 +42,9 @@ class Observation(Base):
         ),
         sa.Index("ix_observations_user_time", "user_id", "started_at", "id"),
         sa.Index("ix_observations_user_metric_time", "user_id", "metric", "started_at"),
+        # Bounds the overlap-context scan of the daily-summary tool (intervals ending after a
+        # window start) without reading the whole history of a metric.
+        sa.Index("ix_observations_user_metric_end", "user_id", "metric", "ended_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)

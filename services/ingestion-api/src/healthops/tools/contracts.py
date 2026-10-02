@@ -13,17 +13,17 @@ MetricClass = Literal["point", "cumulative"]
 
 class ToolWindow(BaseModel):
     timezone: str
-    start_date: date | None
-    end_date: date | None
-    start_utc: datetime | None
-    end_utc: datetime | None
+    start_date: date
+    end_date: date
+    start_utc: datetime
+    end_utc: datetime
 
 
 class AvailabilityParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
     timezone: str = Field(min_length=1, max_length=80)
-    start_date: date | None = None
-    end_date: date | None = None
+    start_date: date
+    end_date: date
 
 
 class AvailabilitySeries(BaseModel):

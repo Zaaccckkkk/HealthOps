@@ -151,8 +151,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         user: UserDep,
         session: SessionDep,
         timezone: TimezoneQuery,
-        start_date: date | None = None,
-        end_date: date | None = None,
+        start_date: date,
+        end_date: date,
     ):
         params = AvailabilityParams(timezone=timezone, start_date=start_date, end_date=end_date)
         try:

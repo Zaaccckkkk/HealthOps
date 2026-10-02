@@ -100,8 +100,10 @@ snapshot during concurrent inserts/deletes and not an incremental sync cursor.
 Status: implemented and tested locally with synthetic data. These read-only endpoints are the
 first typed tools intended for a future tool-using LLM. The server injects the authenticated
 `user_id`; a `user_id` query parameter is ignored. No endpoint accepts or executes generated SQL.
-Both tools require an explicit IANA `timezone`; one statistical timezone applies to the whole
-query. A record's `source_timezone` is preserved as provenance and does not assign local days.
+Both tools require an explicit IANA `timezone` and an inclusive local date window; one
+statistical timezone applies to the whole query. A record's `source_timezone` is preserved as
+provenance and does not assign local days. Supported dates are 2000-01-01 to 2100-12-31; other
+dates return 422 instead of overflowing timezone arithmetic.
 Timezone names are checked by Python's `zoneinfo`; PostgreSQL also resolves the name for
 `availability`, and a name unknown to the database returns 422 rather than 503.
 
@@ -112,20 +114,22 @@ Timezone names are checked by Python's `zoneinfo`; PostgreSQL also resolves the 
 
 ### Availability
 
-Parameters: `timezone` (required), optional `start_date`, `end_date` (inclusive local dates).
+Parameters: `timezone`, `start_date`, `end_date` (all required; at most 366 local days).
 Each series reports `record_count`, `first_started_at`, `last_started_at` (UTC) and
 `local_days_with_records`, the number of distinct local dates containing at least one record
 start. The response carries `notes` stating that absence of records means no accessible records
 in this system, not inactivity, no device wear, or denied authorization, and that the day count
-is not a coverage ratio. Counting happens in SQL; no record limit applies.
+is not a coverage ratio. Counting happens in SQL over records starting inside the window; the
+scan is bounded by the user/time index range, not by a limit on aggregated rows. Whole-history
+availability is not offered.
 
 ### Daily summary
 
 Parameters: `metric`, `timezone`, `start_date`, `end_date` (inclusive, at most 93 local days),
 optional `provider`. A local day is `[local midnight, next local midnight)`, so DST days have 23
-or 25 hours. Records are selected and assigned by **start time**; an interval starting before the
-window is excluded. More than 10000 records in the window returns 422 asking the caller to narrow
-the request; results are never silently truncated. Every day in the window appears for every
+or 25 hours. Records are selected and assigned by **start time**; an interval starting outside the
+window is never summarized (see overlap below). More than 10000 records, including overlap
+context, returns 422 asking the caller to narrow the request; results are never truncated. Every day in the window appears for every
 provider that has at least one record; days without data carry counts of 0 and `null` values.
 
 | Metric class | `sample` | `interval_total` | `daily_total` | `daily_summary` |
@@ -139,8 +143,20 @@ provider that has at least one record; days without data carry counts of 0 and `
   ends on a later day is assigned wholly to its start day with warning
   `interval_crosses_day_boundary`; nothing is split or allocated proportionally. Durations are
   never derived from timestamps: a sleep record's value is the vendor's reported seconds, not
-  `ended_at - started_at`. Overlapping intervals from the same provider and day make the sum
-  `null` with warning `overlapping_intervals`, because the overlap cannot be deduplicated.
+  `ended_at - started_at`.
+- Overlap is checked per provider over the complete context, not per day and not only inside
+  the window. Half-open intervals that overlap make `interval_total_sum` `null` on the start day
+  of **every** record involved, with warning `overlapping_intervals`, because the overlap cannot
+  be deduplicated. The tool loads every `interval_total` record of the same user, metric and
+  provider filter that starts outside the window but can intersect an in-window interval
+  (ends after the window starts and starts before the last in-window interval ends), on either
+  side of the window. Context records take part in overlap detection only and are not counted
+  in `record_count`. The verdict for a given day therefore does not depend on the window chosen.
+  Context records share the 10000-record budget; exceeding it returns 422 rather than skipping
+  the check. Migration `0002` adds an index on `(user_id, metric, ended_at)` to bound that scan.
+- An `interval_total` with `started_at == ended_at` has no duration and cannot be checked for
+  overlap; it is counted in `unsupported_count` with warning `zero_length_interval` and never
+  summed.
 - `daily_total` / `daily_summary` are used only when the record interval equals the local day
   exactly. Otherwise the record is counted in `unaligned_count` with warning
   `unaligned_daily_record`; it is not moved to another date. Several aligned records for one

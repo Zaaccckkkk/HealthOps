@@ -11,7 +11,12 @@ from healthops.schemas import UNITS, Metric
 from healthops.tools.availability import build_availability
 from healthops.tools.contracts import ToolWindow
 from healthops.tools.daily_summary import DEFINITIONS, metric_class, summarize_days
-from healthops.tools.local_days import MAX_SUMMARY_DAYS, LocalDayWindow, ToolInputError
+from healthops.tools.local_days import (
+    MAX_AVAILABILITY_DAYS,
+    MAX_SUMMARY_DAYS,
+    LocalDayWindow,
+    ToolInputError,
+)
 
 NY = "America/New_York"
 
@@ -65,6 +70,22 @@ def test_window_limits_are_explicit_errors():
         window("2026-01-02", "2026-01-01")
     with pytest.raises(ToolInputError, match="IANA"):
         window("2026-01-01", timezone="Mars/Olympus")
+
+
+@pytest.mark.parametrize("day", ["9999-12-31", "0001-01-01", "1999-12-31", "2101-01-01"])
+def test_dates_outside_supported_calendar_are_rejected_not_overflowed(day):
+    with pytest.raises(ToolInputError, match="between 2000-01-01 and 2100-12-31"):
+        LocalDayWindow.from_dates(NY, date.fromisoformat(day), date.fromisoformat(day), 1)
+    with pytest.raises(ToolInputError, match="between 2000-01-01 and 2100-12-31"):
+        LocalDayWindow.from_dates(
+            NY, date(2026, 1, 1), date.fromisoformat(day), MAX_AVAILABILITY_DAYS
+        )
+
+
+def test_supported_calendar_edges_work_in_extreme_zones():
+    for zone in ("Pacific/Kiritimati", "Etc/GMT+12"):  # UTC+14 and UTC-12
+        LocalDayWindow.from_dates(zone, date(2000, 1, 1), date(2000, 1, 1), 1)
+        LocalDayWindow.from_dates(zone, date(2100, 12, 31), date(2100, 12, 31), 1)
 
 
 def test_missing_days_are_null_not_zero():
@@ -166,10 +187,85 @@ def test_overlapping_intervals_produce_no_total():
     touching = [
         obs(Metric.STEPS, "interval_total", 100, "2026-10-01T14:00:00Z", "2026-10-01T15:00:00Z"),
         obs(Metric.STEPS, "interval_total", 40, "2026-10-01T15:00:00Z", "2026-10-01T16:00:00Z"),
-        obs(Metric.STEPS, "interval_total", 1, "2026-10-01T14:30:00Z"),  # empty half-open interval
     ]
     summary = day(summarize_days(touching, Metric.STEPS, w))
-    assert summary.interval_total_sum == Decimal("141") and summary.warnings == []
+    assert summary.interval_total_sum == Decimal("140") and summary.warnings == []
+
+
+def test_zero_length_interval_totals_are_excluded_not_summed():
+    w = window("2026-10-01")
+    records = [
+        obs(Metric.STEPS, "interval_total", 100, "2026-10-01T14:00:00Z"),
+        obs(Metric.STEPS, "interval_total", 100, "2026-10-01T14:00:00Z"),
+        obs(Metric.STEPS, "interval_total", 40, "2026-10-01T15:00:00Z", "2026-10-01T16:00:00Z"),
+    ]
+    summary = day(summarize_days(records, Metric.STEPS, w))
+    # Two identical zero-length records cannot be checked for overlap; they never reach the sum.
+    assert (summary.interval_total_count, summary.interval_total_sum) == (1, Decimal("40"))
+    assert summary.unsupported_count == 2 and summary.warnings == ["zero_length_interval"]
+
+
+def test_overlap_across_midnight_blanks_both_days():
+    w = window("2026-10-01", "2026-10-03")
+    records = [
+        # 23:30 Oct 1 to 00:30 Oct 2 New York, and 00:00 to 01:00 Oct 2: 30 minutes overlap.
+        obs(Metric.STEPS, "interval_total", 100, "2026-10-02T03:30:00Z", "2026-10-02T04:30:00Z"),
+        obs(Metric.STEPS, "interval_total", 80, "2026-10-02T04:00:00Z", "2026-10-02T05:00:00Z"),
+        obs(Metric.STEPS, "interval_total", 10, "2026-10-03T12:00:00Z", "2026-10-03T12:30:00Z"),
+    ]
+    oct1, oct2, oct3 = summarize_days(records, Metric.STEPS, w).providers[0].days
+    assert oct1.interval_total_sum is None and oct1.interval_total_count == 1
+    assert oct1.warnings == ["interval_crosses_day_boundary", "overlapping_intervals"]
+    assert oct2.interval_total_sum is None and oct2.warnings == ["overlapping_intervals"]
+    assert oct3.interval_total_sum == Decimal("10") and oct3.warnings == []
+
+
+def test_context_intervals_outside_the_window_blank_the_overlapped_day():
+    w = window("2026-10-02", "2026-10-03")
+    before = obs(
+        Metric.STEPS, "interval_total", 100, "2026-10-02T03:30:00Z", "2026-10-02T04:30:00Z"
+    )  # starts 23:30 Oct 1, before the window
+    after = obs(
+        Metric.STEPS, "interval_total", 5, "2026-10-04T04:00:00Z", "2026-10-04T05:00:00Z"
+    )  # starts 00:00 Oct 4, after the window, overlapping an Oct 3 interval that runs late
+    inside = [
+        obs(Metric.STEPS, "interval_total", 80, "2026-10-02T04:00:00Z", "2026-10-02T05:00:00Z"),
+        obs(Metric.STEPS, "interval_total", 10, "2026-10-04T03:30:00Z", "2026-10-04T04:30:00Z"),
+    ]
+    result = summarize_days(inside, Metric.STEPS, w, context_intervals=[before, after])
+    oct2, oct3 = result.providers[0].days
+    assert oct2.interval_total_sum is None and oct2.warnings == ["overlapping_intervals"]
+    assert oct3.interval_total_sum is None
+    assert oct3.warnings == ["interval_crosses_day_boundary", "overlapping_intervals"]
+    assert result.record_count == 2  # context records are never summarized or counted
+    with pytest.raises(ValueError, match="context interval inside"):
+        summarize_days(inside, Metric.STEPS, w, context_intervals=inside[:1])
+
+
+def test_same_day_result_does_not_depend_on_window_size():
+    a = obs(Metric.STEPS, "interval_total", 100, "2026-10-02T03:30:00Z", "2026-10-02T04:30:00Z")
+    b = obs(Metric.STEPS, "interval_total", 80, "2026-10-02T04:00:00Z", "2026-10-02T05:00:00Z")
+    wide = day(summarize_days([a, b], Metric.STEPS, window("2026-10-01", "2026-10-02")))
+    narrow = day(summarize_days([a], Metric.STEPS, window("2026-10-01"), context_intervals=[b]))
+    assert wide.interval_total_sum is None and narrow.interval_total_sum is None
+    assert "overlapping_intervals" in wide.warnings and "overlapping_intervals" in narrow.warnings
+
+
+def test_overlap_detection_is_per_provider():
+    w = window("2026-10-01")
+    records = [
+        obs(Metric.STEPS, "interval_total", 100, "2026-10-01T14:00:00Z", "2026-10-01T15:00:00Z"),
+        obs(
+            Metric.STEPS,
+            "interval_total",
+            40,
+            "2026-10-01T14:30:00Z",
+            "2026-10-01T16:00:00Z",
+            provider="google_health",
+        ),
+    ]
+    result = summarize_days(records, Metric.STEPS, w)
+    assert [day(result, i).interval_total_sum for i in range(2)] == [Decimal("40"), Decimal("100")]
 
 
 def test_daily_total_must_match_the_local_day_exactly():
@@ -280,6 +376,7 @@ def test_every_emitted_warning_is_defined():
         "multiple_daily_records",
         "mixed_total_kinds",
         "unsupported_aggregation",
+        "zero_length_interval",
         "no_records_in_window",
     }
     assert {f"warning:{code}" for code in codes} <= DEFINITIONS.keys()
@@ -296,10 +393,16 @@ def test_availability_shape_and_notes():
         last_started_at=datetime(2026, 10, 2, tzinfo=UTC),
         local_days_with_records=2,
     )
+    w = window("2026-10-01", "2026-10-02")
     tool_window = ToolWindow(
-        timezone=NY, start_date=None, end_date=None, start_utc=None, end_utc=None
+        timezone=NY,
+        start_date=w.start_date,
+        end_date=w.end_date,
+        start_utc=w.start_utc,
+        end_utc=w.end_utc,
     )
     result = build_availability([row], tool_window)
     assert result.series[0].local_days_with_records == 2
     assert any("denied authorization" in note for note in result.notes)
     assert any("not a coverage ratio" in note for note in result.notes)
+    assert any("older history is not examined" in note for note in result.notes)

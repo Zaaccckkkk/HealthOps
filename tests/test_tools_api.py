@@ -7,6 +7,7 @@ from healthops.tools import queries
 pytestmark = pytest.mark.integration
 
 NY = "America/New_York"
+YEAR = {"timezone": NY, "start_date": "2026-01-01", "end_date": "2026-12-31"}
 
 
 def upload(client, headers, *records):
@@ -31,17 +32,14 @@ def sample(record, source_record_id, started, metric="heart_rate", unit="bpm", v
 def test_tools_use_authenticated_identity_only(client, credentials, record):
     alice, bob = credentials
     upload(client, alice, record)
-    assert client.get("/v1/tools/availability", params={"timezone": NY}).status_code == 401
+    assert client.get("/v1/tools/availability", params=YEAR).status_code == 401
     bob_id = client.get("/v1/me", headers=bob).json()["id"]
     # An extra user_id query parameter is ignored; the token decides whose data is read.
     mine = client.get(
-        "/v1/tools/availability", headers=alice, params={"timezone": NY, "user_id": bob_id}
+        "/v1/tools/availability", headers=alice, params=YEAR | {"user_id": bob_id}
     ).json()
     assert [s["record_count"] for s in mine["series"]] == [1]
-    assert (
-        client.get("/v1/tools/availability", headers=bob, params={"timezone": NY}).json()["series"]
-        == []
-    )
+    assert client.get("/v1/tools/availability", headers=bob, params=YEAR).json()["series"] == []
     summary = client.get(
         "/v1/tools/daily-summary",
         headers=bob,
@@ -69,17 +67,15 @@ def test_availability_counts_local_days_in_the_database(client, credentials, rec
     )
     by_metric = {
         s["metric"]: s
-        for s in client.get(
-            "/v1/tools/availability", headers=alice, params={"timezone": NY}
-        ).json()["series"]
+        for s in client.get("/v1/tools/availability", headers=alice, params=YEAR).json()["series"]
     }
     assert set(by_metric) == {"heart_rate", "hrv_sdnn", "hrv_rmssd"}
     heart = by_metric["heart_rate"]
     assert (heart["record_count"], heart["local_days_with_records"]) == (4, 3)
     assert heart["first_started_at"].startswith("2026-10-01T03:00:00")
-    utc = client.get("/v1/tools/availability", headers=alice, params={"timezone": "UTC"}).json()[
-        "series"
-    ]
+    utc = client.get(
+        "/v1/tools/availability", headers=alice, params=YEAR | {"timezone": "UTC"}
+    ).json()["series"]
     assert next(s for s in utc if s["metric"] == "heart_rate")["local_days_with_records"] == 2
     october = client.get(
         "/v1/tools/availability",
@@ -159,8 +155,107 @@ def test_record_limit_refuses_instead_of_truncating(client, credentials, record,
     )
 
 
-def test_availability_rejects_invalid_timezone(client, credentials):
-    response = client.get(
-        "/v1/tools/availability", headers=credentials[0], params={"timezone": "Mars/Olympus"}
+@pytest.mark.parametrize(
+    ("params", "fragment"),
+    [
+        ({"timezone": "Mars/Olympus"}, "IANA"),
+        ({"end_date": "2027-01-02"}, "at most 366"),
+        ({"end_date": "9999-12-31"}, "between 2000-01-01 and 2100-12-31"),
+        ({"start_date": "0001-01-01"}, "between 2000-01-01 and 2100-12-31"),
+    ],
+)
+def test_availability_window_is_bounded(client, credentials, params, fragment):
+    base = {"timezone": NY, "start_date": "2026-01-01", "end_date": "2026-12-31"}
+    response = client.get("/v1/tools/availability", headers=credentials[0], params=base | params)
+    assert response.status_code == 422, response.text
+    assert fragment in response.json()["detail"]
+
+
+def test_availability_requires_a_window(client, credentials):
+    response = client.get("/v1/tools/availability", headers=credentials[0], params={"timezone": NY})
+    assert response.status_code == 422
+    assert {e["loc"][-1] for e in response.json()["detail"]} == {"start_date", "end_date"}
+
+
+def test_daily_summary_date_overflow_is_422_not_500(client, credentials):
+    params = {
+        "metric": "steps",
+        "timezone": NY,
+        "start_date": "2026-10-01",
+        "end_date": "9999-12-31",
+    }
+    response = client.get("/v1/tools/daily-summary", headers=credentials[0], params=params)
+    assert response.status_code == 422 and "2100-12-31" in response.json()["detail"]
+
+
+def interval(record, source_record_id, value, started, ended):
+    return record | {
+        "source_record_id": source_record_id,
+        "metric": "steps",
+        "unit": "count",
+        "aggregation": "interval_total",
+        "value": value,
+        "started_at": started,
+        "ended_at": ended,
+    }
+
+
+STEPS_DAY = {"metric": "steps", "timezone": NY}
+
+
+def oct1_window(client, headers, start, end):
+    params = STEPS_DAY | {"start_date": start, "end_date": end}
+    return client.get("/v1/tools/daily-summary", headers=headers, params=params).json()
+
+
+def test_overlap_context_is_complete_on_both_sides_of_the_window(client, credentials, record):
+    alice = credentials[0]
+    upload(
+        client,
+        alice,
+        # A: 23:30 Oct 1 to 00:30 Oct 2 New York; B: 00:00 to 01:00 Oct 2. Overlap 30 minutes.
+        interval(record, "a", 100, "2026-10-02T03:30:00Z", "2026-10-02T04:30:00Z"),
+        interval(record, "b", 80, "2026-10-02T04:00:00Z", "2026-10-02T05:00:00Z"),
+        interval(record, "clean", 10, "2026-10-03T12:00:00Z", "2026-10-03T12:30:00Z"),
     )
-    assert response.status_code == 422 and "IANA" in response.json()["detail"]
+    # Same day, three windows: the verdict for Oct 1 and Oct 2 must not depend on the window.
+    only_oct1 = oct1_window(client, alice, "2026-10-01", "2026-10-01")["providers"][0]["days"][0]
+    assert only_oct1["interval_total_sum"] is None
+    assert "overlapping_intervals" in only_oct1["warnings"]
+    only_oct2 = oct1_window(client, alice, "2026-10-02", "2026-10-03")
+    oct2, oct3 = only_oct2["providers"][0]["days"]
+    assert oct2["interval_total_sum"] is None and oct2["warnings"] == ["overlapping_intervals"]
+    assert oct3["interval_total_sum"] == "10.000000" and only_oct2["record_count"] == 2
+    both = oct1_window(client, alice, "2026-10-01", "2026-10-02")["providers"][0]["days"]
+    assert [d["interval_total_sum"] for d in both] == [None, None]
+
+
+def test_long_interval_starting_days_earlier_is_still_detected(client, credentials, record):
+    alice = credentials[0]
+    upload(
+        client,
+        alice,
+        # Starts Sep 29 23:00 New York and ends Oct 2 00:30; overlaps B below by 30 minutes.
+        interval(record, "long", 500, "2026-09-30T03:00:00Z", "2026-10-02T04:30:00Z"),
+        interval(record, "b", 80, "2026-10-02T04:00:00Z", "2026-10-02T05:00:00Z"),
+    )
+    oct2 = oct1_window(client, alice, "2026-10-02", "2026-10-02")["providers"][0]["days"][0]
+    assert oct2["interval_total_sum"] is None and oct2["warnings"] == ["overlapping_intervals"]
+
+
+def test_overlap_context_counts_against_the_record_budget(client, credentials, record, monkeypatch):
+    alice = credentials[0]
+    upload(
+        client,
+        alice,
+        interval(record, "in", 80, "2026-10-02T04:00:00Z", "2026-10-02T06:00:00Z"),
+        interval(record, "ctx-1", 1, "2026-10-02T03:00:00Z", "2026-10-02T04:30:00Z"),
+        interval(record, "ctx-2", 1, "2026-10-02T03:10:00Z", "2026-10-02T04:40:00Z"),
+    )
+    monkeypatch.setattr(queries, "MAX_SUMMARY_RECORDS", 2)
+    response = client.get(
+        "/v1/tools/daily-summary",
+        headers=alice,
+        params=STEPS_DAY | {"start_date": "2026-10-02", "end_date": "2026-10-02"},
+    )
+    assert response.status_code == 422 and "More than 2 records" in response.json()["detail"]

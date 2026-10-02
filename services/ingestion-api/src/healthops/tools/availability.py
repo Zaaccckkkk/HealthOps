@@ -1,6 +1,5 @@
 """Which accessible records exist for the authenticated user, grouped by source and definition."""
 
-from datetime import timedelta
 from uuid import UUID
 
 from sqlalchemy import Row
@@ -12,7 +11,7 @@ from healthops.tools.contracts import (
     AvailabilitySeries,
     ToolWindow,
 )
-from healthops.tools.local_days import ToolInputError, load_timezone, local_midnight
+from healthops.tools.local_days import MAX_AVAILABILITY_DAYS, LocalDayWindow
 from healthops.tools.queries import availability_rows
 
 NOTES = [
@@ -21,6 +20,8 @@ NOTES = [
     "it does not indicate inactivity, no device wear, or denied authorization.",
     "local_days_with_records counts distinct local dates (requested timezone) containing at least "
     "one record start. It is not a coverage ratio or a completeness guarantee.",
+    "Only records starting inside the requested window (at most 366 local days) are counted; "
+    "older history is not examined by this call.",
     "provider is the acquisition channel, not a verified single device.",
 ]
 
@@ -48,17 +49,17 @@ def build_availability(rows: list[Row], window: ToolWindow) -> AvailabilityResul
 def availability_tool(
     session: Session, user_id: UUID, params: AvailabilityParams
 ) -> AvailabilityResult:
-    zone = load_timezone(params.timezone)
-    if params.start_date and params.end_date and params.end_date < params.start_date:
-        raise ToolInputError("end_date must not precede start_date.")
-    start_utc = local_midnight(params.start_date, zone) if params.start_date else None
-    end_utc = local_midnight(params.end_date + timedelta(days=1), zone) if params.end_date else None
-    rows = availability_rows(session, user_id, zone.key, start_utc, end_utc)
-    window = ToolWindow(
-        timezone=zone.key,
-        start_date=params.start_date,
-        end_date=params.end_date,
-        start_utc=start_utc,
-        end_utc=end_utc,
+    window = LocalDayWindow.from_dates(
+        params.timezone, params.start_date, params.end_date, MAX_AVAILABILITY_DAYS
     )
-    return build_availability(rows, window)
+    rows = availability_rows(session, user_id, window)
+    return build_availability(
+        rows,
+        ToolWindow(
+            timezone=window.zone.key,
+            start_date=window.start_date,
+            end_date=window.end_date,
+            start_utc=window.start_utc,
+            end_utc=window.end_utc,
+        ),
+    )

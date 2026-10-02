@@ -6,6 +6,10 @@ from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 MAX_SUMMARY_DAYS = 93
+MAX_AVAILABILITY_DAYS = 366
+# Supported calendar range: keeps timezone arithmetic away from datetime overflow at both ends.
+MIN_DATE = date(2000, 1, 1)
+MAX_DATE = date(2100, 12, 31)
 
 
 class ToolInputError(ValueError):
@@ -22,7 +26,10 @@ def load_timezone(name: str) -> ZoneInfo:
 def local_midnight(day: date, zone: ZoneInfo) -> datetime:
     # A DST transition exactly at midnight is resolved by Python's fold=0 rule; such zones are
     # documented as a limitation rather than handled specially.
-    return datetime(day.year, day.month, day.day, tzinfo=zone).astimezone(UTC)
+    try:
+        return datetime(day.year, day.month, day.day, tzinfo=zone).astimezone(UTC)
+    except OverflowError as exc:
+        raise ToolInputError("Date is outside the supported calendar range.") from exc
 
 
 @dataclass(frozen=True)
@@ -37,13 +44,17 @@ class LocalDayWindow:
 
     @classmethod
     def from_dates(
-        cls, timezone: str, start_date: date, end_date: date, max_days: int | None
+        cls, timezone: str, start_date: date, end_date: date, max_days: int
     ) -> "LocalDayWindow":
         zone = load_timezone(timezone)
+        if not (MIN_DATE <= start_date <= MAX_DATE and MIN_DATE <= end_date <= MAX_DATE):
+            raise ToolInputError(
+                f"Dates must be between {MIN_DATE.isoformat()} and {MAX_DATE.isoformat()}."
+            )
         if end_date < start_date:
             raise ToolInputError("end_date must not precede start_date.")
         days = (end_date - start_date).days + 1
-        if max_days is not None and days > max_days:
+        if days > max_days:
             raise ToolInputError(
                 f"The window spans {days} local days; this tool accepts at most {max_days}."
             )

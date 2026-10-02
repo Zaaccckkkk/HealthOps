@@ -9,8 +9,10 @@ Docker Compose. It accepts canonical observations and retrieves the authenticate
 The second slice adds two deterministic, user-scoped history tools in the same process:
 `GET /v1/tools/availability` and `GET /v1/tools/daily-summary`. They are typed Python functions
 intended for a future tool-using LLM; the LLM itself, RAG and tool orchestration are not included.
-Tool results carry statistical definitions and warnings, never fill missing data with zero,
-and refuse requests above their span/record limits instead of truncating. Verification used
+Tool results carry statistical definitions and warnings and never fill missing data with zero.
+Both tools require a timezone and a date window (93 days for summaries, 366 for availability,
+dates 2000-2100); summaries also cap in-memory records at 10000. Requests above a limit are
+refused with 422, never truncated. Verification used
 synthetic records only; no live device-to-tool path has been exercised.
 
 This is a **local development foundation**, not a publicly deployable health platform.
@@ -103,9 +105,10 @@ Tests cover timezone/unit validation, SDNN vs RMSSD, authorization, cross-user r
 expired/revoked tokens, exact and concurrent replay, conflict rollback, filters/pagination,
 safe validation errors, credential-file permissions, and migration/model consistency.
 Tool tests cover DST day lengths, local-vs-UTC dates, null-not-zero missing days, unweighted
-sample means, unsupported metric/aggregation pairs, interval overlap and midnight crossing,
-vendor daily record alignment, separate providers, identity injection and explicit limits.
-The eight repository-policy tests run on the host with Git, separately from the 65 application
+sample means, unsupported metric/aggregation pairs, interval overlap across days and outside
+the window (same verdict regardless of window size), zero-length intervals, vendor daily record
+alignment, separate providers, identity injection, date-range overflow and explicit limits.
+The eight repository-policy tests run on the host with Git, separately from the 83 application
 tests in the container. The application image does not install Git for repository checks.
 
 ## Local development without rebuilding the API

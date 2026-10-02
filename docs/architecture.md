@@ -54,8 +54,10 @@ transaction -> PostgreSQL; user-scoped history can be retrieved through HTTP.
 
 Deterministic tools read that history back: authenticated route -> typed tool parameters ->
 user-scoped, bounded SQL -> Decimal computation in Python -> typed result with statistical
-definitions and warnings. Rules are in the [API contract](api-contract.md). Tools were verified
-with synthetic records only; no live device-to-tool path has been exercised.
+definitions and warnings. Rules are in the [API contract](api-contract.md). Migration `0002`
+adds only an index on `(user_id, metric, ended_at)` so the tool's overlap-context query is
+bounded by intervals ending after the window instead of a metric's whole history. Tools were
+verified with synthetic records only; no live device-to-tool path has been exercised.
 
 This is the first durable interface for future Swift/provider adapters and Python analytics.
 It does not yet collect wearable data itself. No iOS sources were copied into the new repository.
@@ -80,7 +82,8 @@ It does not yet collect wearable data itself. No iOS sources were copied into th
 - Tool statistics in Python `Decimal` over SQL-filtered rows, with a 93-day span and 10000-record
   limit that fail explicitly: readable, exactly testable definitions for personal-history volumes.
   This is an assumption, not a measurement; push aggregation into SQL if profiling shows a need.
-  Availability counts distinct local days in SQL because it may span the whole history.
+  Availability aggregates in SQL within a required window of at most 366 days, so the scan is
+  bounded by the user/time index range; whole-history availability is deliberately not offered.
 - One explicit statistical timezone per tool query rather than per-record `source_timezone`:
   a daily series must have one day boundary to be interpretable. Vendor daily records that do
   not align with that boundary are reported as unaligned, never shifted or split.

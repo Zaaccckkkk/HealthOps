@@ -47,7 +47,14 @@ def main():
             offset = page["next_offset"]
         assert expected <= found
         # Deterministic tools: the token decides whose history is summarized.
-        availability = client.get("/v1/tools/availability", params={"timezone": "America/New_York"})
+        availability = client.get(
+            "/v1/tools/availability",
+            params={
+                "timezone": "America/New_York",
+                "start_date": "2026-01-01",
+                "end_date": "2026-12-31",
+            },
+        )
         availability.raise_for_status()
         series = {(s["provider"], s["metric"]) for s in availability.json()["series"]}
         assert {("healthkit", "heart_rate"), ("google_health", "heart_rate")} <= series
