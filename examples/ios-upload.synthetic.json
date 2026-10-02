@@ -1,0 +1,88 @@
+{
+  "observations" : [
+    {
+      "aggregation" : "sample",
+      "ended_at" : "2026-10-01T12:00:00.000Z",
+      "metric" : "heart_rate",
+      "provider" : "healthkit",
+      "source_device" : "Synthetic Device · Synthetic Source",
+      "source_record_id" : "00000000-0000-4000-8000-000000000001",
+      "source_timezone" : "UTC",
+      "started_at" : "2026-10-01T12:00:00.000Z",
+      "unit" : "bpm",
+      "value" : "72"
+    },
+    {
+      "aggregation" : "sample",
+      "ended_at" : "2026-10-01T04:00:00.000Z",
+      "metric" : "resting_heart_rate",
+      "provider" : "healthkit",
+      "source_device" : "Synthetic Source",
+      "source_record_id" : "00000000-0000-4000-8000-000000000002",
+      "source_timezone" : "America/New_York",
+      "started_at" : "2026-10-01T04:00:00.000Z",
+      "unit" : "bpm",
+      "value" : "55.5"
+    },
+    {
+      "aggregation" : "sample",
+      "ended_at" : "2026-10-01T06:30:00.000Z",
+      "metric" : "hrv_sdnn",
+      "provider" : "healthkit",
+      "source_device" : "Synthetic Source",
+      "source_record_id" : "00000000-0000-4000-8000-000000000003",
+      "source_timezone" : "UTC",
+      "started_at" : "2026-10-01T06:30:00.000Z",
+      "unit" : "ms",
+      "value" : "48.123457"
+    },
+    {
+      "aggregation" : "interval_total",
+      "ended_at" : "2026-10-01T13:10:00.000Z",
+      "metric" : "steps",
+      "provider" : "healthkit",
+      "source_device" : "Synthetic Source",
+      "source_record_id" : "00000000-0000-4000-8000-000000000004",
+      "source_timezone" : "UTC",
+      "started_at" : "2026-10-01T13:00:00.000Z",
+      "unit" : "count",
+      "value" : "420"
+    },
+    {
+      "aggregation" : "interval_total",
+      "ended_at" : "2026-10-01T13:10:00.000Z",
+      "metric" : "active_energy",
+      "provider" : "healthkit",
+      "source_device" : "Synthetic Source",
+      "source_record_id" : "00000000-0000-4000-8000-000000000005",
+      "source_timezone" : "UTC",
+      "started_at" : "2026-10-01T13:00:00.000Z",
+      "unit" : "kcal",
+      "value" : "12.25"
+    },
+    {
+      "aggregation" : "interval_total",
+      "ended_at" : "2026-10-01T13:05:00.000Z",
+      "metric" : "exercise_duration",
+      "provider" : "healthkit",
+      "source_device" : "Synthetic Source",
+      "source_record_id" : "00000000-0000-4000-8000-000000000006",
+      "source_timezone" : "UTC",
+      "started_at" : "2026-10-01T13:00:00.000Z",
+      "unit" : "s",
+      "value" : "300"
+    },
+    {
+      "aggregation" : "interval_total",
+      "ended_at" : "2026-10-01T04:30:00.000Z",
+      "metric" : "sleep_duration",
+      "provider" : "healthkit",
+      "source_device" : "Synthetic Source",
+      "source_record_id" : "00000000-0000-4000-8000-000000000007",
+      "source_timezone" : "UTC",
+      "started_at" : "2026-10-01T03:00:00.000Z",
+      "unit" : "s",
+      "value" : "5400"
+    }
+  ]
+}

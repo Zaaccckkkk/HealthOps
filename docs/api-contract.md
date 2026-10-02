@@ -228,18 +228,44 @@ the window length and warning `provider_missing_in_window`, and the difference i
 
 Synthetic example response: [period-comparison.synthetic.json](../examples/period-comparison.synthetic.json).
 
-## Adapter contract for the existing Swift prototype (not implemented here)
+## iOS upload adapter (implemented; Simulator-verified with synthetic data)
 
-The inspected prototype has `HealthRecord.value: String` and `GoogleHealthRecord.value: String`
-for display. These are unsuitable as ingestion DTOs. A later adapter should use typed raw samples:
+[ios/HealthOpsUploader](../ios/HealthOpsUploader/README.md) is the first client of this
+contract. It maps HealthKit samples to canonical observations and uploads them with
+replay-safe incremental sync. No server behavior changed for it.
 
-- HealthKit: preserve `HKSample.uuid`, numeric value, requested HKUnit, original start/end,
-  and actual source/device metadata. HealthKit is not exclusively Apple Watch data.
-- Google Health: preserve the data point resource `name`, interval/sample timestamps, numeric
-  fields and returned device provenance. Do not substitute random IDs on each sync.
-- Keep SDNN and RMSSD separate based on actual returned fields. Do not infer a metric from
-  the UI label alone. Daily totals may be revised, requiring a version/update policy before
-  live continuous synchronization.
-- Require an explicit explanation/consent for uploading health data beyond on-device reading.
+| HealthKit type (explicit `HKUnit`) | Canonical | Aggregation | Conversion |
+|---|---|---|---|
+| heartRate, restingHeartRate (count/min) | `heart_rate`, `resting_heart_rate` bpm | `sample` | none |
+| heartRateVariabilitySDNN (ms) | `hrv_sdnn` ms | `sample` | none; never `hrv_rmssd` |
+| stepCount (count) | `steps` count | `interval_total` | rounded to integer |
+| activeEnergyBurned (kcal) | `active_energy` kcal | `interval_total` | none |
+| appleExerciseTime (min) | `exercise_duration` s | `interval_total` | minutes x 60 |
+| sleepAnalysis asleep states | `sleep_duration` s | `interval_total` | value = sample interval in seconds, computed on the device; in-bed/awake not uploaded |
 
-No prototype secrets, Xcode user state, health exports or personal data are copied into this repo.
+- `source_record_id` = `HKSample.uuid`; `source_device` = HealthKit device or source label,
+  provenance only; `source_timezone` = `HKMetadataKeyTimeZone` when present, otherwise the fixed
+  `UTC` fallback so replays stay byte-identical. Values are decimal strings with at most six
+  fractional digits, never display strings.
+- Pages of at most 200 samples are persisted with their candidate anchor before upload; the
+  anchor commits only after this API confirms the page. Failed pages are replayed byte-for-byte
+  and resolve through the replay rules above. Paging ends on the device query's own count
+  (samples plus deleted objects), not on the filtered count. The verified identity is bound to
+  the exact server URL and credential that produced it and is cleared when either changes; a
+  late `/v1/me` response for an earlier pair is ignored. Consent is bound to server URL and the
+  verified user; sync state is additionally bound to the HealthKit type and the consented
+  history start. A sync runs
+  on a frozen context and is cancelled before its next request when consent is revoked or the
+  identity changes; an in-flight request cannot be recalled. Re-consenting with a different
+  history range discards pending pages from the old range instead of replaying them. Only
+  samples that start at or after the history start are read (`strictStartDate`). Samples the
+  adapter cannot map are recorded on the device and shown, not uploaded and not dropped.
+- HealthKit deletions are counted on the device but not propagated: this API has no deletion
+  sync. Sleep stage samples are summed by the daily-summary tool under its own rules; the
+  adapter does not reproduce Apple's source priority or produce a "total sleep last night".
+- Verified only in the iOS Simulator against the loopback server with synthetic samples.
+  Physical devices, LAN/TLS exposure and Google Health remain unimplemented.
+
+The cross-language test `tests/test_ios_contract.py` validates the adapter's actual encoding
+([ios-upload.synthetic.json](../examples/ios-upload.synthetic.json)) with this schema and, where
+the Swift toolchain exists, regenerates it to catch drift.

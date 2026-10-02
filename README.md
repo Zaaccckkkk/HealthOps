@@ -17,11 +17,16 @@ applied incrementally across a comparison's two windows. Requests above a limit 
 truncated. Verification used
 synthetic records only; no live device-to-tool path has been exercised.
 
+The third slice adds an iOS upload adapter in `ios/HealthOpsUploader/`: HealthKit samples are
+read with anchored queries, uploaded only after explicit consent, and synced incrementally with
+a persisted pending page whose anchor commits only after the server confirms it. The whole
+loop (HealthKit read -> consent -> FastAPI -> PostgreSQL -> tools) was exercised in the **iOS
+Simulator with synthetic samples**; see the [adapter README](ios/HealthOpsUploader/README.md).
+
 This is a **local development foundation**, not a publicly deployable health platform.
-No live wearable connector, iOS uploader, Google OAuth backend, RAG, LLM, or cloud deployment
-is included in this milestone. The existing `AppleHealthKitMVP` prototype outside this repository
-was inspected for mapping requirements but was not copied or modified. All committed sample
-data is synthetic.
+No physical-device upload, Google Health connector, RAG, LLM, or cloud deployment is included.
+The existing `AppleHealthKitMVP` prototype outside this repository was inspected for mapping
+requirements but was not copied or modified. All committed sample data is synthetic.
 
 Start with the [API contract](docs/api-contract.md) and
 [architecture and repository boundaries](docs/architecture.md).
@@ -87,7 +92,7 @@ The Linux container installation was verified independently and does not need th
 
 ```bash
 # Fast schema/tool/unit tests, no database required:
-uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_public_content.py
+uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_ios_contract.py tests/test_public_content.py
 uv run ruff check .
 uv run ruff format --check .
 python3 scripts/check_public_content.py
@@ -113,6 +118,11 @@ alignment, separate providers, identity injection, date-range overflow and expli
 Period-comparison tests cover mean-of-daily-means versus pooled means, daily-total preference
 without fallback on conflicts, zero totals, unused vendor summaries, provider union with null
 sides, non-overlapping windows and the shared unique-record budget.
+`tests/test_ios_contract.py` validates the Swift adapter's encoded output against the Python
+schema; on a host with Swift it regenerates the fixture, elsewhere that half is skipped.
+The Swift package has its own tests (`cd ios/HealthOpsUploader && swift test`) for mapping and
+the sync engine (first sync, no-op incremental sync, replay, failure with retained pending page,
+lost response, conflict, consent filter, deletions, scope isolation).
 The eight repository-policy tests run on the host with Git, separately from the 95 application
 tests in the container. The application image does not install Git for repository checks.
 
@@ -147,8 +157,9 @@ until the security/deployment milestone is complete.
 ```text
 services/
   ingestion-api/
-    src/healthops/    Python API, validation, authentication, storage, operator CLI
+    src/healthops/    Python API, validation, authentication, storage, operator CLI, tools
     migrations/      Service-owned PostgreSQL schema history
+ios/HealthOpsUploader/  Swift package (core + tests), SwiftUI app, XcodeGen spec and project
 infra/docker/        Container build definition
 tests/               Unit and real-PostgreSQL integration tests
 examples/            Synthetic request fixture and tool response example
@@ -179,8 +190,6 @@ Git ignore rules do not untrack previously committed files. No local learning no
 tracked when this policy was introduced. This language/path check is not a secrets scanner
 or a full English-language detector; manually review the staged diff before pushing.
 
-Planned, not implemented: a typed Swift upload adapter that preserves source sample IDs and
-requires explicit upload consent. It must not upload UI display strings or assume the current
-loopback-only server is reachable from a physical phone. Further tools (workout history), user
-default timezones, production identity, TLS, network access, sync cursors/deletions, RAG, LLM
-serving and cloud provisioning remain separate work.
+Planned, not implemented: physical-device networking (LAN/TLS, a reachable host), background
+sync, Google Health upload, deletion sync, further tools (workout history), user default
+timezones, production identity, RAG, LLM serving and cloud provisioning.

@@ -14,3 +14,8 @@ htmlcov/
 dist/
 *.egg-info/
 .DS_Store
+# Xcode and SwiftPM build products for the iOS adapter
+ios/**/.build/
+ios/**/DerivedData/
+ios/**/xcuserdata/
+ios/**/*.xcworkspace/xcshareddata/swiftpm/

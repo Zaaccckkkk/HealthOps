@@ -8,3 +8,6 @@ __pycache__
 .pytest_cache
 .ruff_cache
 tmp
+ios/**/.build
+ios/**/DerivedData
+ios/**/xcuserdata

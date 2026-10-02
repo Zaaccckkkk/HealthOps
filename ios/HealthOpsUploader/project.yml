@@ -1,0 +1,47 @@
+# XcodeGen specification. Regenerate with `xcodegen generate` from this directory; the generated
+# HealthOpsUploader.xcodeproj is committed so reviewers can open it without XcodeGen.
+name: HealthOpsUploader
+options:
+  bundleIdPrefix: edu.harvard.ac215
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "26.0"
+  createIntermediateGroups: true
+packages:
+  HealthOpsUploader:
+    path: .
+targets:
+  HealthOpsUploaderApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes:
+          - "Resources/*.plist"
+          - "Resources/*.entitlements"
+    dependencies:
+      - package: HealthOpsUploader
+        product: HealthOpsCore
+    # XcodeGen writes this file from `properties`; keep the HealthKit entitlement here, not only
+    # in the generated file, or regeneration empties it.
+    entitlements:
+      path: App/Resources/HealthOpsUploader.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: edu.harvard.ac215.HealthOpsUploader
+        SWIFT_VERSION: "5.10"
+        GENERATE_INFOPLIST_FILE: NO
+        # No signing team is committed; the Simulator does not need one.
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
+        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "0.1.0"
+      configs:
+        # Debug permits plain HTTP to the loopback development server only. Release keeps full ATS.
+        Debug:
+          INFOPLIST_FILE: App/Resources/Info-Debug.plist
+        Release:
+          INFOPLIST_FILE: App/Resources/Info.plist

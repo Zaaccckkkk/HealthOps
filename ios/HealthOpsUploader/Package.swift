@@ -1,0 +1,19 @@
+// swift-tools-version: 5.9
+// HealthOpsCore is the HealthKit-independent part of the iOS upload adapter: canonical
+// contract encoding, sample mapping, the sync engine and its persistence. It builds and tests
+// on macOS; the SwiftUI app and HealthKit reader live in App/ and are built by Xcode.
+import PackageDescription
+
+let package = Package(
+    name: "HealthOpsUploader",
+    platforms: [.iOS(.v17), .macOS(.v13)],
+    products: [
+        .library(name: "HealthOpsCore", targets: ["HealthOpsCore"]),
+        .executable(name: "healthops-fixture", targets: ["healthops-fixture"]),
+    ],
+    targets: [
+        .target(name: "HealthOpsCore"),
+        .executableTarget(name: "healthops-fixture", dependencies: ["HealthOpsCore"]),
+        .testTarget(name: "HealthOpsCoreTests", dependencies: ["HealthOpsCore"]),
+    ]
+)
