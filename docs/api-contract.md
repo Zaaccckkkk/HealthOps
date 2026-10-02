@@ -111,6 +111,7 @@ Timezone names are checked by Python's `zoneinfo`; PostgreSQL also resolves the 
 |---|---|
 | GET `/v1/tools/availability` | Which `(provider, metric, aggregation)` series exist for the user, with counts and first/last start |
 | GET `/v1/tools/daily-summary` | One metric, one provider group per channel, one row per local day in `[start_date, end_date]` |
+| GET `/v1/tools/period-comparison` | One metric, two non-overlapping windows, one window value per provider and side plus the difference |
 
 ### Availability
 
@@ -176,6 +177,56 @@ provider that has at least one record; days without data carry counts of 0 and `
 Synthetic example response: [daily-summary.synthetic.json](../examples/daily-summary.synthetic.json).
 Values are JSON strings carrying decimal precision. Zones with a DST transition exactly at local
 midnight follow Python's `fold=0` rule and are not specially handled.
+
+### Period comparison
+
+Parameters: `metric`, `timezone`, `baseline_start`, `baseline_end`, `current_start`,
+`current_end`, optional `provider`. Each window obeys every daily-summary limit (93 local days,
+supported calendar range). The windows must not overlap; adjacent windows are allowed and either
+may come first. Both windows share **one** 10000-record budget counted by unique record id across
+summarized records and overlap context. The budget is applied while reading: the second window
+may read at most what the first left over, records already loaded for the first window are
+reused rather than read again, and every query reads at most one record beyond its remaining
+budget. Exceeding the budget returns 422 and nothing is truncated.
+
+The tool runs the daily-summary rules on each window and reduces each provider's days to one
+`WindowSummary` per side. Providers are the **union** of both windows: a provider present on one
+side only is still returned, its missing side has `value: null`, `days_without_records` equal to
+the window length and warning `provider_missing_in_window`, and the difference is `null`.
+
+| Metric class | `method` | Day value | Valid day |
+|---|---|---|---|
+| Point | `mean_of_daily_sample_means` | the day's `sample_mean` | `sample_count > 0` |
+| Cumulative | `mean_of_daily_totals` | the single aligned `daily_total` when the day has no other daily_total record; otherwise `interval_total_sum` only when the day has **no** daily_total record at all | a usable value exists |
+
+- The window value is the unweighted mean of day values over valid days, rounded half-even to
+  six decimals. Every valid day weighs the same. This is **not** the pooled mean of all samples,
+  which would weigh densely sampled days more, and not a time-weighted average.
+- A **valid day is not a fully covered day**: it only means a usable value exists.
+  `days_from_interval_total` counts days whose total is an interval sum, which covers only the
+  recorded intervals; such windows carry warning `interval_totals_used`. Using both bases inside
+  one window adds `mixed_bases_within_window`; using different base sets in the two windows adds
+  `basis_differs_between_windows`.
+- Conflicting (`multiple_daily_records`) or unaligned (`unaligned_daily_record`) daily totals
+  make the day **invalid**, even when one aligned total is also present; the tool never falls
+  back to interval sums when any daily_total record exists for that day.
+  Overlapping intervals also make the day invalid. Invalid days are counted in `days_invalid`.
+- A zero total is a valid value. Missing data stays `null`.
+- Point metrics use `sample_mean` only. A day with a vendor `daily_summary` but no samples is not
+  a valid day, but it is not a day without records either: it is counted in
+  `days_with_unused_daily_summary` with warning `daily_summary_not_used`.
+- Each side reports `days_in_window`, `days_with_data`, `days_without_records`, `days_invalid`,
+  `days_from_daily_total`, `days_from_interval_total`, `days_with_unused_daily_summary`,
+  `record_count` and `warnings` (its own codes plus the daily-summary codes of its days).
+  Fewer valid days than half the window adds `sparse_window`; no valid day adds
+  `insufficient_data` and makes the value `null`.
+- `difference` is `current.value - baseline.value`, `null` when either value is `null`. No
+  percentage change is reported, because a small or missing baseline would magnify noise.
+- No significance test, trend judgement, cross-provider merging or SDNN/RMSSD comparison is
+  performed. `details` carries both full daily-summary results for traceability, and
+  `definitions` explains every statistic and warning code.
+
+Synthetic example response: [period-comparison.synthetic.json](../examples/period-comparison.synthetic.json).
 
 ## Adapter contract for the existing Swift prototype (not implemented here)
 

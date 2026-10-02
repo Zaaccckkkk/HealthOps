@@ -71,8 +71,25 @@ def main():
         providers = {p["provider"]: p for p in summary.json()["providers"]}
         assert providers["healthkit"]["days"][0]["sample_count"] >= 1
         assert providers["healthkit"]["days"][0]["sample_mean"] is not None
+        comparison = client.get(
+            "/v1/tools/period-comparison",
+            params={
+                "metric": "heart_rate",
+                "timezone": "America/New_York",
+                "baseline_start": "2026-09-24",
+                "baseline_end": "2026-09-30",
+                "current_start": "2026-10-01",
+                "current_end": "2026-10-07",
+            },
+        )
+        comparison.raise_for_status()
+        compared = {p["provider"]: p for p in comparison.json()["providers"]}
+        assert compared["healthkit"]["current"]["days_with_data"] >= 1
+        assert compared["healthkit"]["baseline"]["value"] is None  # no synthetic baseline data
+        assert compared["healthkit"]["difference"] is None
         print("PASS: inserted 2 synthetic observations; replay skipped 2; history query succeeded.")
         print("PASS: availability listed both synthetic providers; daily summary returned a mean.")
+        print("PASS: period comparison returned a null difference for the empty baseline window.")
         print("Synthetic records remain in the local demo database for inspection.")
 
 

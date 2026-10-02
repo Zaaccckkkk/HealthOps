@@ -6,13 +6,15 @@ Harvard APCOMP215 Course Project
 The first implemented slice is a **Python FastAPI + PostgreSQL** backend, with Pydantic
 validation, SQLAlchemy persistence, Alembic migrations, a locked uv environment, and
 Docker Compose. It accepts canonical observations and retrieves the authenticated user's history.
-The second slice adds two deterministic, user-scoped history tools in the same process:
-`GET /v1/tools/availability` and `GET /v1/tools/daily-summary`. They are typed Python functions
-intended for a future tool-using LLM; the LLM itself, RAG and tool orchestration are not included.
+The second slice adds three deterministic, user-scoped history tools in the same process:
+`GET /v1/tools/availability`, `GET /v1/tools/daily-summary` and `GET /v1/tools/period-comparison`.
+They are typed Python functions intended for a future tool-using LLM; the LLM itself, RAG and
+tool orchestration are not included.
 Tool results carry statistical definitions and warnings and never fill missing data with zero.
-Both tools require a timezone and a date window (93 days for summaries, 366 for availability,
-dates 2000-2100); summaries also cap in-memory records at 10000. Requests above a limit are
-refused with 422, never truncated. Verification used
+Every tool requires a timezone and date windows (93 days per summary or comparison window, 366
+for availability, dates 2000-2100); summaries and comparisons cap records read into memory at 10000,
+applied incrementally across a comparison's two windows. Requests above a limit are refused with 422, never
+truncated. Verification used
 synthetic records only; no live device-to-tool path has been exercised.
 
 This is a **local development foundation**, not a publicly deployable health platform.
@@ -52,8 +54,8 @@ uv run python scripts/smoke.py
 
 The credential file is created with permissions `0600`, ignored by Git, and never printed by
 the smoke script. Creating the same output path twice fails instead of overwriting credentials.
-The script inserts two synthetic observations, replays them, queries history, and calls both
-tool endpoints. Each run uses fresh synthetic IDs and leaves its records in the demo database.
+The script inserts two synthetic observations, replays them, queries history, and calls the
+three tool endpoints. Each run uses fresh synthetic IDs and leaves its records in the demo database.
 
 To explore protected routes in Swagger, read your local credential file yourself and paste
 its `token` value into **Authorize**. Do not share the file or paste credentials into issues/chat.
@@ -85,7 +87,7 @@ The Linux container installation was verified independently and does not need th
 
 ```bash
 # Fast schema/tool/unit tests, no database required:
-uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_public_content.py
+uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_public_content.py
 uv run ruff check .
 uv run ruff format --check .
 python3 scripts/check_public_content.py
@@ -108,7 +110,10 @@ Tool tests cover DST day lengths, local-vs-UTC dates, null-not-zero missing days
 sample means, unsupported metric/aggregation pairs, interval overlap across days and outside
 the window (same verdict regardless of window size), zero-length intervals, vendor daily record
 alignment, separate providers, identity injection, date-range overflow and explicit limits.
-The eight repository-policy tests run on the host with Git, separately from the 83 application
+Period-comparison tests cover mean-of-daily-means versus pooled means, daily-total preference
+without fallback on conflicts, zero totals, unused vendor summaries, provider union with null
+sides, non-overlapping windows and the shared unique-record budget.
+The eight repository-policy tests run on the host with Git, separately from the 95 application
 tests in the container. The application image does not install Git for repository checks.
 
 ## Local development without rebuilding the API
@@ -176,6 +181,6 @@ or a full English-language detector; manually review the staged diff before push
 
 Planned, not implemented: a typed Swift upload adapter that preserves source sample IDs and
 requires explicit upload consent. It must not upload UI display strings or assume the current
-loopback-only server is reachable from a physical phone. Further tools (period comparison,
-workout history), user default timezones, production identity, TLS, network access, sync
-cursors/deletions, RAG, LLM serving and cloud provisioning remain separate work.
+loopback-only server is reachable from a physical phone. Further tools (workout history), user
+default timezones, production identity, TLS, network access, sync cursors/deletions, RAG, LLM
+serving and cloud provisioning remain separate work.

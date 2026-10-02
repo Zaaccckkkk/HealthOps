@@ -31,9 +31,12 @@ from healthops.tools.contracts import (
     AvailabilityResult,
     DailySummaryParams,
     DailySummaryResult,
+    PeriodComparisonParams,
+    PeriodComparisonResult,
 )
 from healthops.tools.daily_summary import daily_summary_tool
 from healthops.tools.local_days import ToolInputError
+from healthops.tools.period_comparison import period_comparison_tool
 
 TimezoneQuery = Annotated[str, Query(min_length=1, max_length=80)]
 
@@ -181,6 +184,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return daily_summary_tool(session, user.id, params)
         except ToolInputError as exc:
             # Explicit, value-free messages: limits are refused, never silently truncated.
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/v1/tools/period-comparison", response_model=PeriodComparisonResult)
+    def tool_period_comparison(
+        user: UserDep,
+        session: SessionDep,
+        metric: Metric,
+        timezone: TimezoneQuery,
+        baseline_start: date,
+        baseline_end: date,
+        current_start: date,
+        current_end: date,
+        provider: Provider | None = None,
+    ):
+        params = PeriodComparisonParams(
+            metric=metric,
+            timezone=timezone,
+            baseline_start=baseline_start,
+            baseline_end=baseline_end,
+            current_start=current_start,
+            current_end=current_end,
+            provider=provider,
+        )
+        try:
+            return period_comparison_tool(session, user.id, params)
+        except ToolInputError as exc:
             raise HTTPException(422, str(exc)) from exc
 
     return app

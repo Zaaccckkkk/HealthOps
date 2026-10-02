@@ -259,3 +259,88 @@ def test_overlap_context_counts_against_the_record_budget(client, credentials, r
         params=STEPS_DAY | {"start_date": "2026-10-02", "end_date": "2026-10-02"},
     )
     assert response.status_code == 422 and "More than 2 records" in response.json()["detail"]
+
+
+def comparison(client, headers, **changes):
+    params = {
+        "metric": "steps",
+        "timezone": NY,
+        "baseline_start": "2026-10-01",
+        "baseline_end": "2026-10-02",
+        "current_start": "2026-10-03",
+        "current_end": "2026-10-04",
+    } | changes
+    return client.get("/v1/tools/period-comparison", headers=headers, params=params)
+
+
+def test_period_comparison_over_http_uses_authenticated_identity(client, credentials, record):
+    alice, bob = credentials
+    upload(
+        client,
+        alice,
+        interval(record, "b1", 400, "2026-10-01T14:00:00Z", "2026-10-01T15:00:00Z"),
+        interval(record, "b2", 600, "2026-10-02T14:00:00Z", "2026-10-02T15:00:00Z"),
+        interval(record, "c1", 900, "2026-10-03T14:00:00Z", "2026-10-03T15:00:00Z"),
+    )
+    assert comparison(client, {}).status_code == 401
+    result = comparison(client, alice, current_end="2026-10-05").json()  # 3-day current window
+    provider = result["providers"][0]
+    assert provider["baseline"]["value"] == "500.000000"
+    assert provider["current"]["value"] == "900.000000"
+    assert provider["difference"] == "400.000000"
+    assert provider["current"]["days_with_data"] == 1  # 1 of 3 days: sparse
+    assert {"sparse_window", "interval_totals_used"} <= set(provider["warnings"])
+    assert result["baseline_window"]["end_utc"].startswith("2026-10-03T04:00:00")
+    assert result["details"]["current"]["record_count"] == 1
+    assert comparison(client, bob).json()["warnings"] == ["no_records_in_window"]
+    assert comparison(client, alice, current_start="2026-10-02").status_code == 422
+
+
+def test_period_comparison_budget_counts_unique_records(client, credentials, record, monkeypatch):
+    alice = credentials[0]
+    upload(
+        client,
+        alice,
+        # Ends inside Oct 3: summarized in the baseline window and context for the current one.
+        interval(record, "late", 100, "2026-10-03T03:30:00Z", "2026-10-03T04:30:00Z"),
+        interval(record, "c1", 80, "2026-10-03T04:00:00Z", "2026-10-03T05:00:00Z"),
+        interval(record, "c2", 10, "2026-10-04T12:00:00Z", "2026-10-04T12:30:00Z"),
+    )
+    monkeypatch.setattr(queries, "MAX_SUMMARY_RECORDS", 3)
+    result = comparison(client, alice).json()  # three unique records fit the budget
+    assert result["providers"][0]["current"]["days_invalid"] == 1  # overlap with "late"
+    assert result["record_count"] == 3  # "late" is summarized once, reused as context
+    monkeypatch.setattr(queries, "MAX_SUMMARY_RECORDS", 2)
+    response = comparison(client, alice)
+    # Either the per-window fetch or the shared unique count refuses; nothing is truncated.
+    assert response.status_code == 422 and "More than 2 records" in response.json()["detail"]
+
+
+def test_period_budget_refuses_when_only_the_union_exceeds_it(
+    client, credentials, record, monkeypatch
+):
+    alice = credentials[0]
+    upload(
+        client,
+        alice,
+        *(
+            interval(record, f"b{i}", 10, f"2026-10-01T1{i}:00:00Z", f"2026-10-01T1{i}:30:00Z")
+            for i in range(3)
+        ),
+        *(
+            interval(record, f"c{i}", 10, f"2026-10-03T1{i}:00:00Z", f"2026-10-03T1{i}:30:00Z")
+            for i in range(2)
+        ),
+    )
+    monkeypatch.setattr(queries, "MAX_SUMMARY_RECORDS", 4)
+    # Each window alone fits (3 and 2 records); together they do not.
+    one = {"start_date": "2026-10-01", "end_date": "2026-10-02"}
+    assert (
+        client.get("/v1/tools/daily-summary", headers=alice, params=STEPS_DAY | one).status_code
+        == 200
+    )
+    response = comparison(client, alice)
+    assert response.status_code == 422
+    assert "across both windows" in response.json()["detail"]
+    monkeypatch.setattr(queries, "MAX_SUMMARY_RECORDS", 5)
+    assert comparison(client, alice).json()["record_count"] == 5

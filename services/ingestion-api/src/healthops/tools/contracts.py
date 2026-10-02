@@ -84,3 +84,52 @@ class DailySummaryResult(BaseModel):
     providers: list[ProviderDailySummary]
     warnings: list[str]
     definitions: dict[str, str]
+
+
+class PeriodComparisonParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    metric: Metric
+    timezone: str = Field(min_length=1, max_length=80)
+    baseline_start: date
+    baseline_end: date
+    current_start: date
+    current_end: date
+    provider: Provider | None = None
+
+
+WindowMethod = Literal["mean_of_daily_sample_means", "mean_of_daily_totals"]
+
+
+class WindowSummary(BaseModel):
+    value: Decimal | None
+    method: WindowMethod
+    days_in_window: int
+    days_with_data: int
+    days_without_records: int
+    days_invalid: int
+    days_from_daily_total: int
+    days_from_interval_total: int
+    days_with_unused_daily_summary: int
+    record_count: int
+    warnings: list[str]
+
+
+class ProviderComparison(BaseModel):
+    provider: Provider
+    baseline: WindowSummary
+    current: WindowSummary
+    difference: Decimal | None
+    warnings: list[str]
+
+
+class PeriodComparisonResult(BaseModel):
+    metric: Metric
+    unit: str
+    metric_class: MetricClass
+    baseline_window: ToolWindow
+    current_window: ToolWindow
+    record_count: int
+    providers: list[ProviderComparison]
+    warnings: list[str]
+    definitions: dict[str, str]
+    details: dict[Literal["baseline", "current"], DailySummaryResult]

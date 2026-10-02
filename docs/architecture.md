@@ -31,9 +31,10 @@ introduce service-specific packages/lockfiles when dependency or release isolati
 | `infra/kubernetes/`, `infra/terraform/` | Planned; not created | Deployment/infrastructure definitions when authorized |
 
 Analytics tools, the agent router and a transparent recovery indicator start as Python
-modules, not three separate network services. The first two tools (availability and daily
-summary) live in `healthops/tools/` and are exposed by the existing FastAPI process, because
-only one runtime exists today; a second empty service would not be a boundary. The package is
+modules, not three separate network services. The first tools (availability, daily summary and
+period comparison) live in `healthops/tools/` and are exposed by the existing FastAPI process,
+because only one runtime exists today; a second empty service would not be a boundary. Period
+comparison is a pure reduction over two daily-summary results and adds no storage. The package is
 layered so it can move with the future API service: routes in `main.py` handle authentication
 and parameters, `tools/queries.py` enforces user isolation and bounded reads, and the remaining
 modules compute from explicit inputs without database access. Recovery remains auxiliary;
@@ -95,8 +96,8 @@ It does not yet collect wearable data itself. No iOS sources were copied into th
 Production login/session management, secret management, external network exposure, HTTPS,
 rate limits/body-size gateway limits, consent UI, Cloud SQL/GCS provisioning, backups and full
 account deletion, source OAuth/token renewal, background workers, source update/delete sync,
-structured workouts/check-ins, further analytics (period comparison, workout history), user
-default timezone settings, RAG/pgvector, LLM tool orchestration, vLLM/GPU, GKE and Bayesian models.
+structured workouts/check-ins, further analytics (workout history), user default timezone
+settings, RAG/pgvector, LLM tool orchestration, vLLM/GPU, GKE and Bayesian models.
 
 An eight-metric observation schema is not a complete health-domain model. Subjective check-ins,
 sleep stages, workouts and sets will have their own contracts when implemented. The Swift
