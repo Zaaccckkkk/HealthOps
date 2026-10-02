@@ -1,0 +1,113 @@
+{
+  "metric": "steps",
+  "unit": "count",
+  "metric_class": "cumulative",
+  "window": {
+    "timezone": "America/New_York",
+    "start_date": "2026-10-01",
+    "end_date": "2026-10-02",
+    "start_utc": "2026-10-01T04:00:00Z",
+    "end_utc": "2026-10-03T04:00:00Z"
+  },
+  "record_count": 4,
+  "providers": [
+    {
+      "provider": "google_health",
+      "record_count": 2,
+      "days": [
+        {
+          "date": "2026-10-01",
+          "sample_count": 0,
+          "sample_min": null,
+          "sample_max": null,
+          "sample_mean": null,
+          "interval_total_count": 1,
+          "interval_total_sum": "300",
+          "daily_total_count": 1,
+          "daily_total": "6400",
+          "daily_summary_count": 0,
+          "daily_summary": null,
+          "unaligned_count": 0,
+          "unsupported_count": 0,
+          "warnings": [
+            "mixed_total_kinds"
+          ]
+        },
+        {
+          "date": "2026-10-02",
+          "sample_count": 0,
+          "sample_min": null,
+          "sample_max": null,
+          "sample_mean": null,
+          "interval_total_count": 0,
+          "interval_total_sum": null,
+          "daily_total_count": 0,
+          "daily_total": null,
+          "daily_summary_count": 0,
+          "daily_summary": null,
+          "unaligned_count": 0,
+          "unsupported_count": 0,
+          "warnings": []
+        }
+      ]
+    },
+    {
+      "provider": "healthkit",
+      "record_count": 2,
+      "days": [
+        {
+          "date": "2026-10-01",
+          "sample_count": 0,
+          "sample_min": null,
+          "sample_max": null,
+          "sample_mean": null,
+          "interval_total_count": 2,
+          "interval_total_sum": "600",
+          "daily_total_count": 0,
+          "daily_total": null,
+          "daily_summary_count": 0,
+          "daily_summary": null,
+          "unaligned_count": 0,
+          "unsupported_count": 0,
+          "warnings": []
+        },
+        {
+          "date": "2026-10-02",
+          "sample_count": 0,
+          "sample_min": null,
+          "sample_max": null,
+          "sample_mean": null,
+          "interval_total_count": 0,
+          "interval_total_sum": null,
+          "daily_total_count": 0,
+          "daily_total": null,
+          "daily_summary_count": 0,
+          "daily_summary": null,
+          "unaligned_count": 0,
+          "unsupported_count": 0,
+          "warnings": []
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "mixed_total_kinds"
+  ],
+  "definitions": {
+    "local_day": "[local midnight, next local midnight) in the requested timezone; records are assigned by their start time. Record source_timezone is provenance only.",
+    "sample_mean": "Unweighted arithmetic mean of the sample values recorded on the local day, rounded half-even to 6 decimals. Not a time-weighted all-day average.",
+    "sample_min_max": "Smallest and largest sample value recorded on the local day.",
+    "interval_total_sum": "Sum of interval_total values whose interval starts on the local day. Values are taken as reported; durations are never derived from timestamps.",
+    "daily_total": "Vendor daily total whose interval equals the local day exactly. Never added to interval_total_sum.",
+    "daily_summary": "Vendor daily summary value whose interval equals the local day exactly.",
+    "null": "No supported data for that statistic on that day. Missing data is never zero.",
+    "warning:interval_crosses_day_boundary": "An interval ends on a later local day. It is assigned to its start day without splitting or proportional allocation.",
+    "warning:overlapping_intervals": "interval_total records for the same provider and day overlap in time; a reliable total cannot be derived, so interval_total_sum is null.",
+    "warning:unaligned_daily_record": "A daily_total or daily_summary interval does not equal the local day exactly; it is counted in unaligned_count and otherwise ignored.",
+    "warning:multiple_daily_records": "Several aligned daily records exist for one provider and day (for example several devices); no value is chosen.",
+    "warning:mixed_total_kinds": "Both daily_total and interval_total exist for the same provider and day; they are reported separately and never combined.",
+    "warning:unsupported_aggregation": "Records whose aggregation is not supported for this metric class are counted in unsupported_count and excluded from statistics.",
+    "warning:no_records_in_window": "The user has no records for this metric in the window. This says nothing about activity, device wear or authorization.",
+    "provider": "Acquisition channel, not a single device. Grouping by provider does not deduplicate several devices reporting through one channel."
+  }
+}

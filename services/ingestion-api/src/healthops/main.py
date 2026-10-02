@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -24,6 +25,17 @@ from healthops.schemas import (
     Provider,
     UserOut,
 )
+from healthops.tools.availability import availability_tool
+from healthops.tools.contracts import (
+    AvailabilityParams,
+    AvailabilityResult,
+    DailySummaryParams,
+    DailySummaryResult,
+)
+from healthops.tools.daily_summary import daily_summary_tool
+from healthops.tools.local_days import ToolInputError
+
+TimezoneQuery = Annotated[str, Query(min_length=1, max_length=80)]
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -131,6 +143,45 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(404, "Observation not found.")
         session.commit()
         return Response(status_code=204)
+
+    # Tool routes: authentication and parameter parsing only. The authenticated user_id is
+    # injected into the tool; neither clients nor a future LLM can choose whose data to read.
+    @app.get("/v1/tools/availability", response_model=AvailabilityResult)
+    def tool_availability(
+        user: UserDep,
+        session: SessionDep,
+        timezone: TimezoneQuery,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ):
+        params = AvailabilityParams(timezone=timezone, start_date=start_date, end_date=end_date)
+        try:
+            return availability_tool(session, user.id, params)
+        except ToolInputError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/v1/tools/daily-summary", response_model=DailySummaryResult)
+    def tool_daily_summary(
+        user: UserDep,
+        session: SessionDep,
+        metric: Metric,
+        timezone: TimezoneQuery,
+        start_date: date,
+        end_date: date,
+        provider: Provider | None = None,
+    ):
+        params = DailySummaryParams(
+            metric=metric,
+            timezone=timezone,
+            start_date=start_date,
+            end_date=end_date,
+            provider=provider,
+        )
+        try:
+            return daily_summary_tool(session, user.id, params)
+        except ToolInputError as exc:
+            # Explicit, value-free messages: limits are refused, never silently truncated.
+            raise HTTPException(422, str(exc)) from exc
 
     return app
 

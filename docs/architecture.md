@@ -18,6 +18,7 @@ introduce service-specific packages/lockfiles when dependency or release isolati
 | Boundary | Current state | Intended responsibility |
 |---|---|---|
 | `services/ingestion-api/` | Implemented, locally tested | Typed observation ingestion and user history |
+| `services/ingestion-api/src/healthops/tools/` | Implemented, locally tested | Deterministic, user-scoped history tools served by the same process |
 | `infra/docker/` | Implemented, locally tested | Local container image build |
 | `tests/` | Implemented | Schema, API, database and repository-policy tests |
 | `ios/` | Planned; not created | Consented HealthKit upload and UI; old prototype is outside this repo |
@@ -29,9 +30,14 @@ introduce service-specific packages/lockfiles when dependency or release isolati
 | `ml/` | Planned; not created | Evaluation datasets, experiments and model-quality checks |
 | `infra/kubernetes/`, `infra/terraform/` | Planned; not created | Deployment/infrastructure definitions when authorized |
 
-Analytics tools, the agent router and a transparent recovery indicator start as modules
-inside the future API service, not three separate network services. Recovery remains
-auxiliary; preserve vendor scores when available. Device connectors may initially remain
+Analytics tools, the agent router and a transparent recovery indicator start as Python
+modules, not three separate network services. The first two tools (availability and daily
+summary) live in `healthops/tools/` and are exposed by the existing FastAPI process, because
+only one runtime exists today; a second empty service would not be a boundary. The package is
+layered so it can move with the future API service: routes in `main.py` handle authentication
+and parameters, `tools/queries.py` enforces user isolation and bounded reads, and the remaining
+modules compute from explicit inputs without database access. Recovery remains auxiliary;
+preserve vendor scores when available. Device connectors may initially remain
 in Swift; an existing client integration does not prove a Python worker exists.
 
 The current Pydantic `schemas.py` remains service-owned. Do not duplicate it in a top-level
@@ -45,6 +51,11 @@ must not be linked from public documentation. `AGENTS.md` records the maintenanc
 
 Synthetic JSON client -> local FastAPI -> Pydantic contract -> authenticated user -> SQLAlchemy
 transaction -> PostgreSQL; user-scoped history can be retrieved through HTTP.
+
+Deterministic tools read that history back: authenticated route -> typed tool parameters ->
+user-scoped, bounded SQL -> Decimal computation in Python -> typed result with statistical
+definitions and warnings. Rules are in the [API contract](api-contract.md). Tools were verified
+with synthetic records only; no live device-to-tool path has been exercised.
 
 This is the first durable interface for future Swift/provider adapters and Python analytics.
 It does not yet collect wearable data itself. No iOS sources were copied into the new repository.
@@ -66,6 +77,13 @@ It does not yet collect wearable data itself. No iOS sources were copied into th
   container bootstrap admin. Least-privilege DB roles/RLS/TLS are not implemented.
 - Named DB volume for persistence; test DB uses independent tmpfs. Migration is one-shot and
   completes before API startup. No container data is baked into the API image.
+- Tool statistics in Python `Decimal` over SQL-filtered rows, with a 93-day span and 10000-record
+  limit that fail explicitly: readable, exactly testable definitions for personal-history volumes.
+  This is an assumption, not a measurement; push aggregation into SQL if profiling shows a need.
+  Availability counts distinct local days in SQL because it may span the whole history.
+- One explicit statistical timezone per tool query rather than per-record `source_timezone`:
+  a daily series must have one day boundary to be interpretable. Vendor daily records that do
+  not align with that boundary are reported as unaligned, never shifted or split.
 - uv lockfile for Python dependencies. Base images use version tags, not immutable digests;
   a future deployment release should pin tested digests and establish security-update cadence.
 
@@ -74,8 +92,9 @@ It does not yet collect wearable data itself. No iOS sources were copied into th
 Production login/session management, secret management, external network exposure, HTTPS,
 rate limits/body-size gateway limits, consent UI, Cloud SQL/GCS provisioning, backups and full
 account deletion, source OAuth/token renewal, background workers, source update/delete sync,
-structured workouts/check-ins, analytical tools, RAG/pgvector, vLLM/GPU, GKE and Bayesian models.
+structured workouts/check-ins, further analytics (period comparison, workout history), user
+default timezone settings, RAG/pgvector, LLM tool orchestration, vLLM/GPU, GKE and Bayesian models.
 
 An eight-metric observation schema is not a complete health-domain model. Subjective check-ins,
-sleep stages, workouts and sets will have their own contracts when implemented. The next
-increment should connect a typed adapter to this boundary rather than rewrite it.
+sleep stages, workouts and sets will have their own contracts when implemented. The Swift
+upload adapter remains planned and should connect to this boundary rather than rewrite it.

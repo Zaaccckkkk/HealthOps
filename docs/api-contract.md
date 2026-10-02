@@ -24,6 +24,7 @@ list-all endpoint. SQL row-level security is not implemented; isolation is in ap
 | POST `/v1/observations/batch` | Atomic ingestion of 1-500 observations |
 | GET `/v1/observations` | User-scoped history, oldest start time first |
 | DELETE `/v1/observations/{id}` | Delete one owned observation; unknown/other user's ID returns 404 |
+| GET `/v1/tools/...` | Deterministic history tools; see below |
 
 `ready` is an initial schema check, not proof that every migration or external provider works.
 
@@ -93,6 +94,72 @@ snapshot during concurrent inserts/deletes and not an incremental sync cursor.
 - 422: invalid input; errors omit payload values to avoid reflecting private health data.
 - 503: storage error; no SQL parameters or connection URL returned. Blind retries will not
   fix schema bugs; inspect database state before treating all 503s as transient.
+
+## Deterministic history tools v1
+
+Status: implemented and tested locally with synthetic data. These read-only endpoints are the
+first typed tools intended for a future tool-using LLM. The server injects the authenticated
+`user_id`; a `user_id` query parameter is ignored. No endpoint accepts or executes generated SQL.
+Both tools require an explicit IANA `timezone`; one statistical timezone applies to the whole
+query. A record's `source_timezone` is preserved as provenance and does not assign local days.
+Timezone names are checked by Python's `zoneinfo`; PostgreSQL also resolves the name for
+`availability`, and a name unknown to the database returns 422 rather than 503.
+
+| Method / route | Meaning |
+|---|---|
+| GET `/v1/tools/availability` | Which `(provider, metric, aggregation)` series exist for the user, with counts and first/last start |
+| GET `/v1/tools/daily-summary` | One metric, one provider group per channel, one row per local day in `[start_date, end_date]` |
+
+### Availability
+
+Parameters: `timezone` (required), optional `start_date`, `end_date` (inclusive local dates).
+Each series reports `record_count`, `first_started_at`, `last_started_at` (UTC) and
+`local_days_with_records`, the number of distinct local dates containing at least one record
+start. The response carries `notes` stating that absence of records means no accessible records
+in this system, not inactivity, no device wear, or denied authorization, and that the day count
+is not a coverage ratio. Counting happens in SQL; no record limit applies.
+
+### Daily summary
+
+Parameters: `metric`, `timezone`, `start_date`, `end_date` (inclusive, at most 93 local days),
+optional `provider`. A local day is `[local midnight, next local midnight)`, so DST days have 23
+or 25 hours. Records are selected and assigned by **start time**; an interval starting before the
+window is excluded. More than 10000 records in the window returns 422 asking the caller to narrow
+the request; results are never silently truncated. Every day in the window appears for every
+provider that has at least one record; days without data carry counts of 0 and `null` values.
+
+| Metric class | `sample` | `interval_total` | `daily_total` | `daily_summary` |
+|---|---|---|---|---|
+| Point: `heart_rate`, `resting_heart_rate`, `hrv_sdnn`, `hrv_rmssd` | count, min, max, `sample_mean` | unsupported | unsupported | vendor value if aligned |
+| Cumulative: `steps`, `active_energy`, `exercise_duration`, `sleep_duration` | unsupported | `interval_total_sum` | vendor value if aligned | unsupported |
+
+- `sample_mean` is the unweighted arithmetic mean of the samples recorded that day, rounded
+  half-even to six decimals. It is **not** a time-weighted all-day average heart rate.
+- `interval_total_sum` adds reported values of intervals that start on the day. An interval that
+  ends on a later day is assigned wholly to its start day with warning
+  `interval_crosses_day_boundary`; nothing is split or allocated proportionally. Durations are
+  never derived from timestamps: a sleep record's value is the vendor's reported seconds, not
+  `ended_at - started_at`. Overlapping intervals from the same provider and day make the sum
+  `null` with warning `overlapping_intervals`, because the overlap cannot be deduplicated.
+- `daily_total` / `daily_summary` are used only when the record interval equals the local day
+  exactly. Otherwise the record is counted in `unaligned_count` with warning
+  `unaligned_daily_record`; it is not moved to another date. Several aligned records for one
+  provider and day produce `null` with warning `multiple_daily_records`.
+- `daily_total` and `interval_total_sum` are never added together. When both exist, both are
+  reported with warning `mixed_total_kinds`.
+- Unsupported combinations are counted in `unsupported_count` with warning
+  `unsupported_aggregation`; they never contribute to a statistic.
+- `provider` is an acquisition channel, not one device. Grouping by provider does not deduplicate
+  several devices reporting through the same channel; the overlap and multiple-record warnings
+  are the only protection, and no cross-provider or cross-device merging is performed.
+- `hrv_sdnn` and `hrv_rmssd` are different metrics and are summarized separately.
+- The response includes `window` (requested dates and the actual UTC bounds), `record_count`,
+  per-day `warnings`, aggregated `warnings` (including `no_records_in_window`), and `definitions`,
+  a dictionary explaining every statistic and warning code for downstream interpretation.
+
+Synthetic example response: [daily-summary.synthetic.json](../examples/daily-summary.synthetic.json).
+Values are JSON strings carrying decimal precision. Zones with a DST transition exactly at local
+midnight follow Python's `fold=0` rule and are not specially handled.
 
 ## Adapter contract for the existing Swift prototype (not implemented here)
 

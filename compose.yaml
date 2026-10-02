@@ -67,7 +67,7 @@ services:
     environment:
       HEALTHOPS_TEST_DATABASE_URL: postgresql+psycopg://healthops:test-only-password@test-db:5432/healthops_test
     # Repository-policy tests run on the host, where Git is available.
-    command: ["pytest", "-q", "-p", "no:cacheprovider", "tests/test_schema.py", "tests/test_api.py"]
+    command: ["pytest", "-q", "-p", "no:cacheprovider", "tests", "--ignore=tests/test_public_content.py"]
     depends_on:
       test-db:
         condition: service_healthy

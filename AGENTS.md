@@ -23,7 +23,7 @@
 
 ## Verification
 
-- Unit tests: `uv run pytest -q tests/test_schema.py tests/test_public_content.py`.
+- Unit tests: `uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_public_content.py`.
 - Full integration suite: `docker compose --profile test build test`, then
   `docker compose --profile test run --rm test` using only the isolated synthetic test DB.
 - Check lint/format, Markdown links and public-content policy. Report checks not run.

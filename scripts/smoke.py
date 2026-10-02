@@ -46,7 +46,26 @@ def main():
                 break
             offset = page["next_offset"]
         assert expected <= found
+        # Deterministic tools: the token decides whose history is summarized.
+        availability = client.get("/v1/tools/availability", params={"timezone": "America/New_York"})
+        availability.raise_for_status()
+        series = {(s["provider"], s["metric"]) for s in availability.json()["series"]}
+        assert {("healthkit", "heart_rate"), ("google_health", "heart_rate")} <= series
+        summary = client.get(
+            "/v1/tools/daily-summary",
+            params={
+                "metric": "heart_rate",
+                "timezone": "America/New_York",
+                "start_date": "2026-10-01",
+                "end_date": "2026-10-01",
+            },
+        )
+        summary.raise_for_status()
+        providers = {p["provider"]: p for p in summary.json()["providers"]}
+        assert providers["healthkit"]["days"][0]["sample_count"] >= 1
+        assert providers["healthkit"]["days"][0]["sample_mean"] is not None
         print("PASS: inserted 2 synthetic observations; replay skipped 2; history query succeeded.")
+        print("PASS: availability listed both synthetic providers; daily summary returned a mean.")
         print("Synthetic records remain in the local demo database for inspection.")
 
 
