@@ -1,0 +1,16 @@
+.venv/
+.env
+.env.*
+!.env.example
+.local/
+# Local-only learning notes; never publish or force-add these files.
+/docs/learning/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+*.egg-info/
+.DS_Store

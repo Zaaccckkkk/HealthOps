@@ -1,0 +1,28 @@
+{
+  "observations": [
+    {
+      "provider": "healthkit",
+      "source_record_id": "synthetic-watch-heart-001",
+      "source_device": "Synthetic Apple Watch",
+      "metric": "heart_rate",
+      "value": 72,
+      "unit": "bpm",
+      "started_at": "2026-10-01T08:00:00-04:00",
+      "ended_at": "2026-10-01T08:00:00-04:00",
+      "source_timezone": "America/New_York",
+      "aggregation": "sample"
+    },
+    {
+      "provider": "google_health",
+      "source_record_id": "synthetic-fitbit-heart-001",
+      "source_device": "Synthetic Fitbit",
+      "metric": "heart_rate",
+      "value": 74,
+      "unit": "bpm",
+      "started_at": "2026-10-01T12:00:00Z",
+      "ended_at": "2026-10-01T12:00:00Z",
+      "source_timezone": "America/New_York",
+      "aggregation": "sample"
+    }
+  ]
+}

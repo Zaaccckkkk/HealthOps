@@ -1,0 +1,76 @@
+name: healthops-local
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: infra/docker/ingestion-api.Dockerfile
+  environment:
+    HEALTHOPS_DATABASE_URL: postgresql+psycopg://healthops:local-only-password@db:5432/healthops
+    HEALTHOPS_ENVIRONMENT: local
+
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: healthops
+      POSTGRES_PASSWORD: local-only-password
+      POSTGRES_DB: healthops
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthops -d healthops"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Separate ephemeral database: integration tests cannot erase the demo database.
+  test-db:
+    image: postgres:17-bookworm
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: healthops
+      POSTGRES_PASSWORD: test-only-password
+      POSTGRES_DB: healthops_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthops -d healthops_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  test:
+    <<: *app
+    profiles: ["test"]
+    environment:
+      HEALTHOPS_TEST_DATABASE_URL: postgresql+psycopg://healthops:test-only-password@test-db:5432/healthops_test
+    # Repository-policy tests run on the host, where Git is available.
+    command: ["pytest", "-q", "-p", "no:cacheprovider", "tests/test_schema.py", "tests/test_api.py"]
+    depends_on:
+      test-db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

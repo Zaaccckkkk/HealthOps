@@ -1,0 +1,10 @@
+.git
+.venv
+.env
+.env.*
+.local
+docs/learning
+__pycache__
+.pytest_cache
+.ruff_cache
+tmp
