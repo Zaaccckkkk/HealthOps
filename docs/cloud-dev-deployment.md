@@ -77,6 +77,17 @@ rules, the IAP-only SSH path and the bearer token; there is no application-level
 and no per-record deletion endpoint. Nothing from that account may be copied into the
 repository, fixtures, evaluation sets or documentation.
 
+## Google Health connector
+
+The connector needs a **Web application** OAuth client of the same Google Cloud project (the
+project that already has Google Health API access), with the redirect URI
+`https://<public host>/v1/connections/google-health/callback`, the consent screen in Testing
+with the tester's Google Account as a test user, and the three read-only Google Health scopes.
+The client id, client secret and a Fernet key go into `.env.cloud` only. Caddy proxies the
+callback path like any other API path. Stored refresh tokens are encrypted at rest with the
+key; rotating the key means reconnecting. Disconnecting revokes at Google and deletes the
+credential; deleting synced data is a separate, explicit action.
+
 ## Persistence and deletion policy
 
 PostgreSQL data, Ollama model files and Caddy certificates are bind mounts under

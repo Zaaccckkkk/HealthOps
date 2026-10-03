@@ -53,3 +53,33 @@ def ingest_batch(session: Session, user_id: UUID, records: list[ObservationIn]) 
         session.rollback()
         raise
     return BatchResult(received=len(records), inserted=inserted, duplicates=len(records) - inserted)
+
+
+class ConnectorIngestResult:
+    """Per-record outcome for a connector sync: conflicts are reported, never overwritten."""
+
+    def __init__(self):
+        self.inserted = 0
+        self.duplicates = 0
+        self.conflicts: list[str] = []  # source_record_id values (no measurement values)
+
+
+def ingest_tolerant(
+    session: Session, user_id: UUID, records: list[ObservationIn]
+) -> ConnectorIngestResult:
+    """Ingest one record at a time so one upstream revision does not fail the whole page.
+
+    A record whose provider identity already exists with a different payload is an upstream
+    revision. The stored value is kept and the identity is reported in ``conflicts`` so the
+    sync result shows it explicitly; nothing is silently replaced.
+    """
+    result = ConnectorIngestResult()
+    for record in records:
+        try:
+            batch = ingest_batch(session, user_id, [record])
+        except SourceConflict:
+            result.conflicts.append(record.source_record_id)
+            continue
+        result.inserted += batch.inserted
+        result.duplicates += batch.duplicates
+    return result

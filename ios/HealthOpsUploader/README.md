@@ -85,6 +85,17 @@ describe this as a live wearable integration.
   shows the three setup steps and a button to the Setup tab.
 - Charts are cleared on the same server, token and account changes as the chat history.
 
+## Google Health (Fitbit) connection
+
+- Setup step 5 asks the server for an authorization URL and opens it in
+  `ASWebAuthenticationSession`; the callback returns to the `healthops://` scheme with a status
+  word only. The phone never holds Google tokens; it reads the connection state from the server
+  with its own bearer token. Sync is user triggered (1 to 90 days) and shows per-type counts,
+  upstream revisions kept as conflicts, and failed types.
+- Disconnect and "delete synced data" are two buttons; the second asks for confirmation.
+- Charts draw one line per channel, labelled Apple Health and Google Health; HRV SDNN
+  (Apple) and HRV RMSSD (Google) are separate charts.
+
 ## Ask tab rules
 
 - Every question is one independent `POST /v1/assistant/ask` under the verified identity; no

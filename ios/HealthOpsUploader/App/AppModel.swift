@@ -26,6 +26,8 @@ final class AppModel: ObservableObject {
     let assistant = AssistantModel()
     /// Home charts; cleared on the same scope changes so another account's data never lingers.
     let home = HomeModel()
+    /// Google Health connection state; also cleared on scope changes.
+    let googleHealth = GoogleHealthModel()
 
     let healthStore = HKHealthStore()
     private let defaults = UserDefaults.standard
@@ -63,6 +65,7 @@ final class AppModel: ObservableObject {
             cancelSync(reason: "server changed")
             assistant.reset(reason: "server changed")
             home.reset()
+            googleHealth.reset()
             note("Server changed; verify identity again before granting consent or syncing.")
             reloadStates()
         }
@@ -84,6 +87,12 @@ final class AppModel: ObservableObject {
 
     /// The stored token for a request; read at send time so a replaced token is never reused.
     func currentToken() -> String? { KeychainTokenStore.load() }
+
+    /// A client for the current server and stored token, or nil when either is missing.
+    func currentClient() -> APIClient? {
+        guard let serverURL, let token = currentToken() else { return nil }
+        return APIClient(baseURL: serverURL, token: token)
+    }
 
     private func note(_ text: String) {
         messages.insert("\(Self.clock.string(from: Date()))  \(text)", at: 0)
@@ -107,6 +116,7 @@ final class AppModel: ObservableObject {
         identity.credentialsChanged()
         assistant.reset(reason: "token changed")
         home.reset()
+        googleHealth.reset()
         reloadStates()
         note(hasToken ? "Token stored in the Keychain. Verify identity again." : "Token cleared.")
     }
@@ -143,6 +153,7 @@ final class AppModel: ObservableObject {
                 cancelSync(reason: "identity changed")
                 assistant.reset(reason: "account changed")
                 home.reset()
+                googleHealth.reset()
                 note("Different user than before; previous consent and queues are not reused.")
             }
             note("Connected as \(me.displayName) (user \(me.id.prefix(8))…) on \(serverURL.host ?? "").")

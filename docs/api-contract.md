@@ -359,6 +359,33 @@ semantics and every data condition is computed from the synthetic history; a tes
 drift. Metrics and the manual rubric are described there. Numbers from a local quantized model are small-sample
 descriptive results, not deployment measurements.
 
+## Provider connections v0: Google Health (server-side connector)
+
+Status: implemented and tested against a fake Google (OAuth + Health API) in the integration
+suite; not yet exercised against the real service. Enabled only when the four
+`HEALTHOPS_GOOGLE_OAUTH_*` / `HEALTHOPS_CONNECTION_KEY` settings are present; otherwise every
+route answers 503.
+
+| Route | Auth | Purpose |
+|---|---|---|
+| `POST /v1/connections/google-health/session` `{timezone}` | bearer | Creates a one-time `state` bound to the user (10 minutes) and returns Google's authorization URL (offline access, three read-only scopes). |
+| `GET /v1/connections/google-health/callback?state&code` | none (browser) | Validates the state (unknown, expired or reused states store nothing), exchanges the code with the server-side client secret, calls `users/me/identity` (an unlinked Google Account is rejected and its token revoked), stores the refresh token encrypted, and redirects to `healthops://google-health?status=<word>`. Status words: `connected`, `denied`, `account_not_linked`, `no_refresh_token`, `token_exchange_failed`, `provider_unavailable`, `invalid_state`. No token travels in any URL. |
+| `GET /v1/connections/google-health` | bearer | Connection status, scopes, last sync report (counts and record identities only) and the outcome of the latest authorization attempt. |
+| `POST /v1/connections/google-health/sync` `{timezone, days?}` | bearer | Pulls the last `days` local days (default 14, max 90) and ingests them as `provider = google_health`. Per data type the report lists fetched, inserted, duplicates, conflicts and an error; a type's watermark advances only when every page succeeded. 409 when the Google authorization expired (reconnect). |
+| `DELETE /v1/connections/google-health` | bearer | Revokes the token at Google (best effort, reported) and deletes the stored credential. Synced records stay. |
+| `DELETE /v1/connections/google-health/data` | bearer | Deletes every `google_health` observation of the user. Separate from disconnecting on purpose. |
+
+Mapping: `steps` daily roll-up to `daily_total`; `heart-rate` daily roll-up average to
+`daily_summary`; `daily-resting-heart-rate` to `daily_summary`; `daily-heart-rate-variability`
+(`averageHeartRateVariabilityMilliseconds`) to `hrv_rmssd` `daily_summary`, kept apart from
+HealthKit's SDNN; `sleep` logs (`minutesAsleep`) to `interval_total` seconds. Record identities
+are built from the type and its own time fields because most Google data points have no
+`name`. An upstream revision (same identity, different payload) is never overwritten: the
+stored value is kept and the identity appears under `conflicts`. Active energy and active
+minutes are not mapped until their fields have been checked against a real account.
+`source_device` is the Google data source's device display name when present, otherwise
+null; the channel label in the app is "Google Health", never a guessed device.
+
 ## iOS upload adapter (implemented; Simulator-verified with synthetic data)
 
 [ios/HealthOpsUploader](../ios/HealthOpsUploader/README.md) is the first client of this

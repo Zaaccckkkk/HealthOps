@@ -109,7 +109,7 @@ struct TurnView: View {
             HStack(alignment: .top) {
                 Text(turn.question).font(.body.bold())
                 Spacer()
-                Text(turn.provider ?? "all channels").font(.caption2).foregroundStyle(.secondary)
+                Text(ProviderLabel.display(turn.provider)).font(.caption2).foregroundStyle(.secondary)
             }
             switch turn.outcome {
             case nil:
@@ -200,7 +200,7 @@ struct CardView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(card.title).font(.subheadline.bold())
             if let start = card.startDate, let end = card.endDate {
-                Text("\(start) to \(end) · \(card.timezone)\(card.provider.map { " · \($0)" } ?? "")")
+                Text("\(start) to \(end) · \(card.timezone)\(card.provider.map { " · \(ProviderLabel.display($0))" } ?? "")")
                     .font(.caption).foregroundStyle(.secondary)
             }
             switch card.kind {

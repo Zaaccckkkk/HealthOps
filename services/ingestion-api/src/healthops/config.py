@@ -38,6 +38,30 @@ class Settings(BaseSettings):
     # Evaluation only: lets a request pin "today" so relative dates are reproducible.
     assistant_allow_today_override: bool = False
 
+    # Google Health connector (server-side OAuth). Disabled unless all three are set. The
+    # client secret and the token-encryption key live only in the server environment.
+    google_oauth_client_id: str | None = None
+    google_oauth_client_secret: SecretStr | None = None
+    google_oauth_redirect_uri: str | None = None
+    connection_key: SecretStr | None = None  # Fernet key for stored refresh tokens
+    google_oauth_authorize_url: str = "https://accounts.google.com/o/oauth2/v2/auth"
+    google_oauth_token_url: str = "https://oauth2.googleapis.com/token"
+    google_oauth_revoke_url: str = "https://oauth2.googleapis.com/revoke"
+    google_health_base_url: str = "https://health.googleapis.com/v4"
+    connection_sync_default_days: int = 14
+    connection_sync_max_days: int = 90
+    # Where the browser is sent after the callback; the app registers this URL scheme.
+    app_callback_url: str = "healthops://google-health"
+
+    @property
+    def google_health_configured(self) -> bool:
+        return bool(
+            self.google_oauth_client_id
+            and self.google_oauth_client_secret
+            and self.google_oauth_redirect_uri
+            and self.connection_key
+        )
+
     SUPPORTED_ENVIRONMENTS: ClassVar[tuple[str, ...]] = ("local", "cloud-dev")
 
     def require_local(self) -> None:

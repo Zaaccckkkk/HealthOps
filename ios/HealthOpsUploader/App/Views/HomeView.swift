@@ -60,7 +60,7 @@ struct HomeView: View {
                         if series.isEmpty {
                             MetricEmptyCard(metric: metric, range: home.range)
                         } else {
-                            ForEach(series, id: \.provider) { s in MetricChartCard(series: s) }
+                            MetricChartCard(metric: metric, channels: series)
                         }
                     }
                 }
@@ -109,94 +109,98 @@ struct SetupStepsView: View {
     }
 }
 
+/// One chart per metric; one line per data channel (Apple Health, Google Health), each in
+/// its own colour with a legend. Channels are never summed: two lines mean two sources.
 struct MetricChartCard: View {
-    let series: MetricSeries
+    let metric: Metric
+    let channels: [MetricSeries]
 
-    private var title: String { series.metric.replacingOccurrences(of: "_", with: " ") }
-    /// Durations are plotted in hours (a constant division for display only); the server's
-    /// seconds stay in the latest-value text as "h min".
-    private var plotsHours: Bool { series.unit == "s" }
-    private var axisUnit: String { plotsHours ? "h" : series.unit }
+    private var title: String { metric.rawValue.replacingOccurrences(of: "_", with: " ").capitalized }
+    private var unit: String { channels.first?.unit ?? "" }
+    private var plotsHours: Bool { unit == "s" }
+    private var axisUnit: String { plotsHours ? "h" : unit }
     private func plotted(_ value: Double?) -> Double { plotsHours ? (value ?? 0) / 3600 : (value ?? 0) }
-    /// Labels every day for a week, every fifth day for a month, so labels never overlap.
+    /// The union of dates across channels, in calendar order (all channels share the window).
+    private var dates: [String] { Array(Set(channels.flatMap { $0.points.map(\.date) })).sorted() }
     private var labelledDates: [String] {
-        let dates = series.points.map(\.date)
         let step = max(1, dates.count / 6)
         return dates.enumerated().filter { $0.offset % step == 0 || $0.offset == dates.count - 1 }.map(\.element)
+    }
+    private var anyValues: Bool { channels.contains { $0.daysWithValues > 0 } }
+
+    private var plotPoints: [ChartPoint] {
+        channels.flatMap { series in
+            series.segments.enumerated().flatMap { index, segment in
+                segment.map { point in
+                    ChartPoint(
+                        id: "\(series.provider)-\(point.date)", date: point.date,
+                        y: plotted(point.value), run: "\(series.provider)-\(index)",
+                        color: color(for: series.provider))
+                }
+            }
+        }
+    }
+
+    private var gapMarks: [ChartGap] {
+        channels.flatMap { series in
+            series.points.filter { $0.quality != .value }.map { point in
+                ChartGap(
+                    id: "\(series.provider)-\(point.date)", date: point.date,
+                    color: (point.quality == .unusable ? Color.orange : color(for: series.provider)).opacity(0.3))
+            }
+        }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(title.capitalized).font(.subheadline.bold())
-                Spacer()
-                if let latest = series.latest {
-                    Text(MetricSeries.display(latest.text, unit: series.unit)).font(.subheadline.monospacedDigit())
-                    Text(latest.date).font(.caption2).foregroundStyle(.secondary)
-                } else {
-                    Text("no data").font(.subheadline).foregroundStyle(.secondary)
+            Text(title).font(.subheadline.bold())
+            ForEach(channels, id: \.provider) { series in
+                HStack(spacing: 6) {
+                    Circle().fill(color(for: series.provider)).frame(width: 8, height: 8)
+                    Text(ProviderLabel.display(series.provider)).font(.caption)
+                    Spacer()
+                    if let latest = series.latest {
+                        Text(MetricSeries.display(latest.text, unit: series.unit)).font(.caption.monospacedDigit())
+                        Text(latest.date).font(.caption2).foregroundStyle(.secondary)
+                    } else {
+                        Text("no data").font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
-            if series.daysWithValues == 0 {
+            if !anyValues {
                 Text("No values in this range.").font(.caption).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 60)
             } else {
-                Chart {
-                    ForEach(Array(series.segments.enumerated()), id: \.offset) { index, segment in
-                        ForEach(segment) { point in
-                            LineMark(x: .value("Day", point.date), y: .value(axisUnit, plotted(point.value)))
-                                .foregroundStyle(by: .value("Segment", "run \(index)"))
-                            PointMark(x: .value("Day", point.date), y: .value(axisUnit, plotted(point.value)))
-                                .foregroundStyle(by: .value("Segment", "run \(index)"))
-                        }
-                    }
-                    ForEach(series.points.filter { $0.quality != .value }) { point in
-                        RuleMark(x: .value("Day", point.date))
-                            .foregroundStyle(point.quality == .unusable ? Color.orange.opacity(0.5) : Color.secondary.opacity(0.25))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                    }
-                }
-                .chartLegend(.hidden)
-                // Categorical axis in calendar order, gaps included; the value axis is not
-                // forced through zero, so a 55-62 bpm series is readable.
-                .chartXScale(domain: series.points.map(\.date))
-                .chartYScale(domain: .automatic(includesZero: false))
-                .chartForegroundStyleScale(range: [Color.accentColor, Color.accentColor, Color.accentColor, Color.accentColor, Color.accentColor, Color.accentColor])
-                .chartXAxis {
-                    AxisMarks(values: labelledDates) { value in
-                        AxisGridLine()
-                        AxisValueLabel {
-                            if let day = value.as(String.self) { Text(String(day.suffix(5))).font(.caption2) }
-                        }
-                    }
-                }
-                .chartYAxis {
-                    AxisMarks(position: .trailing) { value in
-                        AxisGridLine()
-                        AxisValueLabel {
-                            if let number = value.as(Double.self) {
-                                Text(plotsHours ? String(format: "%.1f h", number) : number.formatted(.number.precision(.fractionLength(0...1))))
-                                    .font(.caption2)
-                            }
-                        }
-                    }
-                }
-                .frame(height: 140)
+                ChannelChart(
+                    points: plotPoints, gaps: gapMarks, dates: dates, labelledDates: labelledDates,
+                    plotsHours: plotsHours)
+                .frame(height: 150)
             }
-            HStack(spacing: 10) {
-                Text("\(series.daysWithValues) day(s) with values").font(.caption2).foregroundStyle(.secondary)
-                if series.daysWithoutRecords > 0 {
-                    Text("\(series.daysWithoutRecords) without records").font(.caption2).foregroundStyle(.secondary)
+            ForEach(channels, id: \.provider) { series in
+                HStack(spacing: 10) {
+                    Text(ProviderLabel.display(series.provider)).font(.caption2.bold()).foregroundStyle(color(for: series.provider))
+                    Text("\(series.daysWithValues) with values").font(.caption2).foregroundStyle(.secondary)
+                    if series.daysWithoutRecords > 0 {
+                        Text("\(series.daysWithoutRecords) without records").font(.caption2).foregroundStyle(.secondary)
+                    }
+                    if series.daysUnusable > 0 {
+                        Text("\(series.daysUnusable) without a reliable value").font(.caption2).foregroundStyle(.orange)
+                    }
+                    Spacer()
+                    Text(series.statistic.replacingOccurrences(of: "_", with: " ")).font(.caption2).foregroundStyle(.secondary)
                 }
-                if series.daysUnusable > 0 {
-                    Text("\(series.daysUnusable) without a reliable value").font(.caption2).foregroundStyle(.orange)
-                }
-                Spacer()
-                Text("\(series.provider) · \(series.statistic.replacingOccurrences(of: "_", with: " "))").font(.caption2).foregroundStyle(.secondary)
             }
         }
         .padding(12)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func color(for provider: String) -> Color {
+        switch provider {
+        case "healthkit": return .accentColor
+        case "google_health": return .green
+        default: return .purple
+        }
     }
 }
 
@@ -232,5 +236,69 @@ struct MetricEmptyCard: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+struct ChartPoint: Identifiable {
+    let id: String
+    let date: String
+    let y: Double
+    let run: String
+    let color: Color
+}
+
+struct ChartGap: Identifiable {
+    let id: String
+    let date: String
+    let color: Color
+}
+
+/// The chart itself, fed with pre-computed typed arrays so SwiftUI's type checker stays fast.
+struct ChannelChart: View {
+    let points: [ChartPoint]
+    let gaps: [ChartGap]
+    let dates: [String]
+    let labelledDates: [String]
+    let plotsHours: Bool
+
+    var body: some View {
+        Chart {
+            ForEach(points) { point in
+                LineMark(x: .value("Day", point.date), y: .value("Value", point.y), series: .value("Run", point.run))
+                    .foregroundStyle(point.color)
+            }
+            ForEach(points) { point in
+                PointMark(x: .value("Day", point.date), y: .value("Value", point.y))
+                    .foregroundStyle(point.color)
+            }
+            ForEach(gaps) { gap in
+                RuleMark(x: .value("Day", gap.date))
+                    .foregroundStyle(gap.color)
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            }
+        }
+        .chartLegend(.hidden)
+        .chartXScale(domain: dates)
+        .chartYScale(domain: .automatic(includesZero: false))
+        .chartXAxis {
+            AxisMarks(values: labelledDates) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let day = value.as(String.self) { Text(String(day.suffix(5))).font(.caption2) }
+                }
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .trailing) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let number = value.as(Double.self) { Text(axisLabel(number)).font(.caption2) }
+                }
+            }
+        }
+    }
+
+    private func axisLabel(_ number: Double) -> String {
+        plotsHours ? String(format: "%.1f h", number) : number.formatted(.number.precision(.fractionLength(0...1)))
     }
 }

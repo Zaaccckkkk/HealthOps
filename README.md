@@ -35,6 +35,11 @@ unit-faithful display conversions, explicit "no data" versus "no reliable value"
 finding types, and the server verifies each finding and renders fixed template sentences; an
 unverifiable explanation degrades to a fixed fallback while the cards still show the data.
 Refusals are fixed sentences chosen by category; model prose never becomes the answer.
+A server-side **Google Health connector** (OAuth on the server, encrypted refresh token, user
+triggered sync of steps, heart rate, resting heart rate, HRV RMSSD and sleep) stores Fitbit
+data as a second channel, `google_health`; the app draws Apple Health and Google Health as
+separate lines and never sums channels. It is tested against a fake Google and not yet run
+against the real service.
 A same-origin debug page (`/debug/assistant`) shows the actual window, channel, cards, claims
 and tool calls; it is a local verification interface, not the iOS chat feature.
 The iOS app has an **Overview** tab with one deterministic line chart per metric read

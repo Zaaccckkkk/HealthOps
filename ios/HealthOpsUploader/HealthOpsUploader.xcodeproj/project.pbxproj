@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		4D39931D9E4F9D526FBF1DCF /* HealthOpsUploaderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 228C0066BDF6C5037C265CEB /* HealthOpsUploaderApp.swift */; };
+		4F60464FB637D6B40DE13438 /* GoogleHealthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 682248DD68B115B92E732A1D /* GoogleHealthModel.swift */; };
 		671DAB72076932718919BFA7 /* KeychainTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A298D383FC1237C44397270A /* KeychainTokenStore.swift */; };
 		9D0135D2287EB81D666C3BF3 /* AssistantModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62C32D0D1400B447E7A9C05D /* AssistantModel.swift */; };
 		B21F78C45E30846F041064DD /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6E3B054BC97ECA842050137 /* ChatView.swift */; };
@@ -28,6 +29,7 @@
 		2DC6C55B2C529AD86DF86F91 /* HomeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeModel.swift; sourceTree = "<group>"; };
 		569C262B4B8D3E96329E44FA /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		62C32D0D1400B447E7A9C05D /* AssistantModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantModel.swift; sourceTree = "<group>"; };
+		682248DD68B115B92E732A1D /* GoogleHealthModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleHealthModel.swift; sourceTree = "<group>"; };
 		6B5F92A85C9A23C807F8F3B7 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		6E5C23F498951BC2C168FDAB /* SyntheticSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyntheticSeeder.swift; sourceTree = "<group>"; };
 		A298D383FC1237C44397270A /* KeychainTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTokenStore.swift; sourceTree = "<group>"; };
@@ -60,6 +62,7 @@
 			children = (
 				C604864C7AFD6EA046269530 /* AppModel.swift */,
 				62C32D0D1400B447E7A9C05D /* AssistantModel.swift */,
+				682248DD68B115B92E732A1D /* GoogleHealthModel.swift */,
 				210EAEE42C51D7DD064F71D3 /* HealthKitSampleSource.swift */,
 				228C0066BDF6C5037C265CEB /* HealthOpsUploaderApp.swift */,
 				2DC6C55B2C529AD86DF86F91 /* HomeModel.swift */,
@@ -164,6 +167,7 @@
 				9D0135D2287EB81D666C3BF3 /* AssistantModel.swift in Sources */,
 				B21F78C45E30846F041064DD /* ChatView.swift in Sources */,
 				F7D30044D0DDEE56706E4879 /* ContentView.swift in Sources */,
+				4F60464FB637D6B40DE13438 /* GoogleHealthModel.swift in Sources */,
 				C25BDC26A8484DADD38FA5A3 /* HealthKitSampleSource.swift in Sources */,
 				4D39931D9E4F9D526FBF1DCF /* HealthOpsUploaderApp.swift in Sources */,
 				B4D17628ACE9201021224E27 /* HomeModel.swift in Sources */,

@@ -22,6 +22,9 @@ from healthops.assistant.prompts import PROMPT_VERSION
 from healthops.assistant.toolbox import Toolbox
 from healthops.auth import SessionDep, UserDep, bearer, current_user
 from healthops.config import Settings
+from healthops.connections import router as connections_router
+from healthops.connectors.crypto import TokenCipher
+from healthops.connectors.google_health import GoogleHealthClient, GoogleOAuthConfig
 from healthops.db import build_engine
 from healthops.models import Observation, User
 from healthops.repository import SourceConflict, ingest_batch
@@ -87,7 +90,11 @@ def build_assistant(
     )
 
 
-def create_app(settings: Settings | None = None, chat_model: ChatModel | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    chat_model: ChatModel | None = None,
+    google_transport=None,
+) -> FastAPI:
     settings = settings or Settings()
     settings.require_local()
     engine = build_engine(settings.database_url.get_secret_value())
@@ -101,6 +108,24 @@ def create_app(settings: Settings | None = None, chat_model: ChatModel | None = 
     app.state.session_factory = sessionmaker(engine, expire_on_commit=False)
     app.state.assistant = build_assistant(settings, app.state.session_factory, chat_model)
     app.state.assistant_limiter = RateLimiter(settings.assistant_rate_limit_per_minute)
+    app.state.settings = settings
+    # Google Health connector: present only when the OAuth client and the token key are set.
+    app.state.google_health = None
+    if settings.google_health_configured:
+        app.state.token_cipher = TokenCipher(settings.connection_key.get_secret_value())
+        app.state.google_health = GoogleHealthClient(
+            GoogleOAuthConfig(
+                client_id=settings.google_oauth_client_id,
+                client_secret=settings.google_oauth_client_secret.get_secret_value(),
+                redirect_uri=settings.google_oauth_redirect_uri,
+                authorize_url=settings.google_oauth_authorize_url,
+                token_url=settings.google_oauth_token_url,
+                revoke_url=settings.google_oauth_revoke_url,
+                api_base_url=settings.google_health_base_url,
+            ),
+            transport=google_transport,
+        )
+    app.include_router(connections_router)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, exc: RequestValidationError):

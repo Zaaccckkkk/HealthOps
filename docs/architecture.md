@@ -25,7 +25,7 @@ introduce service-specific packages/lockfiles when dependency or release isolati
 | `infra/cloud/`, `scripts/cloud/` | Created and exercised once (2026-10-03); stopped between sessions | One GPU development VM: Caddy HTTPS edge, API, PostgreSQL and Ollama in Compose; persistent disk; two-hour auto-stop |
 | `tests/` | Implemented | Schema, API, database and repository-policy tests |
 | `ios/HealthOpsUploader/` | Implemented; verified on a physical iPhone against the cloud deployment, including one consented upload of the owner's own HealthKit history | Consented HealthKit upload with replay-safe incremental sync, plus the Ask tab over the cards contract; old prototype is outside this repo and unchanged |
-| `services/wearable-connectors/` | Planned; not created | Provider adapters and sync workers when server-side sync is implemented |
+| `services/ingestion-api/src/healthops/connectors/` | Implemented in the API process; tested against a fake Google | Google Health connector: server-side OAuth, windowed sync, per-type watermarks. A separate worker service is not justified while one tester syncs on demand |
 | `services/api-service/` | Planned; not created | Future home of orchestration and tools if a second runtime is justified; today both live in the ingestion API process |
 | `services/retrieval-service/` | Planned; not created | Knowledge ingestion, retrieval and citation metadata |
 | `services/llm-serving/` | Planned; not created | vLLM GPU inference. Development uses Ollama (Mac, and the scripted GPU VM); switching servers needs protocol tests and re-evaluation |

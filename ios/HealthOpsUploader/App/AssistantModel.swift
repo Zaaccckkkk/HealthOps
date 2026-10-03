@@ -10,16 +10,17 @@ import SwiftUI
 final class AssistantModel: ObservableObject {
     enum ProviderChoice: String, CaseIterable, Identifiable {
         case healthkit
+        case googleHealth = "google_health"
         case all
         var id: String { rawValue }
-        var label: String { self == .healthkit ? "HealthKit" : "All channels" }
+        var label: String { self == .all ? "All channels" : ProviderLabel.display(rawValue) }
         /// The request value: nil means every channel.
-        var requestValue: String? { self == .healthkit ? "healthkit" : nil }
+        var requestValue: String? { self == .all ? nil : rawValue }
     }
 
     @Published private(set) var conversation = AssistantConversation()
     @Published var questionDraft = ""
-    @Published var provider: ProviderChoice = .healthkit
+    @Published var provider: ProviderChoice = .all
     @Published private(set) var busy = false
     @Published private(set) var notice: String?
 

@@ -95,6 +95,57 @@ public final class APIClient: Uploader, @unchecked Sendable {
         }
     }
 
+    // MARK: Google Health connection (server-side connector)
+
+    public func googleHealthSession(timezone: String) async throws -> ConnectionSessionResponse {
+        try await connection("POST", path: "/v1/connections/google-health/session", json: ["timezone": timezone])
+    }
+
+    public func googleHealthStatus() async throws -> ConnectionStatus {
+        try await connection("GET", path: "/v1/connections/google-health", json: nil)
+    }
+
+    public func googleHealthSync(timezone: String, days: Int?) async throws -> ConnectorSyncReport {
+        var body: [String: Any] = ["timezone": timezone]
+        if let days { body["days"] = days }
+        return try await connection("POST", path: "/v1/connections/google-health/sync", json: body, timeout: 180)
+    }
+
+    public func googleHealthDisconnect() async throws -> DisconnectResult {
+        try await connection("DELETE", path: "/v1/connections/google-health", json: nil)
+    }
+
+    public func googleHealthDeleteData() async throws -> DeleteDataResult {
+        try await connection("DELETE", path: "/v1/connections/google-health/data", json: nil)
+    }
+
+    private func connection<T: Decodable>(
+        _ method: String, path: String, json: [String: Any]?, timeout: TimeInterval = 30
+    ) async throws -> T {
+        let body = try json.map { try JSONSerialization.data(withJSONObject: $0) }
+        let data: Data
+        let status: Int
+        do {
+            (data, status) = try await send(method, path: path, body: body, timeout: timeout)
+        } catch is CancellationError {
+            throw ServiceFailure.cancelled
+        } catch let UploadError.network(detail) {
+            throw ServiceFailure.unavailable(detail)
+        }
+        switch status {
+        case 200:
+            do { return try JSONDecoder().decode(T.self, from: data) }
+            catch { throw ServiceFailure.decoding(String(describing: error).prefix(200).description) }
+        case 401: throw ServiceFailure.unauthorized
+        case 404: throw ServiceFailure.invalidRequest("not connected")
+        case 409: throw ServiceFailure.invalidRequest("reconnect required")
+        case 422: throw ServiceFailure.invalidRequest("422")
+        case 429: throw ServiceFailure.rateLimited
+        case 502, 503, 504: throw ServiceFailure.unavailable("HTTP \(status)")
+        default: throw ServiceFailure.server(status)
+        }
+    }
+
     private func send(
         _ method: String, path: String, body: Data?, timeout: TimeInterval = 20, query: [URLQueryItem] = []
     ) async throws -> (Data, Int) {

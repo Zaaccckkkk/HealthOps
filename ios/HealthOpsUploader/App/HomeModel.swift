@@ -13,8 +13,10 @@ final class HomeModel: ObservableObject {
         var label: String { self == .week ? "7 days" : "30 days" }
     }
 
+    // SDNN (Apple Health) and RMSSD (Google Health) are different HRV definitions and get
+    // separate charts; they are never drawn on one axis.
     static let metrics: [Metric] = [
-        .steps, .restingHeartRate, .heartRate, .hrvSDNN, .sleepDuration, .activeEnergy, .exerciseDuration,
+        .steps, .restingHeartRate, .heartRate, .hrvSDNN, .hrvRMSSD, .sleepDuration, .activeEnergy, .exerciseDuration,
     ]
 
     @Published var range: Range = .week
