@@ -86,7 +86,10 @@ with the tester's Google Account as a test user, and the three read-only Google 
 The client id, client secret and a Fernet key go into `.env.cloud` only. Caddy proxies the
 callback path like any other API path. Stored refresh tokens are encrypted at rest with the
 key; rotating the key means reconnecting. Disconnecting revokes at Google and deletes the
-credential; deleting synced data is a separate, explicit action.
+credential; deleting synced data is a separate, explicit action. First real run (2026-10-03):
+authorisation and identity check succeeded; Google Health also returns Apple Health copies
+(`platform: HEALTH_KIT`), which the connector skips; `dailyRollUp` returned no points for this
+account, so steps are synced as intraday intervals and continuous heart rate is not synced.
 
 ## Persistence and deletion policy
 

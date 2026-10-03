@@ -48,9 +48,25 @@ public struct ConnectorSyncReport: Decodable, Equatable, Sendable {
         public var duplicates: Int
         public var conflicts: [String]
         public var unmapped: Int
+        public var skippedOtherPlatform: Int
+        public var warnings: [String]
         public var error: String?
         enum CodingKeys: String, CodingKey {
-            case dataType = "data_type", fetched, inserted, duplicates, conflicts, unmapped, error
+            case dataType = "data_type", fetched, inserted, duplicates, conflicts, unmapped, error, warnings
+            case skippedOtherPlatform = "skipped_other_platform"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            dataType = try c.decode(String.self, forKey: .dataType)
+            fetched = try c.decodeIfPresent(Int.self, forKey: .fetched) ?? 0
+            inserted = try c.decodeIfPresent(Int.self, forKey: .inserted) ?? 0
+            duplicates = try c.decodeIfPresent(Int.self, forKey: .duplicates) ?? 0
+            conflicts = try c.decodeIfPresent([String].self, forKey: .conflicts) ?? []
+            unmapped = try c.decodeIfPresent(Int.self, forKey: .unmapped) ?? 0
+            skippedOtherPlatform = try c.decodeIfPresent(Int.self, forKey: .skippedOtherPlatform) ?? 0
+            warnings = try c.decodeIfPresent([String].self, forKey: .warnings) ?? []
+            error = try c.decodeIfPresent(String.self, forKey: .error)
         }
     }
 

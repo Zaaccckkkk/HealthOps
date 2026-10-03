@@ -375,14 +375,19 @@ route answers 503.
 | `DELETE /v1/connections/google-health` | bearer | Revokes the token at Google (best effort, reported) and deletes the stored credential. Synced records stay. |
 | `DELETE /v1/connections/google-health/data` | bearer | Deletes every `google_health` observation of the user. Separate from disconnecting on purpose. |
 
-Mapping: `steps` daily roll-up to `daily_total`; `heart-rate` daily roll-up average to
-`daily_summary`; `daily-resting-heart-rate` to `daily_summary`; `daily-heart-rate-variability`
+Mapping (checked against a real account on 2026-10-03): `steps` intraday interval points to
+`interval_total` (Fitbit emits one-minute intervals only for minutes with steps, a few dozen
+per day); `daily-resting-heart-rate` to `daily_summary`; `daily-heart-rate-variability`
 (`averageHeartRateVariabilityMilliseconds`) to `hrv_rmssd` `daily_summary`, kept apart from
-HealthKit's SDNN; `sleep` logs (`minutesAsleep`) to `interval_total` seconds. Record identities
-are built from the type and its own time fields because most Google data points have no
-`name`. An upstream revision (same identity, different payload) is never overwritten: the
-stored value is kept and the identity appears under `conflicts`. Active energy and active
-minutes are not mapped until their fields have been checked against a real account.
+HealthKit's SDNN; `sleep` logs (`minutesAsleep`) to `interval_total` seconds. Continuous heart
+rate is not synced from this channel (samples every few seconds exceed the tools' budget and
+`dailyRollUp` returned no points for the tested account). Only points with
+`dataSource.platform = FITBIT` are kept: Google Health also stores copies of Apple Health data,
+which already arrive through the HealthKit channel; skipped points are counted per type as
+`skipped_other_platform`. Record identities are built from the type, its own time fields and
+the platform because most Google data points have no `name`. An upstream revision (same
+identity, different payload) is never overwritten: the stored value is kept and the identity
+appears under `conflicts`. Active energy and active minutes are not mapped yet.
 `source_device` is the Google data source's device display name when present, otherwise
 null; the channel label in the app is "Google Health", never a guessed device.
 

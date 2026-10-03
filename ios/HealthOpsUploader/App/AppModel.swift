@@ -20,8 +20,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var syncing = false
     @Published private(set) var messages: [String] = []
     @Published var selectedMetrics: Set<Metric> = Set(SyncedType.allCases.map(\.metric))
-    // Default upload window: the last 14 days; the user widens it deliberately in the picker.
-    @Published var historyStart: Date = Calendar.current.date(byAdding: .day, value: -14, to: Date())!
+    // Default upload window: the last 30 days, matching the longest chart range; the picker
+    // still lets the user narrow or widen it before consenting.
+    @Published var historyStart: Date = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
     /// Chat state; reset whenever the server, token or verified account changes.
     let assistant = AssistantModel()
     /// Home charts; cleared on the same scope changes so another account's data never lingers.
@@ -297,9 +298,10 @@ final class AppModel: ObservableObject {
             }
         }
         reloadStates()
+        let since = context.consent.historyStart.formatted(date: .abbreviated, time: .omitted)
         var summary = uploads == 0
-            ? "No new samples; nothing was sent."
-            : "Sync complete: \(uploads) request(s), inserted \(inserted), duplicates \(duplicates)."
+            ? "No new samples since \(since); nothing was sent."
+            : "Sync complete (history from \(since)): \(uploads) request(s), inserted \(inserted), duplicates \(duplicates)."
         if unmappable > 0 {
             summary += " \(unmappable) sample(s) could not be mapped and were recorded, not uploaded."
         }

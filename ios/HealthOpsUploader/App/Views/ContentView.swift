@@ -186,7 +186,7 @@ struct GoogleHealthSection: View {
     @EnvironmentObject private var model: AppModel
     @ObservedObject var google: GoogleHealthModel
     @State private var confirmDelete = false
-    @State private var syncDays = 14
+    @State private var syncDays = 30
 
     var body: some View {
         Section("5. Google Health (Fitbit) via the server") {
@@ -201,7 +201,7 @@ struct GoogleHealthSection: View {
                 Stepper("Sync the last \(syncDays) days", value: $syncDays, in: 1...90)
                 Button(google.busy ? "Working…" : "Sync Google Health now") { withClient { google.sync(client: $0, days: syncDays) } }
                     .disabled(google.busy)
-                Text("Steps, heart rate, resting heart rate, HRV (RMSSD) and sleep for the chosen days are copied from Google Health to the server and stored under this account.")
+                Text("Fitbit steps, resting heart rate, HRV (RMSSD) and sleep for the chosen days are copied from Google Health to the server and stored under this account. Apple Health copies inside Google Health are skipped; continuous heart rate is not synced from this channel.")
                     .font(.footnote).foregroundStyle(.secondary)
                 if let report = google.lastReport { ConnectorSyncReportView(report: report) }
                 Button("Disconnect Google Health", role: .destructive) { withClient { google.disconnect(client: $0) } }
@@ -256,6 +256,8 @@ struct ConnectorSyncReportView: View {
         if let error = item.error { return error }
         var text = "new \(item.inserted) · same \(item.duplicates)"
         if !item.conflicts.isEmpty { text += " · revised upstream \(item.conflicts.count)" }
+        if item.skippedOtherPlatform > 0 { text += " · skipped \(item.skippedOtherPlatform) non-Fitbit" }
+        if !item.warnings.isEmpty { text += " · " + item.warnings.joined(separator: "; ") }
         return text
     }
 

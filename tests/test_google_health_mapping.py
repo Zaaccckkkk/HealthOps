@@ -10,22 +10,20 @@ from fake_google_health import (
     REVOKE_URL,
     TOKEN_URL,
     FakeGoogle,
-    heart_rate_rollup,
     hrv,
     resting,
     sleep,
-    steps_rollup,
+    steps_interval,
 )
 
 from healthops.connectors.crypto import TokenCipher
 from healthops.connectors.google_health import (
     GoogleHealthClient,
     GoogleOAuthConfig,
-    map_heart_rate_rollup,
     map_hrv,
     map_resting_heart_rate,
     map_sleep,
-    map_steps_rollup,
+    map_steps_interval,
     sync_window,
 )
 from healthops.repository import ConnectorIngestResult
@@ -45,40 +43,24 @@ def config():
     )
 
 
-def test_steps_rollup_becomes_a_daily_total_on_the_local_day():
-    record = map_steps_rollup(steps_rollup("2026-10-01", 6400), NY)
-    assert record.metric == "steps" and record.aggregation == "daily_total"
-    assert record.value == Decimal(6400) and record.unit == "count"
-    assert record.started_at.isoformat() == "2026-10-01T04:00:00+00:00"  # NY midnight in UTC
-    assert record.source_record_id == "steps:rollup:2026-10-01"
-    assert record.source_device == "Synthetic Tracker"
-
-
-def test_rollup_accepts_both_snake_and_camel_field_names():
-    point = steps_rollup("2026-10-01", 1)
-    point["steps"] = {"count_sum": 5}
-    assert map_steps_rollup(point, NY).value == Decimal(5)
+def test_steps_interval_keeps_the_vendor_interval_and_platform_identity():
+    record = map_steps_interval(
+        steps_interval("2026-10-01T13:00:00Z", "2026-10-01T13:01:00Z", 64), NY
+    )
+    assert record.metric == "steps" and record.aggregation == "interval_total"
+    assert record.value == Decimal(64) and record.unit == "count"
     assert (
-        map_steps_rollup(
-            {"civilStartTime": {"date": {"year": 2026, "month": 10, "day": 1}}, "steps": {}}, NY
-        )
-        is None
+        record.source_record_id
+        == "steps:2026-10-01T13:00:00+00:00:2026-10-01T13:01:00+00:00:FITBIT"
     )
-
-
-def test_heart_rate_rollup_is_a_vendor_daily_summary_not_samples():
-    record = map_heart_rate_rollup(heart_rate_rollup("2026-10-02", 69.0), NY)
-    assert (record.metric, record.aggregation, record.unit) == (
-        "heart_rate",
-        "daily_summary",
-        "bpm",
-    )
-    assert record.source_device is None  # no device in that point: unknown, never guessed
+    assert record.source_device == "Synthetic Tracker"
+    assert map_steps_interval({"steps": {"count": "1"}}, NY) is None  # no interval: unmappable
 
 
 def test_resting_and_hrv_use_date_identities_and_separate_hrv_metric():
     r = map_resting_heart_rate(resting("2026-10-01", 58), NY)
-    assert r.source_record_id == "daily-resting-heart-rate:2026-10-01" and r.value == Decimal(58)
+    assert r.source_record_id == "daily-resting-heart-rate:2026-10-01:FITBIT"
+    assert r.value == Decimal(58)
     h = map_hrv(hrv("2026-10-01", 42.5), NY)
     assert h.metric == "hrv_rmssd" and h.unit == "ms" and h.value == Decimal("42.500000")
 
@@ -108,6 +90,10 @@ def test_sync_window_moves_watermarks_only_for_fully_fetched_types():
     )
     by_type = {t.data_type: t for t in report.types}
     assert by_type["steps"].inserted == 2 and by_type["steps"].watermark == "2026-10-03"
+    # Apple Health copies inside Google Health are skipped, not ingested as Fitbit data.
+    assert by_type["steps"].skipped_other_platform == 1
+    assert by_type["daily-resting-heart-rate"].skipped_other_platform == 1
+    assert by_type["daily-resting-heart-rate"].inserted == 2
     assert by_type["sleep"].error.startswith("google 503") and by_type["sleep"].inserted == 0
     assert cursors["sleep"] == "2026-09-20"  # unchanged: partial window never counts as done
     assert all(r.provider == "google_health" for r in ingested)

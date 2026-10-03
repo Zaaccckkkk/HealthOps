@@ -91,12 +91,17 @@ def test_full_connect_sync_and_disconnect_flow(connected_client, credentials, fa
     assert steps["inserted"] == 0 and steps["duplicates"] == 2 and steps["conflicts"] == []
 
     # Upstream revision: the stored value is kept and the identity is reported as a conflict.
-    fake.data["steps"][0]["steps"]["countSum"] = 6500
+    fake.data["steps"][0]["steps"]["count"] = "65"
     revised = connected_client.post(
         f"{BASE}/sync", headers=alice, json={"timezone": NY, "days": 3}
     ).json()
     steps = next(t for t in revised["types"] if t["data_type"] == "steps")
-    assert steps["conflicts"] == ["steps:rollup:2026-10-01"] and steps["inserted"] == 0
+    assert steps["conflicts"] == [
+        "steps:2026-10-01T13:00:00+00:00:2026-10-01T13:01:00+00:00:FITBIT"
+    ]
+    assert steps["inserted"] == 0
+    resting = next(t for t in revised["types"] if t["data_type"] == "daily-resting-heart-rate")
+    assert resting["skipped_other_platform"] == 1
     summary = connected_client.get(
         "/v1/tools/daily-summary",
         headers=alice,
@@ -107,7 +112,7 @@ def test_full_connect_sync_and_disconnect_flow(connected_client, credentials, fa
             "timezone": NY,
         },
     ).json()
-    assert summary["providers"][0]["days"][0]["daily_total"] == "6400.000000"
+    assert summary["providers"][0]["days"][0]["interval_total_sum"] == "64.000000"
 
     # Disconnect revokes at the provider and removes the credential; data stays until asked.
     result = connected_client.delete(BASE, headers=alice).json()
@@ -120,7 +125,7 @@ def test_full_connect_sync_and_disconnect_flow(connected_client, credentials, fa
         == 404
     )
     deleted = connected_client.delete(f"{BASE}/data", headers=alice).json()
-    assert deleted["deleted"] == 9
+    assert deleted["deleted"] == 7  # 2 steps + 2 resting + 1 hrv + 2 sleep
     assert connected_client.delete(f"{BASE}/data", headers=alice).json()["deleted"] == 0
 
 

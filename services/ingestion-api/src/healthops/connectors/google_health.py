@@ -10,14 +10,19 @@ Facts this module relies on (verified against the public reference on 2026-10-03
 - A data point's ``name`` is empty for most types, so record identities are built from the
   type and its own time fields.
 
-Mapping choices (provider ``google_health``):
-- steps: dailyRollUp -> ``daily_total`` (one record per local day; intraday points would be
-  thousands of minute intervals and exceed the tools' record budget).
-- heart rate: dailyRollUp average -> ``daily_summary`` on ``heart_rate``.
+Mapping choices (provider ``google_health``), checked against a real account on 2026-10-03:
+- steps: intraday interval points (one-minute intervals, only minutes with steps, about 20 to
+  50 per day for a Fitbit tracker) -> ``interval_total``; the tools sum them per local day.
+  ``dailyRollUp`` returned no points for this account and rejected every documented
+  ``dataSourceFamily`` value, so roll-ups are not used.
+- heart rate: not synced. Fitbit heart-rate samples arrive every few seconds (hundreds of
+  pages per day), far beyond the tools' record budget, and roll-ups are unavailable.
 - daily resting heart rate -> ``daily_summary`` on ``resting_heart_rate``.
 - daily heart rate variability: ``averageHeartRateVariabilityMilliseconds`` ->
   ``daily_summary`` on ``hrv_rmssd`` (kept apart from HealthKit's SDNN).
 - sleep logs: ``summary.minutesAsleep`` * 60 -> ``interval_total`` on ``sleep_duration``.
+Only points with ``dataSource.platform == FITBIT`` are kept: Google Health also holds copies
+of Apple Health data, which already reach this system through the HealthKit channel.
 Active energy and active minutes are deliberately not mapped until their response fields
 have been checked against a real account.
 """
@@ -46,12 +51,14 @@ SCOPES = (
 # Data types this connector syncs, in the order they run.
 DATA_TYPES = (
     "steps",
-    "heart-rate",
     "daily-resting-heart-rate",
     "daily-heart-rate-variability",
     "sleep",
 )
-ROLLUP_TYPES = {"steps", "heart-rate"}
+# Google Health also holds data the Google Health app copied *from* Apple Health
+# (``platform: HEALTH_KIT``). That data already reaches this system through the HealthKit
+# channel, so the Google channel keeps only points recorded by Google/Fitbit devices.
+ACCEPTED_PLATFORMS = ("FITBIT",)
 
 
 class GoogleApiError(Exception):
@@ -153,28 +160,6 @@ class GoogleHealthClient:
             if not token:
                 return
 
-    def daily_rollup(self, access_token: str, data_type: str, start: date, end: date):
-        """Yields DailyRollupDataPoint objects for [start, end) in the user's civil time."""
-        token = None
-        while True:
-            body: dict[str, Any] = {
-                "range": {"start": _civil(start), "end": _civil(end)},
-                "windowSizeDays": 1,
-                "pageSize": 1000,
-            }
-            if token:
-                body["pageToken"] = token
-            response = self._http.post(
-                f"{self.config.api_base_url}/users/me/dataTypes/{data_type}/dataPoints:dailyRollUp",
-                json=body,
-                headers=_auth(access_token),
-            )
-            data = _json_or_error(response)
-            yield from data.get("dataPoints", [])
-            token = data.get("nextPageToken")
-            if not token:
-                return
-
 
 def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
@@ -190,18 +175,14 @@ def _json_or_error(response: httpx.Response) -> dict[str, Any]:
     return response.json()
 
 
-def _civil(day: date) -> dict[str, int]:
-    return {
-        "year": day.year,
-        "month": day.month,
-        "day": day.day,
-        "hour": 0,
-        "minute": 0,
-        "second": 0,
-    }
+def platform_of(point: dict[str, Any]) -> str | None:
+    value = (point.get("dataSource") or {}).get("platform")
+    return str(value) if value else None
 
 
-# --- mapping -------------------------------------------------------------------------------
+def accepted(point: dict[str, Any]) -> bool:
+    """Only points recorded on an accepted platform are ingested; unknown platforms are not."""
+    return platform_of(point) in ACCEPTED_PLATFORMS
 
 
 def _device_label(point: dict[str, Any]) -> str | None:
@@ -218,9 +199,8 @@ def _date(obj: dict[str, Any]) -> date:
     return date(int(obj["year"]), int(obj["month"]), int(obj["day"]))
 
 
-def _civil_date(obj: dict[str, Any]) -> date:
-    inner = obj.get("date", obj)
-    return _date(inner)
+def _platform_suffix(point: dict[str, Any]) -> str:
+    return platform_of(point) or "unknown"
 
 
 def _pick(obj: dict[str, Any], *names: str):
@@ -235,43 +215,23 @@ def _local_day(day: date, tz: ZoneInfo) -> tuple[datetime, datetime]:
     return start.astimezone(UTC), (start + timedelta(days=1)).astimezone(UTC)
 
 
-def map_steps_rollup(point: dict[str, Any], tz: ZoneInfo) -> ObservationIn | None:
-    value = _pick(point.get("steps") or {}, "countSum", "count_sum")
-    if value is None:
+def map_steps_interval(point: dict[str, Any], tz: ZoneInfo) -> ObservationIn | None:
+    body = point.get("steps") or {}
+    interval = body.get("interval") or {}
+    if "count" not in body or "startTime" not in interval or "endTime" not in interval:
         return None
-    day = _civil_date(point["civilStartTime"])
-    start, end = _local_day(day, tz)
+    start, end = _ts(interval["startTime"]), _ts(interval["endTime"])
     return ObservationIn(
         provider=PROVIDER,
-        source_record_id=f"steps:rollup:{day.isoformat()}",
+        source_record_id=f"steps:{start.isoformat()}:{end.isoformat()}:{_platform_suffix(point)}",
         source_device=_device_label(point),
         metric="steps",
-        value=Decimal(str(value)),
+        value=Decimal(str(body["count"])),
         unit="count",
         started_at=start,
         ended_at=end,
         source_timezone=tz.key,
-        aggregation="daily_total",
-    )
-
-
-def map_heart_rate_rollup(point: dict[str, Any], tz: ZoneInfo) -> ObservationIn | None:
-    value = _pick(point.get("heartRate") or {}, "beatsPerMinuteAvg", "beatsPerMinute_avg")
-    if value is None:
-        return None
-    day = _civil_date(point["civilStartTime"])
-    start, end = _local_day(day, tz)
-    return ObservationIn(
-        provider=PROVIDER,
-        source_record_id=f"heart-rate:rollup:{day.isoformat()}",
-        source_device=_device_label(point),
-        metric="heart_rate",
-        value=Decimal(str(value)).quantize(Decimal("0.000001")),
-        unit="bpm",
-        started_at=start,
-        ended_at=end,
-        source_timezone=tz.key,
-        aggregation="daily_summary",
+        aggregation="interval_total",
     )
 
 
@@ -283,7 +243,7 @@ def map_resting_heart_rate(point: dict[str, Any], tz: ZoneInfo) -> ObservationIn
     start, end = _local_day(day, tz)
     return ObservationIn(
         provider=PROVIDER,
-        source_record_id=f"daily-resting-heart-rate:{day.isoformat()}",
+        source_record_id=f"daily-resting-heart-rate:{day.isoformat()}:{_platform_suffix(point)}",
         source_device=_device_label(point),
         metric="resting_heart_rate",
         value=Decimal(str(body["beatsPerMinute"])),
@@ -304,7 +264,7 @@ def map_hrv(point: dict[str, Any], tz: ZoneInfo) -> ObservationIn | None:
     start, end = _local_day(day, tz)
     return ObservationIn(
         provider=PROVIDER,
-        source_record_id=f"daily-heart-rate-variability:{day.isoformat()}",
+        source_record_id=f"daily-heart-rate-variability:{day.isoformat()}:{_platform_suffix(point)}",
         source_device=_device_label(point),
         metric="hrv_rmssd",
         value=Decimal(str(value)).quantize(Decimal("0.000001")),
@@ -324,7 +284,7 @@ def map_sleep(point: dict[str, Any], tz: ZoneInfo) -> ObservationIn | None:
     start, end = _ts(interval["startTime"]), _ts(interval["endTime"])
     return ObservationIn(
         provider=PROVIDER,
-        source_record_id=f"sleep:{start.isoformat()}:{end.isoformat()}",
+        source_record_id=f"sleep:{start.isoformat()}:{end.isoformat()}:{_platform_suffix(point)}",
         source_device=_device_label(point),
         metric="sleep_duration",
         value=Decimal(int(summary["minutesAsleep"]) * 60),
@@ -337,6 +297,14 @@ def map_sleep(point: dict[str, Any], tz: ZoneInfo) -> ObservationIn | None:
 
 
 LIST_MAPPERS = {
+    "steps": (
+        map_steps_interval,
+        lambda s, e: (
+            f'steps.interval.start_time >= "{_start_of(s)}" AND '
+            f'steps.interval.start_time < "{_start_of(e)}"'
+        ),
+        2000,
+    ),
     "daily-resting-heart-rate": (
         map_resting_heart_rate,
         lambda s, e: (
@@ -362,7 +330,6 @@ LIST_MAPPERS = {
         25,
     ),
 }
-ROLLUP_MAPPERS = {"steps": map_steps_rollup, "heart-rate": map_heart_rate_rollup}
 
 
 def _start_of(day: date) -> str:
@@ -380,6 +347,9 @@ class TypeSyncReport:
     duplicates: int = 0
     conflicts: list[str] = field(default_factory=list)
     unmapped: int = 0
+    # Points from other platforms (for example Apple Health copies inside Google Health).
+    skipped_other_platform: int = 0
+    warnings: list[str] = field(default_factory=list)
     error: str | None = None
     watermark: str | None = None
 
@@ -424,16 +394,15 @@ def sync_window(
         item = TypeSyncReport(data_type=data_type)
         try:
             records: list[ObservationIn] = []
-            if data_type in ROLLUP_TYPES:
-                mapper = ROLLUP_MAPPERS[data_type]
-                points = client.daily_rollup(access_token, data_type, window_start, end_exclusive)
-            else:
-                mapper, filter_builder, page_size = LIST_MAPPERS[data_type]
-                points = client.list_data_points(
-                    access_token, data_type, filter_builder(window_start, end_exclusive), page_size
-                )
+            mapper, filter_builder, page_size = LIST_MAPPERS[data_type]
+            points = client.list_data_points(
+                access_token, data_type, filter_builder(window_start, end_exclusive), page_size
+            )
             for point in points:
                 item.fetched += 1
+                if not accepted(point):
+                    item.skipped_other_platform += 1
+                    continue
                 mapped = mapper(point, tz)
                 if mapped is None:
                     item.unmapped += 1

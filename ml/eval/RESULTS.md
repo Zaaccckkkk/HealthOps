@@ -254,3 +254,24 @@ computes `sample_min` and `sample_max`, which the cards do not yet display.
 
 The VM was stopped at 04:53 UTC (46 minutes). The persistent disk now holds real health
 records of one person; see the deletion policy in `docs/cloud-dev-deployment.md`.
+
+## Third VM session (2026-10-03, from 06:05 UTC): Google Health connector against the real service
+
+The server-side connector was configured with a Web OAuth client of the same project and the
+owner authorised it from the phone (status `connected`, Google Health account linked). Facts
+learned from the real account, with counts only:
+
+- Google Health holds two copies of much of the data: points with `platform: FITBIT` (device
+  "Google Fitbit Air") and points with `platform: HEALTH_KIT` copied from Apple Health by the
+  Google Health app. The first sync treated both as one channel and reported 19 "upstream
+  revisions" on daily resting heart rate; those were the two platforms sharing one date. The
+  connector now keeps Fitbit points only and counts the rest as `skipped_other_platform`.
+- `dailyRollUp` accepted the documented request shape (`CivilDateTime` as `{date, time}`) but
+  returned zero points for steps and heart rate over 30 days, and rejected every documented
+  `dataSourceFamily` value ("Data family is missing or is not supported"). Roll-ups are not
+  used. Steps come from intraday interval points (one-minute intervals only for minutes with
+  steps); continuous heart rate is not synced from this channel.
+- Fresh 30-day sync after the fix: steps 5772 fetched, 3781 inserted, 1991 skipped; resting
+  heart rate 48 / 29 / 19; HRV 47 / 27 / 20; sleep 34 / 33 / 1; no conflicts, no errors.
+  The Google channel now holds steps, resting heart rate, HRV (RMSSD) and sleep for the owner's
+  dedicated account; HRV from Google is RMSSD and is stored and charted apart from Apple's SDNN.

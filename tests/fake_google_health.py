@@ -15,34 +15,21 @@ REVOKE_URL = "https://fake-oauth.test/revoke"
 AUTHORIZE_URL = "https://fake-oauth.test/auth"
 
 
-def steps_rollup(day: str, count: int):
-    y, m, d = (int(x) for x in day.split("-"))
-    civil = {"date": {"year": y, "month": m, "day": d}}
+def steps_interval(start: str, end: str, count: int, platform: str = "FITBIT"):
     return {
-        "civilStartTime": civil,
-        "civilEndTime": civil,
-        "steps": {"countSum": count, "countMin": 0, "countMax": 120, "countAvg": 4.4},
-        "dataSource": {"device": {"displayName": "Synthetic Tracker", "manufacturer": "Synthetic"}},
+        "steps": {"interval": {"startTime": start, "endTime": end}, "count": str(count)},
+        "dataSource": {"platform": platform, "device": {"displayName": "Synthetic Tracker"}},
     }
 
 
-def heart_rate_rollup(day: str, avg: float):
-    y, m, d = (int(x) for x in day.split("-"))
-    civil = {"date": {"year": y, "month": m, "day": d}}
-    return {
-        "civilStartTime": civil,
-        "civilEndTime": civil,
-        "heartRate": {"beatsPerMinuteMin": 48, "beatsPerMinuteMax": 140, "beatsPerMinuteAvg": avg},
-    }
-
-
-def resting(day: str, bpm: int):
+def resting(day: str, bpm: int, platform: str = "FITBIT"):
     y, m, d = (int(x) for x in day.split("-"))
     return {
         "dailyRestingHeartRate": {
             "date": {"year": y, "month": m, "day": d},
             "beatsPerMinute": str(bpm),
-        }
+        },
+        "dataSource": {"platform": platform, "device": {"displayName": "Synthetic Tracker"}},
     }
 
 
@@ -53,7 +40,8 @@ def hrv(day: str, ms: float):
             "date": {"year": y, "month": m, "day": d},
             "averageHeartRateVariabilityMilliseconds": ms,
             "deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds": ms + 3,
-        }
+        },
+        "dataSource": {"platform": "FITBIT", "device": {"displayName": "Synthetic Tracker"}},
     }
 
 
@@ -68,7 +56,7 @@ def sleep(start: str, end: str, minutes: int):
                 "minutesInSleepPeriod": str(minutes + 20),
             },
         },
-        "dataSource": {"device": {"displayName": "Synthetic Tracker"}},
+        "dataSource": {"platform": "FITBIT", "device": {"displayName": "Synthetic Tracker"}},
     }
 
 
@@ -77,12 +65,19 @@ class FakeGoogle:
 
     def __init__(self):
         self.data = {
-            "steps": [steps_rollup("2026-10-01", 6400), steps_rollup("2026-10-02", 7100)],
-            "heart-rate": [
-                heart_rate_rollup("2026-10-01", 71.5),
-                heart_rate_rollup("2026-10-02", 69.0),
+            "steps": [
+                steps_interval("2026-10-01T13:00:00Z", "2026-10-01T13:01:00Z", 64),
+                steps_interval("2026-10-02T14:00:00Z", "2026-10-02T14:01:00Z", 71),
+                steps_interval(
+                    "2026-10-02T15:00:00Z", "2026-10-02T15:01:00Z", 30, platform="HEALTH_KIT"
+                ),
             ],
-            "daily-resting-heart-rate": [resting("2026-10-01", 58), resting("2026-10-02", 57)],
+            # The HEALTH_KIT point is an Apple Health copy inside Google Health; it is skipped.
+            "daily-resting-heart-rate": [
+                resting("2026-10-01", 58),
+                resting("2026-10-01", 61, platform="HEALTH_KIT"),
+                resting("2026-10-02", 57),
+            ],
             "daily-heart-rate-variability": [hrv("2026-10-01", 42.5)],
             "sleep": [
                 sleep("2026-10-01T03:00:00Z", "2026-10-01T10:30:00Z", 410),
@@ -96,6 +91,8 @@ class FakeGoogle:
         self.refresh_valid = True
         self.revoked: list[str] = []
         self.requests: list[str] = []
+        self.reject_source_family = False  # simulate an API that rejects the family value
+        self.rollup_bodies: list[dict] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         url = str(request.url)
@@ -133,6 +130,15 @@ class FakeGoogle:
             points = self.data.get(data_type, [])
             if url.endswith(":dailyRollUp"):
                 body = json.loads(request.content.decode())
+                self.rollup_bodies.append(body)
+                if self.reject_source_family and body.get("dataSourceFamily"):
+                    return httpx.Response(
+                        400, json={"error": {"message": "Invalid value at 'data_source_family'"}}
+                    )
+                if "date" not in body["range"]["start"]:
+                    return httpx.Response(
+                        400, json={"error": {"message": "Unknown name year at range.start"}}
+                    )
                 page = body.get("pageToken")
             else:
                 page = request.url.params.get("pageToken")
