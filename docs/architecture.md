@@ -24,7 +24,7 @@ introduce service-specific packages/lockfiles when dependency or release isolati
 | `infra/docker/` | Implemented, locally tested | Local container image build |
 | `infra/cloud/`, `scripts/cloud/` | Created and exercised once (2026-10-03); stopped between sessions | One GPU development VM: Caddy HTTPS edge, API, PostgreSQL and Ollama in Compose; persistent disk; two-hour auto-stop |
 | `tests/` | Implemented | Schema, API, database and repository-policy tests |
-| `ios/HealthOpsUploader/` | Implemented; Simulator-verified upload; Ask tab exercised once on a physical iPhone with a synthetic account | Consented HealthKit upload with replay-safe incremental sync, plus the Ask tab over the cards contract; old prototype is outside this repo and unchanged |
+| `ios/HealthOpsUploader/` | Implemented; verified on a physical iPhone against the cloud deployment, including one consented upload of the owner's own HealthKit history | Consented HealthKit upload with replay-safe incremental sync, plus the Ask tab over the cards contract; old prototype is outside this repo and unchanged |
 | `services/wearable-connectors/` | Planned; not created | Provider adapters and sync workers when server-side sync is implemented |
 | `services/api-service/` | Planned; not created | Future home of orchestration and tools if a second runtime is justified; today both live in the ingestion API process |
 | `services/retrieval-service/` | Planned; not created | Knowledge ingestion, retrieval and citation metadata |

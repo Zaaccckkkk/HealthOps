@@ -113,6 +113,17 @@ struct MetricChartCard: View {
     let series: MetricSeries
 
     private var title: String { series.metric.replacingOccurrences(of: "_", with: " ") }
+    /// Durations are plotted in hours (a constant division for display only); the server's
+    /// seconds stay in the latest-value text as "h min".
+    private var plotsHours: Bool { series.unit == "s" }
+    private var axisUnit: String { plotsHours ? "h" : series.unit }
+    private func plotted(_ value: Double?) -> Double { plotsHours ? (value ?? 0) / 3600 : (value ?? 0) }
+    /// Labels every day for a week, every fifth day for a month, so labels never overlap.
+    private var labelledDates: [String] {
+        let dates = series.points.map(\.date)
+        let step = max(1, dates.count / 6)
+        return dates.enumerated().filter { $0.offset % step == 0 || $0.offset == dates.count - 1 }.map(\.element)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -133,9 +144,9 @@ struct MetricChartCard: View {
                 Chart {
                     ForEach(Array(series.segments.enumerated()), id: \.offset) { index, segment in
                         ForEach(segment) { point in
-                            LineMark(x: .value("Day", point.date), y: .value(series.unit, point.value ?? 0))
+                            LineMark(x: .value("Day", point.date), y: .value(axisUnit, plotted(point.value)))
                                 .foregroundStyle(by: .value("Segment", "run \(index)"))
-                            PointMark(x: .value("Day", point.date), y: .value(series.unit, point.value ?? 0))
+                            PointMark(x: .value("Day", point.date), y: .value(axisUnit, plotted(point.value)))
                                 .foregroundStyle(by: .value("Segment", "run \(index)"))
                         }
                     }
@@ -152,9 +163,21 @@ struct MetricChartCard: View {
                 .chartYScale(domain: .automatic(includesZero: false))
                 .chartForegroundStyleScale(range: [Color.accentColor, Color.accentColor, Color.accentColor, Color.accentColor, Color.accentColor, Color.accentColor])
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                    AxisMarks(values: labelledDates) { value in
+                        AxisGridLine()
                         AxisValueLabel {
-                            if let day = value.as(String.self) { Text(String(day.suffix(5))) }
+                            if let day = value.as(String.self) { Text(String(day.suffix(5))).font(.caption2) }
+                        }
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .trailing) { value in
+                        AxisGridLine()
+                        AxisValueLabel {
+                            if let number = value.as(Double.self) {
+                                Text(plotsHours ? String(format: "%.1f h", number) : number.formatted(.number.precision(.fractionLength(0...1))))
+                                    .font(.caption2)
+                            }
                         }
                     }
                 }

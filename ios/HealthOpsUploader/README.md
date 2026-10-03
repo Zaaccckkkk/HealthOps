@@ -4,10 +4,10 @@ A SwiftUI app that reads HealthKit samples on the phone, asks for explicit uploa
 uploads canonical observations to the local HealthOps API with replay-safe incremental sync.
 It replaces the display-string prototype outside this repository; nothing was copied from it.
 
-Status: **upload path verified in the iOS Simulator with synthetic samples only; the Ask tab
-was exercised once on a physical iPhone 15 against the cloud development deployment with a
-synthetic account (five questions, see `ml/eval/RESULTS.md`).** No HealthKit data has been
-read from or uploaded by a physical device, and no Google Health / Fitbit path exists. Do not
+Status: **upload and Ask paths exercised on a physical iPhone 15 against the cloud development
+deployment, first with synthetic accounts and then, under the owner's explicit consent, with
+the owner's own HealthKit history (seven metrics, 14 days) into a dedicated account.** No real
+values are in this repository. There is still no Google Health / Fitbit path. Do not
 describe this as a live wearable integration.
 
 ## Layout
@@ -78,6 +78,8 @@ describe this as a live wearable integration.
 - Gaps stay gaps: a line is drawn only across consecutive days with values. Days without
   records and days with records but no reliable value (for example overlapping intervals) are
   marked separately and counted under the chart.
+- Durations are plotted in hours (constant division for display); counts and rates keep their
+  unit. A month shows about six axis labels so they never overlap.
 - A stored token and a server address are enough to load charts; a rejected token or an
   unreachable server appears as a failure card per metric. Before the first token the tab
   shows the three setup steps and a button to the Setup tab.
@@ -126,7 +128,8 @@ Use a DerivedData path outside the cloud-synced Desktop folder: on this Mac, fil
 "resource fork, Finder information, or similar detritus not allowed".
 
 In the app: paste the token (it is stored in the Keychain), connect to `http://127.0.0.1:8000`
-(the Simulator shares the Mac's loopback interface), request HealthKit authorization, write
+(the Simulator shares the Mac's loopback interface), request HealthKit authorization (a status
+line under the button says whether the sheet was shown; iOS shows it once per install), write
 synthetic samples (debug builds only; 10 days with one empty day so the charts show a gap),
 grant consent, then sync, then open the Overview tab. Only the Debug configuration
 allows plain HTTP, and only to local networking (`NSAllowsLocalNetworking`); Release keeps

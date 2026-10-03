@@ -68,6 +68,15 @@ anonymous route reaches the model. The API runs with `--no-access-log`, Caddy's 
 discarded, and the orchestrator logs tool names and durations only, never question text or
 tool results.
 
+## Data on the disk
+
+Since 2026-10-03 the PostgreSQL volume holds, besides synthetic accounts, one account with the
+owner's real HealthKit history (uploaded by the owner from their phone under explicit consent,
+all seven metrics, 14 days). It is stored in clear text, protected only by the VM's network
+rules, the IAP-only SSH path and the bearer token; there is no application-level encryption
+and no per-record deletion endpoint. Nothing from that account may be copied into the
+repository, fixtures, evaluation sets or documentation.
+
 ## Persistence and deletion policy
 
 PostgreSQL data, Ollama model files and Caddy certificates are bind mounts under

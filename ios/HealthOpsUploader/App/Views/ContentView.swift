@@ -69,6 +69,10 @@ struct SetupView: View {
                 Task { await model.requestHealthKitAuthorization() }
             }
             .disabled(!model.healthDataAvailable)
+            LabeledContent("Status", value: model.healthKitRequested
+                ? "Sheet completed this session. Change choices in Settings › Health › Data Access & Devices."
+                : (model.healthDataAvailable ? "Not requested in this session" : "HealthKit unavailable on this device"))
+                .font(.footnote)
             Text("Reading on the phone is separate from uploading. Nothing leaves the phone until step 3.")
                 .font(.footnote).foregroundStyle(.secondary)
         }

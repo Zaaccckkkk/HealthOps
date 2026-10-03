@@ -231,3 +231,26 @@ Usability notes from the user, not yet addressed: after sending a question there
 way back (the keyboard covers the tab bar), the app reads as a developer tool rather than a
 user product, and there is no chart. The VM was stopped at 03:24 UTC after 45 minutes; the
 phone's "service unavailable" state after the stop is the remaining check of this round.
+
+## Second VM session (2026-10-03, 04:07 to 04:53 UTC): device retest and first real data
+
+Same VM and configuration; the model was warm after one cold request (the first question hit
+the 120 s deadline and returned `budget_exceeded`; the next answered in 5 s). The user retested
+the three interface changes on the iPhone 15 with a second synthetic account (HealthKit-only
+history, 222 records): the chat history was cleared on token change, charts left gaps where
+data was missing, and the keyboard no longer hid the tab bar. Two chart defects were fixed
+during the session (30-day axis labels overlapped; sleep was plotted in seconds) and a status
+line was added under the HealthKit button because the first tap had produced no visible
+reaction.
+
+The user then authorised stage two and uploaded their own HealthKit history (all seven
+metrics, last 14 days) into a dedicated account with no synthetic records. The first attempt
+showed "no data" everywhere because the upload consent step had not been completed; after
+consent and sync, the overview charts and the assistant answered from the real records. No
+values from that account are recorded in this repository. The user's question about per-day
+heart rate confirmed the design: the number is the tool's `sample_mean` for the local day,
+labelled "not an all-day average", while the Health app shows a min-max range; the tool also
+computes `sample_min` and `sample_max`, which the cards do not yet display.
+
+The VM was stopped at 04:53 UTC (46 minutes). The persistent disk now holds real health
+records of one person; see the deletion policy in `docs/cloud-dev-deployment.md`.

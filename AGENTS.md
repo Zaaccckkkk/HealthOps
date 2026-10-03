@@ -8,6 +8,8 @@
 - Do not link public documentation to local-only notes. Update local learning notes when
   implementation changes, including real file paths, tests and known limitations.
 - Never commit credentials, real health records or local artifacts from `.local/` or `.env`.
+  The cloud development database holds one account with the owner's real HealthKit history;
+  never copy its values into fixtures, evaluation sets, examples or documentation.
 - Before handoff, run `python3 scripts/check_public_content.py` and inspect the staged diff.
   Ignore rules alone do not protect files that were already tracked.
 

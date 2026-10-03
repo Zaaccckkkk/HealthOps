@@ -20,7 +20,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var syncing = false
     @Published private(set) var messages: [String] = []
     @Published var selectedMetrics: Set<Metric> = Set(SyncedType.allCases.map(\.metric))
-    @Published var historyStart: Date = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
+    // Default upload window: the last 14 days; the user widens it deliberately in the picker.
+    @Published var historyStart: Date = Calendar.current.date(byAdding: .day, value: -14, to: Date())!
     /// Chat state; reset whenever the server, token or verified account changes.
     let assistant = AssistantModel()
     /// Home charts; cleared on the same scope changes so another account's data never lingers.
@@ -156,6 +157,7 @@ final class AppModel: ObservableObject {
     // MARK: HealthKit authorization (reading on the phone; not upload consent)
 
     func requestHealthKitAuthorization() async {
+        note("Requesting HealthKit read access; iOS shows its sheet once per app install.")
         guard healthDataAvailable else {
             note("HealthKit is not available on this device.")
             return
