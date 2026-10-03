@@ -98,6 +98,8 @@ async def run(args):
         settings.model_copy(update={"assistant_allow_today_override": True}), factory, None
     )
     model = assistant.model
+    if hasattr(model, "describe"):
+        await model.describe()  # digest / context window recorded with the run
     questions = [
         json.loads(line)
         for line in (ROOT / f"ml/eval/assistant_{args.set}.synthetic.jsonl")
@@ -125,17 +127,37 @@ async def run(args):
         expected = item["expected"]
         executed = [c for c in response.tool_calls if c.status != "not_executed"]
         first = executed[0] if executed else None
-        expected_tool = "decline_request" if expected["tool"] == "decline" else expected["tool"]
+        expected_tool = {"decline": "decline_request", "clarify": None}.get(
+            expected["tool"], expected["tool"]
+        )
         row = {
             "id": item["id"],
             "question": item["question"],
             "status": response.status,
             "expected_tool": expected_tool,
             "first_tool": first.name if first else None,
-            "tool_selected_ok": (first.name == expected_tool) if first else False,
+            "tool_selected_ok": (
+                (first.name == expected_tool)
+                if first
+                else (expected_tool is None and response.status == "needs_clarification")
+            ),
+            "explanation_status": response.explanation_status,
+            "claims_valid": sum(1 for c in response.claims if c.valid),
+            "claims_total": len(response.claims),
             "arguments_semantic_ok": argument_match(expected.get("arguments"), first.arguments)
             if first
             else None,
+            # The same check on what the model wrote, before server adjustments.
+            "model_arguments_semantic_ok": argument_match(
+                expected.get("arguments"), first.model_arguments
+            )
+            if first
+            else None,
+            "server_adjustments": [
+                w
+                for w in (first.warnings if first else [])
+                if w.endswith("_ignored") or "reordered" in w
+            ],
             "arguments_valid": (first.status == "ok") if first else None,
             "numeric_consistency": response.numeric_consistency.status,
             "unmatched_numbers": response.numeric_consistency.unmatched,
@@ -144,6 +166,15 @@ async def run(args):
                 response.answer, sorted({w for c in response.tool_calls for w in c.warnings})
             ),
             "refusal_ok": (response.status == "refused") if expected["tool"] == "decline" else None,
+            # Which fixed refusal the user saw; the model's free-text detail is not copied here.
+            "decline_category": next(
+                (c.arguments.get("category") for c in executed if c.name == "decline_request"),
+                None,
+            ),
+            "clarification_ok": (response.status == "needs_clarification")
+            if expected["tool"] == "clarify"
+            else None,
+            "declined_in_text_only": response.status == "no_tool_answer",
             "latency_s": round(latency, 2),
             "answer": response.answer,
             "notes": item["notes"],
@@ -167,9 +198,21 @@ async def run(args):
         "limits": assistant.limits().model_dump(),
         "prompt_version": PROMPT_VERSION,
         "tool_selection_accuracy": rate("tool_selected_ok"),
-        "argument_semantic_correctness": rate("arguments_semantic_ok"),
+        "argument_semantic_correctness_executed": rate("arguments_semantic_ok"),
+        "argument_semantic_correctness_model_original": rate("model_arguments_semantic_ok"),
+        "runs_with_server_adjustments": sum(1 for r in rows if r["server_adjustments"]),
         "argument_validity": rate("arguments_valid"),
         "refusal_correctness": rate("refusal_ok"),
+        "no_tool_answers": sum(1 for r in rows if r["declined_in_text_only"]),
+        "clarification_correctness": rate("clarification_ok"),
+        "explanation_status": {
+            k: sum(1 for r in rows if r["explanation_status"] == k)
+            for k in ("verified", "unverified", "not_applicable")
+        },
+        "claims": {
+            "valid": sum(r["claims_valid"] for r in rows),
+            "total": sum(r["claims_total"] for r in rows),
+        },
         "warning_propagation": rate("warnings_mentioned"),
         "numeric_consistency": {
             s: sum(1 for r in rows if r["numeric_consistency"] == s)
@@ -233,7 +276,7 @@ async def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--set", choices=["dev", "test"], default="dev")
+    parser.add_argument("--set", choices=["dev", "test", "heldout2", "protocol"], default="dev")
     parser.add_argument("--limit", type=int, default=0)
     asyncio.run(run(parser.parse_args()))
 

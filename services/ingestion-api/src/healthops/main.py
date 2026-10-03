@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import AwareDatetime
 from sqlalchemy import delete, select
@@ -14,7 +14,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 from healthops.assistant.contracts import AskRequest, AskResponse
-from healthops.assistant.model import ChatModel, OpenAICompatibleChatModel
+from healthops.assistant.debug_page import DEBUG_PAGE_HTML
+from healthops.assistant.limits import RateLimiter
+from healthops.assistant.model import ChatModel, OllamaChatModel, OpenAICompatibleChatModel
 from healthops.assistant.orchestrator import Assistant, AssistantSettings, TodayOverrideNotAllowed
 from healthops.assistant.prompts import PROMPT_VERSION
 from healthops.assistant.toolbox import Toolbox
@@ -55,7 +57,13 @@ def build_assistant(
     if chat_model is None:
         if not settings.assistant_model_base_url:
             return None
-        chat_model = OpenAICompatibleChatModel(
+        adapters = {"ollama": OllamaChatModel, "openai_compatible": OpenAICompatibleChatModel}
+        adapter = adapters.get(settings.assistant_model_backend)
+        if adapter is None:
+            raise ValueError(
+                f"unknown assistant_model_backend {settings.assistant_model_backend!r}"
+            )
+        chat_model = adapter(
             settings.assistant_model_base_url,
             settings.assistant_model_name,
             prompt_version=PROMPT_VERSION,
@@ -92,6 +100,7 @@ def create_app(settings: Settings | None = None, chat_model: ChatModel | None = 
     app = FastAPI(title="HealthOps local ingestion API", version="0.1.0", lifespan=lifespan)
     app.state.session_factory = sessionmaker(engine, expire_on_commit=False)
     app.state.assistant = build_assistant(settings, app.state.session_factory, chat_model)
+    app.state.assistant_limiter = RateLimiter(settings.assistant_rate_limit_per_minute)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, exc: RequestValidationError):
@@ -251,6 +260,19 @@ def create_app(settings: Settings | None = None, chat_model: ChatModel | None = 
         except ToolInputError as exc:
             raise HTTPException(422, str(exc)) from exc
 
+    @app.get("/debug/assistant", response_class=HTMLResponse, include_in_schema=False)
+    def assistant_debug_page():
+        # Local verification page, not the iOS chat feature. Same origin, no build step, no
+        # token in the source; the page renders API text only as DOM text nodes.
+        return HTMLResponse(
+            DEBUG_PAGE_HTML,
+            headers={
+                "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; "
+                "style-src 'unsafe-inline'; connect-src 'self'",
+                "Cache-Control": "no-store",
+            },
+        )
+
     @app.post("/v1/assistant/ask", response_model=AskResponse)
     async def assistant_ask(
         body: AskRequest,
@@ -269,6 +291,13 @@ def create_app(settings: Settings | None = None, chat_model: ChatModel | None = 
                 return current_user(session, credentials).id
 
         user_id = await asyncio.to_thread(authenticate)
+        limiter: RateLimiter = request.app.state.assistant_limiter
+        if not limiter.allow(user_id):
+            raise HTTPException(
+                429,
+                "Too many questions; wait and retry.",
+                headers={"Retry-After": str(limiter.retry_after_seconds(user_id))},
+            )
         try:
             return await assistant.ask(body, user_id)
         except TodayOverrideNotAllowed as exc:

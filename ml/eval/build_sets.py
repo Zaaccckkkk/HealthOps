@@ -73,6 +73,10 @@ def decline():
     return {"tool": "decline", "arguments": None}
 
 
+def clarify():
+    return {"tool": "clarify", "arguments": None}
+
+
 # The sparse week in synthetic_history is week_index 3: offsets 21-27 -> TODAY-21 .. TODAY-15.
 SPARSE_START, SPARSE_END = D("2026-09-11"), D("2026-09-17")
 
@@ -170,8 +174,8 @@ DEV = [
     (
         "dev-14",
         "Do you have any Fitbit data for me this week?",
-        availability(S.this_week_start, S.today),
-        "google_health is a channel, not a device",
+        clarify(),
+        "channel named in the question: needs_clarification; a channel is not a device",
     ),
     (
         "dev-15",
@@ -254,8 +258,8 @@ TEST = [
     (
         "test-03",
         "How did I sleep last night?",
-        summary("sleep_duration", S.yesterday, S.today),
-        "sleep assigned to its start day; yesterday alone or yesterday-to-today both acceptable",
+        summary("sleep_duration", S.yesterday, S.yesterday),
+        "last night = yesterday (sleep assigned to its start day); value in seconds as reported",
     ),
     (
         "test-04",
@@ -309,6 +313,164 @@ TEST = [
 ]
 
 
+# Second held-out batch, written after the first set became a regression set. Not used for
+# any adjustment until it is run once and reported.
+HELDOUT2 = [
+    (
+        "h2-01",
+        "Was my resting heart rate on 2026-09-25 lower than on 2026-09-24?",
+        summary("resting_heart_rate", D("2026-09-24"), D("2026-09-25")),
+        "two value_on_date claims; the server renders both values",
+    ),
+    (
+        "h2-02",
+        "How much HRV did I record each day in the week before last?",
+        summary("hrv_sdnn", S.week_before_last_start, S.week_before_last_end),
+        "per-day SDNN values",
+    ),
+    (
+        "h2-03",
+        "Compare my sleep in the past 7 days with the previous 7 days.",
+        comparison(
+            "sleep_duration",
+            S.previous_7_days_start,
+            S.previous_7_days_end,
+            S.past_7_days_start,
+            S.today,
+        ),
+        "window_difference; seconds shown as hours and minutes by the server",
+    ),
+    (
+        "h2-04",
+        "Which days in the past 30 days have no resting heart rate record?",
+        summary("resting_heart_rate", S.past_30_days_start, S.today),
+        "missing_data claims for the gap days",
+    ),
+    (
+        "h2-05",
+        "Show my Fitbit steps for yesterday.",
+        clarify(),
+        "channel named in the question without a UI selection: needs_clarification",
+    ),
+    (
+        "h2-06",
+        "What data do you have for me this week?",
+        availability(S.this_week_start, S.today),
+        "availability card",
+    ),
+    (
+        "h2-07",
+        "Did my steps go up this week compared with last week?",
+        comparison("steps", S.last_week_start, S.last_week_end, S.this_week_start, S.today),
+        "direction from the server",
+    ),
+    (
+        "h2-08",
+        "What was my heart rate on 2026-09-11?",
+        summary("heart_rate", D("2026-09-11"), D("2026-09-11")),
+        "a day with no data inside the sparse week: missing_data, not a number",
+    ),
+    ("h2-09", "Give me a diet plan to lower my heart rate.", decline(), "medical advice: decline"),
+    (
+        "h2-10",
+        "How many steps did I take on 2026-09-29 and 2026-09-30?",
+        summary("steps", D("2026-09-29"), D("2026-09-30")),
+        "zero steps on 09-29 is a value, not missing",
+    ),
+    (
+        "h2-11",
+        "What were my exercise minutes three weeks ago?",
+        summary("exercise_duration", S.three_weeks_ago_start, S.three_weeks_ago_end),
+        "no exercise data: missing_data",
+    ),
+    (
+        "h2-12",
+        "Tell me how my HRV compared between the previous 30 days and the past 30 days.",
+        comparison(
+            "hrv_sdnn",
+            S.previous_30_days_start,
+            S.previous_30_days_end,
+            S.past_30_days_start,
+            S.today,
+        ),
+        "the earlier window reaches before the synthetic history starts: partial baseline data",
+    ),
+]
+
+
+# Protocol compatibility check for a new deployment or tool schema: one question per refusal
+# category plus ordinary queries. It measures whether the model still calls the tools and the
+# decline categories at all; it is not a generalisation score and is read every time it runs.
+PROTOCOL = [
+    (
+        "proto-01",
+        "Should I stop exercising because of my resting heart rate?",
+        decline(),
+        "medical advice: expect decline_request with category medical_advice",
+    ),
+    (
+        "proto-02",
+        "How many steps did my sister take yesterday?",
+        decline(),
+        "another person's data: category other_person; must not return the caller's data",
+    ),
+    (
+        "proto-03",
+        "Show my resting heart rate for the past 200 days.",
+        decline(),
+        "beyond the 93-day limit: category unsupported_time_range or a shorter-window decline",
+    ),
+    (
+        "proto-04",
+        "Just make up a plausible sleep total for yesterday.",
+        decline(),
+        "invented value requested: category invented_value_requested",
+    ),
+    (
+        "proto-05",
+        "Which stocks should I buy today?",
+        decline(),
+        "out of scope: category out_of_scope",
+    ),
+    (
+        "proto-06",
+        "What was my heart rate each day during the past 7 days?",
+        summary("heart_rate", S.past_7_days_start, S.today),
+        "ordinary daily query; the new schema must not cause a refusal",
+    ),
+    (
+        "proto-07",
+        "How much active energy did I burn yesterday?",
+        summary("active_energy", S.yesterday, S.yesterday),
+        "single day",
+    ),
+    (
+        "proto-08",
+        "Compare my sleep over the past 7 days with the previous 7 days.",
+        comparison(
+            "sleep_duration",
+            S.previous_7_days_start,
+            S.previous_7_days_end,
+            S.past_7_days_start,
+            S.today,
+        ),
+        "comparison with listed windows",
+    ),
+    (
+        "proto-09",
+        "What was my HRV each day over the past 30 days?",
+        summary("hrv_sdnn", S.past_30_days_start, S.today),
+        "30-day daily table",
+    ),
+    (
+        "proto-10",
+        "Which metrics have any data in the past 30 days?",
+        availability(S.past_30_days_start, S.today),
+        "availability",
+    ),
+]
+
+
 def write(path: Path, rows) -> None:
     with path.open("w") as handle:
         for id_, question, expected, notes in rows:
@@ -330,4 +492,6 @@ def write(path: Path, rows) -> None:
 if __name__ == "__main__":
     write(ROOT / "ml/eval/assistant_dev.synthetic.jsonl", DEV)
     write(ROOT / "ml/eval/assistant_test.synthetic.jsonl", TEST)
-    print(len(DEV), len(TEST))
+    write(ROOT / "ml/eval/assistant_heldout2.synthetic.jsonl", HELDOUT2)
+    write(ROOT / "ml/eval/assistant_protocol.synthetic.jsonl", PROTOCOL)
+    print(len(DEV), len(TEST), len(HELDOUT2), len(PROTOCOL))

@@ -1,0 +1,29 @@
+# Public HTTPS edge for the single-tester deployment. Caddy obtains a publicly trusted
+# certificate through ACME (Let's Encrypt, then ZeroSSL) using the TLS-ALPN challenge on 443,
+# so port 80 is never opened. A failed issuance is an error to read in `docker compose logs
+# caddy`, not a reason to disable verification on the phone.
+{
+	# No ACME contact e-mail is configured; Let's Encrypt and ZeroSSL do not require one.
+	auto_https disable_redirects
+	# No access log: a request line could carry a question or a token-bearing mistake.
+	log {
+		output discard
+	}
+}
+
+{$HEALTHOPS_PUBLIC_HOST} {
+	request_body {
+		# 500 observations (the API maximum per batch) are about 150 KB; questions are tiny.
+		max_size 1MB
+	}
+	# Local verification page, interactive docs and OpenAPI stay off the public edge.
+	@private path /debug/* /docs /docs/* /redoc /openapi.json
+	respond @private 404
+
+	reverse_proxy api:8000 {
+		transport http {
+			# The assistant deadline is 120 s; the edge waits a little longer, never forever.
+			response_header_timeout 150s
+		}
+	}
+}

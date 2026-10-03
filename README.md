@@ -29,7 +29,22 @@ validates arguments, injects identity and resolves relative dates, and the respo
 answer, every tool call, full evidence, statuses and a numeric-consistency diagnostic. The
 assistant is disabled until an OpenAI-compatible model endpoint is configured; engineering is
 tested with a scripted model, and model quality is evaluated separately on synthetic data
-(`ml/eval/`, `scripts/eval_assistant.py`). No RAG, no conversation storage, no front end.
+(`ml/eval/`, `scripts/eval_assistant.py`). No RAG, no conversation storage.
+The model never writes the numbers: Python builds deterministic data cards (per-day tables,
+unit-faithful display conversions, explicit "no data" versus "no reliable value"), the model only cites evidence in three
+finding types, and the server verifies each finding and renders fixed template sentences; an
+unverifiable explanation degrades to a fixed fallback while the cards still show the data.
+Refusals are fixed sentences chosen by category; model prose never becomes the answer.
+A same-origin debug page (`/debug/assistant`) shows the actual window, channel, cards, claims
+and tool calls; it is a local verification interface, not the iOS chat feature.
+The iOS app has an **Overview** tab with one deterministic line chart per metric read
+directly from the daily-summary tool (no model, gaps preserved), a **Setup** tab for the
+server, Health access, consent and sync, and an **Ask** tab that consumes this contract: it decodes only the display
+fields (statuses, template answer, cards, disclaimer), treats unknown statuses as unverified,
+keeps the question history in memory only and drops late responses after a server, token or
+account change. A single-GPU cloud development deployment exists and was exercised once from a
+physical iPhone with synthetic data; it is stopped between sessions. See
+[docs/cloud-dev-deployment.md](docs/cloud-dev-deployment.md).
 
 This is a **local development foundation**, not a publicly deployable health platform.
 No physical-device upload, Google Health connector, RAG, remote GPU serving, or cloud
@@ -101,7 +116,7 @@ The Linux container installation was verified independently and does not need th
 
 ```bash
 # Fast schema/tool/unit tests, no database required:
-uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_eval_sets.py tests/test_ios_contract.py tests/test_public_content.py
+uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_assistant_toolbox.py tests/test_assistant_cards.py tests/test_assistant_limits.py tests/test_assistant_fixtures.py tests/test_debug_page_dom.py tests/test_eval_sets.py tests/test_ios_contract.py tests/test_public_content.py
 uv run ruff check .
 uv run ruff format --check .
 python3 scripts/check_public_content.py
@@ -175,10 +190,11 @@ services/
     migrations/      Service-owned PostgreSQL schema history
 ios/HealthOpsUploader/  Swift package (core + tests), SwiftUI app, XcodeGen spec and project
 infra/docker/        Container build definition
+infra/cloud/         Compose, Caddy and startup files for the single-GPU development VM (not yet created)
 tests/               Unit and real-PostgreSQL integration tests
 examples/            Synthetic request fixture and tool response examples
 ml/eval/             Synthetic assistant evaluation sets, rubric and history generator
-scripts/             Local HTTP smoke test, publication checks, assistant evaluation
+scripts/             Local HTTP smoke test, publication checks, assistant evaluation, cloud VM wrappers
 docs/                Public English API contract and architecture decisions
 compose.yaml         Local database, migration, API, isolated test services
 pyproject.toml       One Python package/environment for this first service
@@ -208,6 +224,9 @@ or a full English-language detector; manually review the staged diff before push
 Planned, not implemented: physical-device networking (LAN/TLS, a reachable host), background
 sync, Google Health upload, deletion sync, further tools (workout history), user default
 timezones, production identity, RAG, conversation storage, remote GPU serving and cloud
-provisioning. To try the assistant locally, point `HEALTHOPS_ASSISTANT_MODEL_BASE_URL` at an
-OpenAI-compatible endpoint (see `.env.example`); evaluation results are reported in the
-repository only as observed numbers from `scripts/eval_assistant.py`.
+provisioning. To try the assistant locally, run Ollama with `qwen3:8b` and set the assistant variables from
+`.env.example` (native Ollama backend with thinking off is the verified configuration; the
+OpenAI-compatible endpoint ignores the thinking flag and Qwen3's reasoning then exhausts the
+output budget). Observed results and the exact configuration are in
+[ml/eval/RESULTS.md](ml/eval/RESULTS.md); they are small-sample numbers for a local Q4 model,
+not deployment measurements.

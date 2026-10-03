@@ -15,7 +15,18 @@ sys.path.insert(0, str(ROOT / "ml/eval"))
 
 import build_sets  # noqa: E402
 
-SETS = ["assistant_dev.synthetic.jsonl", "assistant_test.synthetic.jsonl"]
+SETS = [
+    "assistant_dev.synthetic.jsonl",
+    "assistant_test.synthetic.jsonl",
+    "assistant_heldout2.synthetic.jsonl",
+    "assistant_protocol.synthetic.jsonl",
+]
+ROWS = {
+    "assistant_dev.synthetic.jsonl": "DEV",
+    "assistant_test.synthetic.jsonl": "TEST",
+    "assistant_heldout2.synthetic.jsonl": "HELDOUT2",
+    "assistant_protocol.synthetic.jsonl": "PROTOCOL",
+}
 
 
 def load(name):
@@ -24,7 +35,7 @@ def load(name):
 
 @pytest.mark.parametrize("name", SETS)
 def test_committed_sets_match_the_generator(name):
-    rows = build_sets.DEV if "dev" in name else build_sets.TEST
+    rows = getattr(build_sets, ROWS[name])
     regenerated = [
         {
             "id": i,
@@ -44,7 +55,7 @@ def test_expected_arguments_validate_and_dates_come_from_listed_windows(name):
     registry = build_registry()
     for item in load(name):
         expected = item["expected"]
-        if expected["tool"] == "decline":
+        if expected["tool"] in ("decline", "clarify"):
             assert expected["arguments"] is None
             continue
         spec = registry[expected["tool"]]
@@ -63,6 +74,8 @@ def test_expected_arguments_validate_and_dates_come_from_listed_windows(name):
             semantics.previous_7_days_start,
             semantics.previous_7_days_end,
             semantics.past_30_days_start,
+            semantics.previous_30_days_start,
+            semantics.previous_30_days_end,
         }
         params = spec.params.model_validate(expected["arguments"] | {"timezone": item["timezone"]})
         for field, value in params.model_dump().items():
@@ -109,7 +122,19 @@ def test_data_conditions_match_the_synthetic_history():
     )  # zero steps is still data
 
 
-def test_dev_and_test_questions_do_not_overlap():
-    dev = {item["question"] for item in load(SETS[0])}
-    test = {item["question"] for item in load(SETS[1])}
-    assert not dev & test
+def test_question_sets_do_not_overlap():
+    questions = [{item["question"] for item in load(name)} for name in SETS]
+    for i in range(len(questions)):
+        for j in range(i + 1, len(questions)):
+            assert not (questions[i] & questions[j]), (SETS[i], SETS[j])
+
+
+def test_protocol_set_covers_every_decline_category_and_every_tool():
+    from healthops.assistant.toolbox import DECLINE_CATEGORIES
+
+    rows = load("assistant_protocol.synthetic.jsonl")
+    notes = " ".join(r["notes"] for r in rows if r["expected"]["tool"] == "decline")
+    for category in DECLINE_CATEGORIES:
+        assert category in notes, category
+    tools = {r["expected"]["tool"] for r in rows}
+    assert {"daily_summary", "period_comparison", "availability", "decline"} <= tools

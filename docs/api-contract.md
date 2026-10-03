@@ -233,10 +233,15 @@ Synthetic example response: [period-comparison.synthetic.json](../examples/perio
 
 Status: engineering implemented and tested with a scripted model; **model quality is measured
 separately** by `scripts/eval_assistant.py` against a local model and reported as observed.
-Disabled unless `HEALTHOPS_ASSISTANT_MODEL_BASE_URL` points at an OpenAI-compatible chat
-endpoint (local Ollama now; vLLM later). The orchestrator does not depend on a specific model
-server, but a compatible HTTP shape does not guarantee identical behaviour: changing the server
-requires rerunning the protocol tests and the evaluation.
+Disabled unless `HEALTHOPS_ASSISTANT_MODEL_BASE_URL` is set. Two adapters exist behind one
+`ChatModel` interface, selected by `HEALTHOPS_ASSISTANT_MODEL_BACKEND`: `ollama` (default) uses
+Ollama's native `/api/chat`, the only backend with verified reasoning control
+(`HEALTHOPS_ASSISTANT_THINKING=false` suppresses Qwen3's thinking; verified by the absence of
+the `thinking` field and a much smaller generated-token count); `openai_compatible` targets any
+OpenAI-style endpoint (vLLM later) and refuses a thinking setting because that endpoint ignores
+it. The orchestrator does not depend on a specific model server, but a compatible HTTP shape
+does not guarantee identical behaviour: changing the server requires rerunning the protocol
+tests and the evaluation.
 
 | Method / route | Meaning |
 |---|---|
@@ -258,8 +263,11 @@ used as written. Any other relative phrase is unsupported and must be declined, 
 response returns the resolved dates.
 
 **Tool calls.** The model may call only `availability`, `daily_summary`, `period_comparison`
-(schemas generated from the tool parameter models, with no identity field and no timezone
-field) and `decline_request`. Arguments are validated with the same Pydantic models, the
+(schemas generated from the tool parameter models, with no identity, timezone or provider
+field) and `decline_request`. A provider filter written by the model is dropped and reported
+as `provider_filter_ignored`; results are grouped per provider anyway. Comparison windows given
+in reverse order are reordered so that baseline is the earlier window, reported as
+`windows_reordered_baseline_is_earlier`, and the model is told. Arguments are validated with the same Pydantic models, the
 authenticated `user_id` and the request `timezone` are injected, and the tool's own limits
 (date range, window overlap, record budget) still apply. Tools run in a worker thread with a
 short-lived database session. Budgets: at most 4 tool calls and 6 model turns; a wall-clock
@@ -271,11 +279,66 @@ conservative proxy, not tokens); and a byte budget for evidence returned to the 
 Exceeding a budget is an explicit status, never silent truncation. One invalid tool call is
 returned to the model as a structured error; a second one stops the request.
 
-**Output.** `status` is one of `answered`, `insufficient_data` (no executed tool returned usable
-data: an empty availability series, a daily summary with no records, or a comparison with no
-window value on either side), `refused` (the model called `decline_request`), `tool_error`,
-`budget_exceeded`, `model_error`. `answer` is the model text or a fixed explanation for the other statuses.
-`tool_calls` lists name, validated arguments, status, tool warnings and duration. `evidence`
+**Output.** Two independent statuses. `status` is the data query status: `answered`,
+`insufficient_data` (no executed tool returned usable data: an empty availability series, a
+daily summary with no records, or a comparison with no window value on either side), `refused`
+(the model called `decline_request` with a category: `medical_advice`, `other_person`,
+`unsupported_time_range`, `invented_value_requested` or `out_of_scope`; unknown categories map
+to `out_of_scope`; `answer` is the fixed sentence for that category and the model's free-text
+`detail` is only returned as `model_text`), `needs_clarification` (the question names a device or
+channel but no `provider` was chosen in the interface; names in the question are never applied
+as filters), `no_tool_answer` (the model replied in text with no successful tool result behind
+it, whether it called no tool or only failed ones), `tool_error`, `budget_exceeded`,
+`model_error`. `explanation_status` is `verified`, `unverified` or `not_applicable`.
+
+**Cards and claims.** `cards` are built deterministically from the evidence: one daily table
+per provider (date, value exactly as the tool returned it, a display form such as
+"6 h 45 min (24300 s)" produced by integer arithmetic, the kind of statistic, and a per-day
+`quality` with a `records` count: `value` (a recorded value, zero included), `unusable`
+(records exist but no reliable value could be derived, for example overlapping intervals;
+displayed as "no reliable value") or `none` (no records; displayed as "no data"). A missing
+value is never displayed as zero), one comparison card per provider (both windows, values, days with
+data, the difference and a direction computed by the server), or one availability card. Cards
+never sum across days or merge providers; interval sums are labelled as not full-day coverage.
+The model finishes by calling `state_findings` with one to eight findings, each a plain string
+`<type> <evidence_id> [<ISO date>]` with type `value_on_date`, `window_difference` or
+`missing_data`, citing a card's `evidence_id`. Parsing is tolerant (commas, repeated findings),
+verification is strict: Python checks every claim against the cards (the date must be a real
+calendar date inside the window and hold a value, a difference must exist, missing data must
+really be missing) and renders fixed template sentences; the direction of change comes from
+the card, never from the model. A `missing_data` sentence distinguishes "no records" from
+"records exist but no reliable value", per day and for a whole window; a date such as
+`2026-09-31` is rejected as "not a calendar date" and degrades the explanation rather than
+raising. If any
+finding is unparseable or invalid, or the model answers in prose instead of findings,
+`explanation_status` is `unverified` and `answer` is the fixed fallback text while the cards
+still show the data. Model prose is returned only as `model_text` for debugging; clients must
+not display it as an answer or execute JSON embedded in it. `answer` is therefore always
+template text or a fixed message.
+
+**Request.** `provider` (optional) is the data channel chosen in the interface and is injected
+by the server into every tool call (`provider_from_request`). A channel named only in the
+question yields `needs_clarification`; a channel such as `healthkit` is not one device.
+
+**Debug page.** `GET /debug/assistant` serves a same-origin static page for local verification
+(token typed by the operator and kept in session storage, strict Content-Security-Policy, all
+API text rendered as DOM text nodes). It is a debugging interface, not the iOS chat feature;
+the `cards` and explanation contract are independent of it so a SwiftUI client can reuse them.
+
+**Clients.** The iOS app decodes `status`, `explanation_status`, `answer`, `claims`, `cards`
+and `disclaimer` only; `model_text`, `tool_calls`, `evidence`, `model` and `limits` are debug
+fields that the phone does not decode. Unknown enum values decode as "unknown" and are shown as
+unverified, never as success. The response fixtures the Swift tests decode are generated from
+the orchestrator by `tests/test_assistant_fixtures.py`. The route answers `429` with
+`Retry-After` when a user exceeds `assistant_rate_limit_per_minute`.
+
+`claims` lists each finding with its parsed claim (null when the string was unparseable, with
+the raw string kept), validity and reason. The debug page renders each section independently,
+so a malformed section never removes the cards from the page; a Node-based DOM test replays a
+synthetic response with an unparseable finding (`tests/test_debug_page_dom.py`).
+`tool_calls` lists name, the executed arguments (after validation and server adjustments),
+`model_arguments` exactly as the model wrote them, status, tool warnings and duration, so an
+adjustment is always visible as a before/after pair. `evidence`
 holds the full tool results within the evidence budget; a result that does not fit is replaced
 by an explicit omission marker. `numeric_consistency` reports whether numbers in the answer
 appear in the tool results (`consistent`, `unmatched`, `not_applicable` when the answer has no
@@ -285,9 +348,9 @@ endpoint host, prompt version, sampling settings), `limits` and a fixed non-medi
 `disclaimer` complete the response. The model is instructed to report values in the tool's
 unit and granularity and never to average, total or convert across days itself; questions that
 need such aggregates are answered with per-day values or a period comparison, because only tool
-outputs may appear as numbers. `model.thinking` is `null`: the adapter does not control the
-model's reasoning mode and refuses a non-empty `assistant_thinking` setting until a
-backend-specific control is implemented and verified. Logs record tool names and durations,
+outputs may appear as numbers. `model.thinking` reports the reasoning
+setting actually sent to the backend (`false`/`true` for the Ollama adapter) or `null` when the
+adapter does not control it (the OpenAI-compatible adapter, which refuses a non-empty setting). Logs record tool names and durations,
 never questions or health data.
 
 **Evaluation.** Synthetic development and held-out sets live in `ml/eval/`, generated from one

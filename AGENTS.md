@@ -23,10 +23,12 @@
 
 ## Verification
 
-- Unit tests: `uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_eval_sets.py tests/test_ios_contract.py tests/test_public_content.py`.
+- Unit tests: `uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_assistant_toolbox.py tests/test_assistant_cards.py tests/test_assistant_limits.py tests/test_assistant_fixtures.py tests/test_eval_sets.py tests/test_ios_contract.py tests/test_public_content.py`.
 - iOS adapter: `cd ios/HealthOpsUploader && swift test`; build with `xcodebuild` using a DerivedData path outside the synced Desktop folder (see its README). Simulator-only; no real health data.
 - Full integration suite: `docker compose --profile test build test`, then
   `docker compose --profile test run --rm test` using only the isolated synthetic test DB.
 - Check lint/format, Markdown links and public-content policy. Report checks not run.
 - No cloud provisioning, real health-data uploads, git commits or pushes without user authority.
+  `scripts/cloud/vm.sh` refuses billable actions without `--yes`; never pass it on the user's behalf.
+- Cloud files: `infra/cloud/` and `scripts/cloud/`; the filled `.env.cloud` and `.local/cloud/` never enter Git.
 - Assistant evaluation (`scripts/eval_assistant.py`) runs only against synthetic users; raw outputs stay in `.local/eval/`. Report model results as observed; never weaken tests to pass.

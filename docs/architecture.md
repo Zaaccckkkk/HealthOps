@@ -22,12 +22,13 @@ introduce service-specific packages/lockfiles when dependency or release isolati
 | `services/ingestion-api/src/healthops/assistant/` | Implemented; engineering tested with a scripted model | Single-turn tool-calling orchestration; model quality evaluated separately |
 | `ml/eval/` | Implemented (synthetic question sets, rubric, history generator) | Assistant evaluation data; raw outputs stay local |
 | `infra/docker/` | Implemented, locally tested | Local container image build |
+| `infra/cloud/`, `scripts/cloud/` | Created and exercised once (2026-10-03); stopped between sessions | One GPU development VM: Caddy HTTPS edge, API, PostgreSQL and Ollama in Compose; persistent disk; two-hour auto-stop |
 | `tests/` | Implemented | Schema, API, database and repository-policy tests |
-| `ios/HealthOpsUploader/` | Implemented; Simulator-verified with synthetic data | Consented HealthKit upload with replay-safe incremental sync; old prototype is outside this repo and unchanged |
+| `ios/HealthOpsUploader/` | Implemented; Simulator-verified upload; Ask tab exercised once on a physical iPhone with a synthetic account | Consented HealthKit upload with replay-safe incremental sync, plus the Ask tab over the cards contract; old prototype is outside this repo and unchanged |
 | `services/wearable-connectors/` | Planned; not created | Provider adapters and sync workers when server-side sync is implemented |
 | `services/api-service/` | Planned; not created | Future home of orchestration and tools if a second runtime is justified; today both live in the ingestion API process |
 | `services/retrieval-service/` | Planned; not created | Knowledge ingestion, retrieval and citation metadata |
-| `services/llm-serving/` | Planned; not created | vLLM GPU inference. Development uses a local OpenAI-compatible endpoint; switching servers needs protocol tests and re-evaluation |
+| `services/llm-serving/` | Planned; not created | vLLM GPU inference. Development uses Ollama (Mac, and the scripted GPU VM); switching servers needs protocol tests and re-evaluation |
 | `schemas/` | Planned; not created | Versioned cross-language contracts; today the Swift adapter is checked against the Python schema by `tests/test_ios_contract.py` |
 | `infra/kubernetes/`, `infra/terraform/` | Planned; not created | Deployment/infrastructure definitions when authorized |
 
@@ -39,8 +40,13 @@ comparison is a pure reduction over two daily-summary results and adds no storag
 layered so it can move with the future API service: routes in `main.py` handle authentication
 and parameters, `tools/queries.py` enforces user isolation and bounded reads, and the remaining
 modules compute from explicit inputs without database access. Recovery remains auxiliary;
-preserve vendor scores when available. Device connectors remain in Swift for
-HealthKit; Google Health has no connector yet, and the Swift client does not imply a Python worker.
+preserve vendor scores when available. Device connectors remain in Swift for HealthKit. On an
+iPhone, HealthKit is the only live channel: Health Connect exists on Android only, and
+third-party wearables (Fitbit, Garmin, Oura) reach an iPhone through their own apps writing
+into Apple Health. The `google_health` provider therefore stays a server-side channel concept
+for a future Android client or server-side connector; it is kept out of phone demo data
+(`scripts/seed_synthetic_user.py --healthkit-only`) and the evaluation history is unchanged so
+earlier runs stay comparable. The Swift client does not imply a Python worker.
 
 The current Pydantic `schemas.py` remains service-owned. Do not duplicate it in a top-level
 `schemas/` folder merely to match a diagram. The Swift adapter keeps its own mirror of the
@@ -65,7 +71,10 @@ The assistant sits on top of the tools: authenticated route -> server-resolved t
 -> model turn -> validated tool call with injected identity -> tool executed in a worker
 thread with a short-lived session -> bounded result returned to the model -> structured answer
 with evidence, statuses and a numeric-consistency diagnostic. The model never sees identity,
-never computes dates and cannot name any tool outside the registry.
+never computes dates and cannot name any tool outside the registry. Since the cards increment, the model also never writes numbers: Python
+builds data cards from the evidence, the model cites them in three finding types, and the
+server verifies and renders the sentences. The same-origin debug page is a local verification
+interface; the cards contract is meant to be reused by the iOS client later.
 
 Deterministic tools read that history back: authenticated route -> typed tool parameters ->
 user-scoped, bounded SQL -> Decimal computation in Python -> typed result with statistical

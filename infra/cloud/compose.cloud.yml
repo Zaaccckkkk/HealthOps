@@ -1,0 +1,94 @@
+# Single GPU VM, single tester, synthetic data. Everything runs on one Compose network; only
+# Caddy publishes a port (443). PostgreSQL and Ollama are reachable from the API container by
+# service name and from nothing else: no host ports, and the VM firewall admits only tcp/443
+# plus IAP-tunnelled SSH. Data lives in bind mounts on the persistent boot disk (see
+# docs/cloud-dev-deployment.md for the deletion policy). Run from the repository root:
+#   docker compose --env-file .env.cloud -f infra/cloud/compose.cloud.yml up -d
+name: healthops-cloud-dev
+
+x-app: &app
+  build:
+    context: ../..
+    dockerfile: infra/docker/ingestion-api.Dockerfile
+  environment:
+    HEALTHOPS_ENVIRONMENT: cloud-dev
+    HEALTHOPS_DATABASE_URL: postgresql+psycopg://healthops:${HEALTHOPS_DB_PASSWORD:?set in .env.cloud}@db:5432/healthops
+    HEALTHOPS_ASSISTANT_MODEL_BASE_URL: http://ollama:11434
+    HEALTHOPS_ASSISTANT_MODEL_BACKEND: ollama
+    HEALTHOPS_ASSISTANT_MODEL_NAME: ${OLLAMA_MODEL:-qwen3:8b}
+    HEALTHOPS_ASSISTANT_THINKING: "false"
+    HEALTHOPS_ASSISTANT_RATE_LIMIT_PER_MINUTE: ${HEALTHOPS_RATE_LIMIT_PER_MINUTE:-10}
+    HEALTHOPS_ASSISTANT_MAX_CONCURRENCY: "1"
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    environment:
+      HEALTHOPS_PUBLIC_HOST: ${HEALTHOPS_PUBLIC_HOST:?public DNS name, e.g. 203.0.113.10.sslip.io}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and ACME account: persistent, so restarts do not re-issue certificates.
+      - /srv/healthops/caddy/data:/data
+      - /srv/healthops/caddy/config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: healthops
+      POSTGRES_PASSWORD: ${HEALTHOPS_DB_PASSWORD}
+      POSTGRES_DB: healthops
+    volumes:
+      - /srv/healthops/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthops -d healthops"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    restart: unless-stopped
+    environment:
+      # One model, one request at a time, explicit context: the configuration verified on the
+      # Mac (32768) is pinned instead of letting the server pick a VRAM-based default.
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-32768}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-1h}
+    volumes:
+      - /srv/healthops/ollama:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

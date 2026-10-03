@@ -51,6 +51,10 @@ def test_sdnn_rmssd_are_distinct(record):
     assert fingerprint(sdnn) != fingerprint(rmssd)
 
 
+def test_cloud_dev_is_a_supported_environment():
+    Settings(environment="cloud-dev").require_local()
+
+
 def test_fail_closed_for_nonlocal_environment():
-    with pytest.raises(ValueError, match="local development"):
+    with pytest.raises(ValueError, match="local and cloud-dev"):
         Settings(environment="production").require_local()
