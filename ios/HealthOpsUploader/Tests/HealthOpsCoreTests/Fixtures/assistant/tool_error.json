@@ -1,0 +1,96 @@
+{
+  "answer": "The model repeated an invalid tool call: invalid fields: metric",
+  "cards": [],
+  "claims": [],
+  "disclaimer": "This assistant summarizes the user's own recorded data using deterministic tools. It is not medical advice, not a diagnosis and not a clinically validated assessment.",
+  "evidence": [],
+  "explanation_status": "not_applicable",
+  "limits": {
+    "deadline_seconds": 120.0,
+    "evidence_budget_bytes": 262144,
+    "max_model_turns": 6,
+    "max_tool_calls": 4,
+    "model_context_budget_chars": 24000
+  },
+  "model": {
+    "digest": null,
+    "endpoint_host": null,
+    "loaded_context": null,
+    "max_output_tokens": 0,
+    "model_max_context": null,
+    "name": "scripted",
+    "prompt_version": "test",
+    "quantization": null,
+    "temperature": 0.0,
+    "thinking": null
+  },
+  "model_text": null,
+  "numeric_consistency": {
+    "note": "Numeric consistency diagnostic: numbers in the answer were looked up in the tool results. It does not verify direction, unit, window, provider or interpretation.",
+    "numbers_in_answer": [],
+    "status": "not_applicable",
+    "unmatched": []
+  },
+  "status": "tool_error",
+  "time_semantics": {
+    "definitions": {
+      "explicit_dates": "Dates written in the question are used as written. Any other relative phrase is unsupported and must be declined rather than guessed.",
+      "last_night": "For sleep: the local day before today, because sleep intervals are assigned to the day they start (the evening before counts as that day's sleep).",
+      "last_week": "The previous calendar week, Monday through Sunday, inclusive.",
+      "past_30_days": "The thirty local days ending today, inclusive of today.",
+      "past_7_days": "The seven local days ending today, inclusive of today.",
+      "previous_30_days": "The thirty local days immediately before the past 30 days.",
+      "previous_7_days": "The seven local days immediately before the past 7 days.",
+      "this_week": "Monday of the current week through today, inclusive.",
+      "three_weeks_ago": "The calendar week three weeks before the current week, Monday to Sunday.",
+      "timezone": "All dates use the request timezone; the server injects it into every tool call.",
+      "today": "The current local date in the request timezone (or the evaluation override).",
+      "week_before_last": "The calendar week before last week (two weeks ago), Monday to Sunday.",
+      "yesterday": "The local day before today."
+    },
+    "last_week_end": "2026-09-27",
+    "last_week_start": "2026-09-21",
+    "past_30_days_start": "2026-09-03",
+    "past_7_days_start": "2026-09-26",
+    "previous_30_days_end": "2026-09-02",
+    "previous_30_days_start": "2026-08-04",
+    "previous_7_days_end": "2026-09-25",
+    "previous_7_days_start": "2026-09-19",
+    "this_week_start": "2026-09-28",
+    "three_weeks_ago_end": "2026-09-13",
+    "three_weeks_ago_start": "2026-09-07",
+    "timezone": "America/New_York",
+    "today": "2026-10-02",
+    "week_before_last_end": "2026-09-20",
+    "week_before_last_start": "2026-09-14",
+    "yesterday": "2026-10-01"
+  },
+  "tool_calls": [
+    {
+      "arguments": {},
+      "duration_ms": 0,
+      "error": "invalid fields: metric",
+      "model_arguments": {
+        "end_date": "2026-10-02",
+        "metric": "pulse",
+        "start_date": "2026-09-26"
+      },
+      "name": "daily_summary",
+      "status": "invalid_arguments",
+      "warnings": []
+    },
+    {
+      "arguments": {},
+      "duration_ms": 0,
+      "error": "invalid fields: metric",
+      "model_arguments": {
+        "end_date": "2026-10-02",
+        "metric": "pulse",
+        "start_date": "2026-09-26"
+      },
+      "name": "daily_summary",
+      "status": "invalid_arguments",
+      "warnings": []
+    }
+  ]
+}

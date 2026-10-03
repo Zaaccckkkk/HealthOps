@@ -21,6 +21,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var messages: [String] = []
     @Published var selectedMetrics: Set<Metric> = Set(SyncedType.allCases.map(\.metric))
     @Published var historyStart: Date = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
+    /// Chat state; reset whenever the server, token or verified account changes.
+    let assistant = AssistantModel()
+    /// Home charts; cleared on the same scope changes so another account's data never lingers.
+    let home = HomeModel()
 
     let healthStore = HKHealthStore()
     private let defaults = UserDefaults.standard
@@ -56,6 +60,8 @@ final class AppModel: ObservableObject {
     private func serverTextChanged() {
         if identity.serverChanged(to: serverURL) {
             cancelSync(reason: "server changed")
+            assistant.reset(reason: "server changed")
+            home.reset()
             note("Server changed; verify identity again before granting consent or syncing.")
             reloadStates()
         }
@@ -74,6 +80,9 @@ final class AppModel: ObservableObject {
     }
 
     var healthDataAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
+
+    /// The stored token for a request; read at send time so a replaced token is never reused.
+    func currentToken() -> String? { KeychainTokenStore.load() }
 
     private func note(_ text: String) {
         messages.insert("\(Self.clock.string(from: Date()))  \(text)", at: 0)
@@ -95,6 +104,8 @@ final class AppModel: ObservableObject {
         hasToken = KeychainTokenStore.load() != nil
         // Any in-flight /v1/me response for the previous token is now stale and will be ignored.
         identity.credentialsChanged()
+        assistant.reset(reason: "token changed")
+        home.reset()
         reloadStates()
         note(hasToken ? "Token stored in the Keychain. Verify identity again." : "Token cleared.")
     }
@@ -129,6 +140,8 @@ final class AppModel: ObservableObject {
             }
             if let previous, previous.id != me.id {
                 cancelSync(reason: "identity changed")
+                assistant.reset(reason: "account changed")
+                home.reset()
                 note("Different user than before; previous consent and queues are not reused.")
             }
             note("Connected as \(me.displayName) (user \(me.id.prefix(8))…) on \(serverURL.host ?? "").")
@@ -298,8 +311,8 @@ final class AppModel: ObservableObject {
     #if DEBUG && targetEnvironment(simulator)
     func seedSyntheticSamples() async {
         do {
-            let count = try await SyntheticSeeder.seed(into: healthStore, around: Date())
-            note("Wrote \(count) synthetic samples into the Simulator's HealthKit store.")
+            let count = try await SyntheticSeeder.seed(into: healthStore, around: Date(), days: 10)
+            note("Wrote \(count) synthetic samples over 10 days (one day left empty) into the Simulator's HealthKit store.")
         } catch {
             note("Seeding failed: \(error.localizedDescription)")
         }

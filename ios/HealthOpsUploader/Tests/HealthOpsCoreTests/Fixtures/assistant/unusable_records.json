@@ -1,0 +1,251 @@
+{
+  "answer": "On 2026-10-01, sleep_duration records exist (healthkit) but no reliable value could be derived: Intervals from the same channel overlap; no reliable total for those days.. On 2026-10-03, your sleep_duration (healthkit) was 6 h 30 min (23400 s), sum of recorded intervals (not full-day coverage).",
+  "cards": [
+    {
+      "baseline": null,
+      "current": null,
+      "difference": null,
+      "direction": null,
+      "end_date": "2026-10-03",
+      "evidence_id": "e1.healthkit",
+      "kind": "daily_table",
+      "metric": "sleep_duration",
+      "provider": "healthkit",
+      "rows": [
+        {
+          "date": "2026-10-01",
+          "display": "no reliable value",
+          "kind": "none",
+          "quality": "unusable",
+          "records": 2,
+          "sample_count": null,
+          "value": null,
+          "warnings": [
+            "overlapping_intervals"
+          ]
+        },
+        {
+          "date": "2026-10-02",
+          "display": "no data",
+          "kind": "none",
+          "quality": "none",
+          "records": 0,
+          "sample_count": null,
+          "value": null,
+          "warnings": []
+        },
+        {
+          "date": "2026-10-03",
+          "display": "6 h 30 min (23400 s)",
+          "kind": "interval_total_sum",
+          "quality": "value",
+          "records": 1,
+          "sample_count": null,
+          "value": "23400.000000",
+          "warnings": []
+        }
+      ],
+      "series": [],
+      "start_date": "2026-10-01",
+      "statistic": "sum of recorded intervals (not full-day coverage)",
+      "timezone": "America/New_York",
+      "title": "sleep_duration per day (healthkit)",
+      "tool": "daily_summary",
+      "unit": "s",
+      "warning_text": [
+        "Intervals from the same channel overlap; no reliable total for those days."
+      ],
+      "warnings": [
+        "overlapping_intervals"
+      ]
+    }
+  ],
+  "claims": [
+    {
+      "claim": {
+        "date": "2026-10-01",
+        "evidence_id": "e1.healthkit",
+        "type": "missing_data"
+      },
+      "raw": null,
+      "reason": null,
+      "sentence": "On 2026-10-01, sleep_duration records exist (healthkit) but no reliable value could be derived: Intervals from the same channel overlap; no reliable total for those days..",
+      "valid": true
+    },
+    {
+      "claim": {
+        "date": "2026-10-03",
+        "evidence_id": "e1.healthkit",
+        "type": "value_on_date"
+      },
+      "raw": null,
+      "reason": null,
+      "sentence": "On 2026-10-03, your sleep_duration (healthkit) was 6 h 30 min (23400 s), sum of recorded intervals (not full-day coverage).",
+      "valid": true
+    }
+  ],
+  "disclaimer": "This assistant summarizes the user's own recorded data using deterministic tools. It is not medical advice, not a diagnosis and not a clinically validated assessment.",
+  "evidence": [
+    {
+      "arguments": {
+        "end_date": "2026-10-03",
+        "metric": "sleep_duration",
+        "provider": null,
+        "start_date": "2026-10-01",
+        "timezone": "America/New_York"
+      },
+      "result": {
+        "definitions": {},
+        "metric": "sleep_duration",
+        "metric_class": "cumulative",
+        "providers": [
+          {
+            "days": [
+              {
+                "date": "2026-10-01",
+                "interval_total_count": 2,
+                "interval_total_sum": null,
+                "warnings": [
+                  "overlapping_intervals"
+                ]
+              },
+              {
+                "date": "2026-10-02",
+                "interval_total_count": 0,
+                "interval_total_sum": null
+              },
+              {
+                "date": "2026-10-03",
+                "interval_total_count": 1,
+                "interval_total_sum": "23400.000000"
+              }
+            ],
+            "provider": "healthkit",
+            "record_count": 3
+          }
+        ],
+        "record_count": 3,
+        "unit": "s",
+        "warnings": [
+          "overlapping_intervals"
+        ],
+        "window": {
+          "end_date": "2026-10-03",
+          "start_date": "2026-10-01",
+          "timezone": "America/New_York"
+        }
+      },
+      "tool": "daily_summary"
+    }
+  ],
+  "explanation_status": "verified",
+  "limits": {
+    "deadline_seconds": 120.0,
+    "evidence_budget_bytes": 262144,
+    "max_model_turns": 6,
+    "max_tool_calls": 4,
+    "model_context_budget_chars": 24000
+  },
+  "model": {
+    "digest": null,
+    "endpoint_host": null,
+    "loaded_context": null,
+    "max_output_tokens": 0,
+    "model_max_context": null,
+    "name": "scripted",
+    "prompt_version": "test",
+    "quantization": null,
+    "temperature": 0.0,
+    "thinking": null
+  },
+  "model_text": null,
+  "numeric_consistency": {
+    "note": "Numeric consistency diagnostic: numbers in the answer were looked up in the tool results. It does not verify direction, unit, window, provider or interpretation.",
+    "numbers_in_answer": [
+      "6",
+      "30",
+      "23400"
+    ],
+    "status": "unmatched",
+    "unmatched": [
+      "6",
+      "30"
+    ]
+  },
+  "status": "answered",
+  "time_semantics": {
+    "definitions": {
+      "explicit_dates": "Dates written in the question are used as written. Any other relative phrase is unsupported and must be declined rather than guessed.",
+      "last_night": "For sleep: the local day before today, because sleep intervals are assigned to the day they start (the evening before counts as that day's sleep).",
+      "last_week": "The previous calendar week, Monday through Sunday, inclusive.",
+      "past_30_days": "The thirty local days ending today, inclusive of today.",
+      "past_7_days": "The seven local days ending today, inclusive of today.",
+      "previous_30_days": "The thirty local days immediately before the past 30 days.",
+      "previous_7_days": "The seven local days immediately before the past 7 days.",
+      "this_week": "Monday of the current week through today, inclusive.",
+      "three_weeks_ago": "The calendar week three weeks before the current week, Monday to Sunday.",
+      "timezone": "All dates use the request timezone; the server injects it into every tool call.",
+      "today": "The current local date in the request timezone (or the evaluation override).",
+      "week_before_last": "The calendar week before last week (two weeks ago), Monday to Sunday.",
+      "yesterday": "The local day before today."
+    },
+    "last_week_end": "2026-09-27",
+    "last_week_start": "2026-09-21",
+    "past_30_days_start": "2026-09-03",
+    "past_7_days_start": "2026-09-26",
+    "previous_30_days_end": "2026-09-02",
+    "previous_30_days_start": "2026-08-04",
+    "previous_7_days_end": "2026-09-25",
+    "previous_7_days_start": "2026-09-19",
+    "this_week_start": "2026-09-28",
+    "three_weeks_ago_end": "2026-09-13",
+    "three_weeks_ago_start": "2026-09-07",
+    "timezone": "America/New_York",
+    "today": "2026-10-02",
+    "week_before_last_end": "2026-09-20",
+    "week_before_last_start": "2026-09-14",
+    "yesterday": "2026-10-01"
+  },
+  "tool_calls": [
+    {
+      "arguments": {
+        "end_date": "2026-10-03",
+        "metric": "sleep_duration",
+        "provider": null,
+        "start_date": "2026-10-01",
+        "timezone": "America/New_York"
+      },
+      "duration_ms": 0,
+      "error": null,
+      "model_arguments": {
+        "end_date": "2026-10-03",
+        "metric": "sleep_duration",
+        "start_date": "2026-10-01"
+      },
+      "name": "daily_summary",
+      "status": "ok",
+      "warnings": [
+        "overlapping_intervals"
+      ]
+    },
+    {
+      "arguments": {
+        "findings": [
+          "missing_data e1.healthkit 2026-10-01",
+          "value_on_date e1.healthkit 2026-10-03"
+        ]
+      },
+      "duration_ms": 0,
+      "error": null,
+      "model_arguments": {
+        "findings": [
+          "missing_data e1.healthkit 2026-10-01",
+          "value_on_date e1.healthkit 2026-10-03"
+        ]
+      },
+      "name": "state_findings",
+      "status": "ok",
+      "warnings": []
+    }
+  ]
+}

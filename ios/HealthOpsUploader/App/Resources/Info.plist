@@ -24,6 +24,8 @@
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>HealthOps reads heart rate, resting heart rate, HRV (SDNN), steps, active energy, exercise time and sleep samples so you can review them and choose whether to upload them to your own HealthOps server.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Only needed when the HealthOps server address you entered is on your local network.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Only the debug build writes clearly labelled synthetic samples into the Simulator so the upload flow can be demonstrated without real health data.</string>
 	<key>UIApplicationSceneManifest</key>

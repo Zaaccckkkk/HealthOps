@@ -1,7 +1,19 @@
-// Prints the exact batch body the adapter would send for a fixed set of synthetic samples.
-// tests/test_ios_contract.py runs this and validates the output with the Python contract.
+// Prints the exact request bodies the adapter would send, so tests/test_ios_contract.py can
+// validate them with the Python contract:
+//   healthops-fixture              the observation batch for a fixed set of synthetic samples
+//   healthops-fixture ask-request  the assistant question body
 import Foundation
 import HealthOpsCore
+
+if CommandLine.arguments.dropFirst().first == "ask-request" {
+    let ask = AskRequest(
+        question: "How did my resting heart rate compare with the week before?",
+        timezone: "America/New_York", provider: "healthkit")
+    let encoder = ContractEncoding.encoder()
+    encoder.outputFormatting.insert(.prettyPrinted)
+    print(String(decoding: try encoder.encode(ask), as: UTF8.self))
+    exit(0)
+}
 
 func date(_ text: String) -> Date {
     ISO8601DateFormatter().date(from: text)!

@@ -2,6 +2,28 @@ import HealthOpsCore
 import SwiftUI
 
 struct ContentView: View {
+    enum Tab: Hashable { case home, ask, setup }
+
+    @EnvironmentObject private var model: AppModel
+    @State private var selectedTab: Tab = .home
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            HomeView(home: model.home, selectedTab: $selectedTab)
+                .tabItem { Label("Overview", systemImage: "chart.xyaxis.line") }
+                .tag(Tab.home)
+            ChatView(assistant: model.assistant)
+                .tabItem { Label("Ask", systemImage: "text.bubble") }
+                .tag(Tab.ask)
+            SetupView()
+                .tabItem { Label("Setup", systemImage: "gearshape") }
+                .tag(Tab.setup)
+        }
+    }
+}
+
+/// Server, account, Health access, upload consent and sync. Numbered as the onboarding order.
+struct SetupView: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
@@ -16,7 +38,7 @@ struct ContentView: View {
                 #endif
                 logSection
             }
-            .navigationTitle("HealthOps Uploader")
+            .navigationTitle("Setup")
         }
     }
 

@@ -49,3 +49,28 @@ def test_swift_output_matches_committed_fixture():
     )
     assert json.loads(result.stdout) == json.loads(FIXTURE.read_text())
     assert result.stdout.strip() == FIXTURE.read_text().strip(), "regenerate the fixture"
+
+
+@pytest.mark.skipif(
+    shutil.which("swift") is None or not PACKAGE.exists(),
+    reason="Swift toolchain not available here.",
+)
+def test_swift_ask_request_satisfies_the_python_contract():
+    from healthops.assistant.contracts import AskRequest
+
+    result = subprocess.run(
+        ["swift", "run", "--package-path", str(PACKAGE), "healthops-fixture", "ask-request"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    request = AskRequest.model_validate_json(result.stdout)  # extra="forbid": no unknown keys
+    assert request.provider == "healthkit" and request.today is None
+
+
+def test_swift_tool_fixture_is_the_committed_example():
+    copy = PACKAGE / "Tests/HealthOpsCoreTests/Fixtures/tools/daily-summary.synthetic.json"
+    assert copy.read_text() == (ROOT / "examples/daily-summary.synthetic.json").read_text(), (
+        "copy examples/daily-summary.synthetic.json into the Swift test fixtures"
+    )

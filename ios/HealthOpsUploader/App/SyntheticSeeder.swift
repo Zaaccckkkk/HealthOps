@@ -17,7 +17,17 @@ enum SyntheticSeeder {
 
     /// Returns the number of samples written. Each call produces new UUIDs, so repeated seeding
     /// adds records; the server treats them as new source records.
-    static func seed(into store: HKHealthStore, around reference: Date) async throws -> Int {
+    static func seed(into store: HKHealthStore, around reference: Date, days: Int = 1) async throws -> Int {
+        var total = 0
+        // Day 3 before the reference gets no samples at all, so the charts show a real gap.
+        for back in 0..<days where back != 3 {
+            let day = Calendar(identifier: .gregorian).date(byAdding: .day, value: -back, to: reference)!
+            total += try await seedDay(into: store, reference: day, variation: Double(back % 5))
+        }
+        return total
+    }
+
+    private static func seedDay(into store: HKHealthStore, reference: Date, variation: Double) async throws -> Int {
         let calendar = Calendar(identifier: .gregorian)
         let dayStart = calendar.startOfDay(for: reference)
         func at(_ hour: Int, _ minute: Int = 0) -> Date {
@@ -25,26 +35,26 @@ enum SyntheticSeeder {
         }
         var samples: [HKSample] = []
         let bpm = HKUnit.count().unitDivided(by: .minute())
-        for (offset, value) in [(8, 62.0), (12, 71.0), (18, 84.0)] {
+        for (offset, value) in [(8, 62.0 + variation), (12, 71.0 + variation), (18, 84.0 - variation)] {
             samples.append(HKQuantitySample(
                 type: HKQuantityType(.heartRate), quantity: HKQuantity(unit: bpm, doubleValue: value),
                 start: at(offset), end: at(offset), metadata: metadata))
         }
         samples.append(HKQuantitySample(
-            type: HKQuantityType(.restingHeartRate), quantity: HKQuantity(unit: bpm, doubleValue: 55),
+            type: HKQuantityType(.restingHeartRate), quantity: HKQuantity(unit: bpm, doubleValue: 55 + variation),
             start: at(6), end: at(6), metadata: metadata))
         samples.append(HKQuantitySample(
             type: HKQuantityType(.heartRateVariabilitySDNN),
-            quantity: HKQuantity(unit: .secondUnit(with: .milli), doubleValue: 48.5),
+            quantity: HKQuantity(unit: .secondUnit(with: .milli), doubleValue: 48.5 - variation),
             start: at(6, 30), end: at(6, 30), metadata: metadata))
-        for (hour, steps) in [(9, 1200.0), (13, 800.0), (17, 2500.0)] {
+        for (hour, steps) in [(9, 1200.0 + 300 * variation), (13, 800.0), (17, 2500.0 - 200 * variation)] {
             samples.append(HKQuantitySample(
                 type: HKQuantityType(.stepCount), quantity: HKQuantity(unit: .count(), doubleValue: steps),
                 start: at(hour), end: at(hour, 30), metadata: metadata))
         }
         samples.append(HKQuantitySample(
             type: HKQuantityType(.activeEnergyBurned),
-            quantity: HKQuantity(unit: .kilocalorie(), doubleValue: 35.5),
+            quantity: HKQuantity(unit: .kilocalorie(), doubleValue: 35.5 + 4 * variation),
             start: at(17), end: at(17, 30), metadata: metadata))
         // Last night: 23:00 to 06:30 as one core and one REM stage, no overlap.
         samples.append(HKCategorySample(
