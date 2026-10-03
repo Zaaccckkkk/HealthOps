@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HealthOps assistant (local debug page)</title>
+<style>
+ body { font: 14px/1.4 -apple-system, system-ui, sans-serif; margin: 1.5rem; color: #222; max-width: 960px; }
+ h1 { font-size: 1.2rem; } h2 { font-size: 1rem; margin: 1.2rem 0 .4rem; }
+ .note { background: #fff6d6; border: 1px solid #e6c766; padding: .5rem .8rem; }
+ .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin: .4rem 0; }
+ input, select, button, textarea { font: inherit; padding: .3rem .5rem; }
+ textarea { width: 100%; min-height: 3rem; }
+ table { border-collapse: collapse; margin: .4rem 0; } td, th { border: 1px solid #ccc; padding: .2rem .5rem; text-align: left; }
+ .badge { display: inline-block; padding: .1rem .5rem; border-radius: .6rem; background: #ddd; margin-right: .4rem; }
+ .ok { background: #cfe9cf; } .warn { background: #f7d9b5; } .bad { background: #f3c1c1; }
+ .card { border: 1px solid #ccc; padding: .6rem .8rem; margin: .6rem 0; }
+ .muted { color: #666; } pre { white-space: pre-wrap; background: #f4f4f4; padding: .5rem; }
+</style>
+</head>
+<body>
+<h1>HealthOps assistant, local debug page</h1>
+<p class="note">Verification interface for the local development API with synthetic data. It is
+not the iOS app and not medical advice. Model prose is never shown as the answer; only the data
+cards and template sentences verified against them are.</p>
+<div class="row">
+ <label>Token <input id="token" type="password" size="40" autocomplete="off"></label>
+ <label>Timezone <input id="tz" size="22"></label>
+ <label>Source <select id="provider"><option value="">all channels</option>
+  <option value="healthkit">healthkit</option><option value="google_health">google_health</option>
+  <option value="manual">manual</option></select></label>
+</div>
+<textarea id="question" placeholder="Ask about your recorded history, for example: How was my resting heart rate last week compared with the week before?"></textarea>
+<div class="row"><button id="ask">Ask</button><span id="busy" class="muted"></span></div>
+<div id="out"></div>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  $("tz").value = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  $("token").value = sessionStorage.getItem("healthops_token") || "";
+  const el = (tag, text, cls) => { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (cls) n.className = cls; return n; };
+  const badge = (text, cls) => el("span", text, "badge " + (cls || ""));
+  function table(headers, rows) {
+    const t = el("table"); const tr = el("tr"); headers.forEach(h => tr.appendChild(el("th", h))); t.appendChild(tr);
+    rows.forEach(r => { const x = el("tr"); r.forEach(c => x.appendChild(el("td", c === null || c === undefined ? "" : String(c)))); t.appendChild(x); });
+    return t;
+  }
+  // Each section renders independently: a failure in one (for example an unexpected field)
+  // must never remove the data cards from the page.
+  function section(out, title, build) {
+    try { build(); }
+    catch (e) { out.appendChild(el("p", "Could not render " + title + ": " + e, "bad")); }
+  }
+  function render(d) {
+    const out = $("out"); out.replaceChildren();
+    const statusCls = d.status === "answered" ? "ok" : (d.status === "insufficient_data" || d.status === "refused" || d.status === "needs_clarification") ? "warn" : "bad";
+    const head = el("div"); head.appendChild(badge("data: " + d.status, statusCls));
+    head.appendChild(badge("explanation: " + d.explanation_status, d.explanation_status === "verified" ? "ok" : d.explanation_status === "unverified" ? "bad" : ""));
+    out.appendChild(head);
+    const ts = d.time_semantics;
+    out.appendChild(el("p", "Timezone " + ts.timezone + ", today " + ts.today + ". Last week " + ts.last_week_start + " to " + ts.last_week_end + "; past 7 days from " + ts.past_7_days_start + ".", "muted"));
+    out.appendChild(el("h2", "Answer")); out.appendChild(el("p", d.answer));
+    if (d.claims && d.claims.length) section(out, "claims", () => {
+      out.appendChild(el("h2", "Findings checked against the cards"));
+      out.appendChild(table(["type", "evidence", "date", "valid", "reason / raw finding"], d.claims.map(c => {
+        const claim = c.claim || {};
+        return [claim.type || "(unparseable)", claim.evidence_id || "", claim.date || "", c.valid ? "yes" : "no",
+                (c.reason || "") + (c.raw ? " [" + c.raw + "]" : "")];
+      })));
+    });
+    out.appendChild(el("h2", "Data cards"));
+    if (!d.cards.length) out.appendChild(el("p", "No cards: no tool returned data.", "muted"));
+    d.cards.forEach(c => section(out, "card " + c.evidence_id, () => {
+      const box = el("div", undefined, "card");
+      box.appendChild(el("strong", c.title + " [" + c.evidence_id + "]"));
+      box.appendChild(el("div", "Window " + (c.start_date || "") + " to " + (c.end_date || "") + " (" + c.timezone + ")" + (c.provider ? ", channel " + c.provider : "") + (c.statistic ? ", " + c.statistic : ""), "muted"));
+      if (c.kind === "daily_table") box.appendChild(table(["date", "value", "records", "statistic"], c.rows.map(r => [r.date, r.display, r.records, r.kind === "none" ? (r.quality === "unusable" ? "records, no reliable value" : "") : r.kind])));
+      if (c.kind === "comparison") {
+        box.appendChild(table(["window", "dates", "value", "days with data"], [
+          ["baseline", c.baseline ? c.baseline.start_date + " to " + c.baseline.end_date : "", c.baseline ? c.baseline.display : "", c.baseline ? c.baseline.days_with_data + " of " + c.baseline.days_in_window : ""],
+          ["current", c.current ? c.current.start_date + " to " + c.current.end_date : "", c.current ? c.current.display : "", c.current ? c.current.days_with_data + " of " + c.current.days_in_window : ""]]));
+        box.appendChild(el("div", "Direction: " + c.direction + (c.difference ? " (difference " + c.difference + " " + c.unit + ")" : "")));
+      }
+      if (c.kind === "availability") box.appendChild(table(["channel", "metric", "aggregation", "records", "days"], c.series.map(s => [s.provider, s.metric, s.aggregation, s.record_count, s.local_days_with_records])));
+      c.warning_text.forEach(w => box.appendChild(el("div", "Note: " + w, "muted")));
+      out.appendChild(box);
+    }));
+    section(out, "tool calls", () => {
+      out.appendChild(el("h2", "Tool calls"));
+      out.appendChild(table(["tool", "status", "model wrote", "executed", "warnings", "ms"], d.tool_calls.map(t => [t.name, t.status, JSON.stringify(t.model_arguments), JSON.stringify(t.arguments), (t.warnings || []).join(" "), t.duration_ms])));
+    });
+    out.appendChild(el("p", "Numeric diagnostic: " + d.numeric_consistency.status + (d.numeric_consistency.unmatched.length ? ", unmatched " + d.numeric_consistency.unmatched.join(", ") : "") + ". Model " + d.model.name + (d.model.quantization ? " " + d.model.quantization : "") + ", thinking " + d.model.thinking + ", prompt " + d.model.prompt_version + ".", "muted"));
+    if (d.model_text) { out.appendChild(el("h2", "Raw model prose (debug only, not an answer)")); out.appendChild(el("pre", d.model_text)); }
+    out.appendChild(el("p", d.disclaimer, "muted"));
+  }
+  window.__healthopsRender = render;  // used by the DOM regression test only
+  $("ask").addEventListener("click", async () => {
+    const token = $("token").value.trim(); sessionStorage.setItem("healthops_token", token);
+    const body = { question: $("question").value, timezone: $("tz").value.trim() };
+    if ($("provider").value) body.provider = $("provider").value;
+    $("busy").textContent = "asking the local model..."; $("ask").disabled = true;
+    try {
+      const r = await fetch("/v1/assistant/ask", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (!r.ok) { $("out").replaceChildren(el("p", "HTTP " + r.status + ": " + (d.detail && typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail)), "bad")); }
+      else render(d);
+    } catch (e) { $("out").replaceChildren(el("p", "Request failed: " + e, "bad")); }
+    finally { $("busy").textContent = ""; $("ask").disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>

@@ -11,10 +11,16 @@ _DATE_LIKE = re.compile(
     r"\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?)?"
 )
 _NUMBER = re.compile(r"(?<![\w.])[-+]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|(?<![\w.])[-+]?\d+(?:\.\d+)?")
+_MONTH = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?"
+# "September 21", "Sep 21, 2026", "21 September 2026", "October 2nd": calendar text, not data.
+_PROSE_DATE = re.compile(
+    rf"\b{_MONTH}\s+\d{{1,2}}(?:st|nd|rd|th)?(?:,?\s+\d{{4}})?|\b\d{{1,2}}(?:st|nd|rd|th)?\s+{_MONTH}(?:\s+\d{{4}})?",
+    re.IGNORECASE,
+)
 
 
 def numbers_in_text(text: str) -> list[str]:
-    cleaned = _DATE_LIKE.sub(" ", text)
+    cleaned = _PROSE_DATE.sub(" ", _DATE_LIKE.sub(" ", text))
     return [match.replace(",", "") for match in _NUMBER.findall(cleaned)]
 
 

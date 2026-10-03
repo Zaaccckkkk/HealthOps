@@ -13,6 +13,7 @@ from uuid import UUID
 import pytest
 
 from healthops.assistant import numeric
+from healthops.assistant.claims import FALLBACK_EXPLANATION, FindingsParams
 from healthops.assistant.contracts import AskRequest, ToolCallRecord
 from healthops.assistant.model import ModelError, ModelTurn, ScriptedChatModel, ToolCallRequest
 from healthops.assistant.orchestrator import Assistant, AssistantSettings, TodayOverrideNotAllowed
@@ -31,29 +32,53 @@ class FakeToolbox(Toolbox):
         self.results = results
         self.calls: list[tuple[str, dict, UUID]] = []
 
-    async def execute(self, name, arguments_json, user_id, timezone=None):
+    async def execute(self, name, arguments_json, user_id, timezone=None, provider=None):
         spec = self.registry.get(name)
         if spec is None:
-            return await super().execute(name, arguments_json, user_id, timezone)
+            return await super().execute(name, arguments_json, user_id, timezone, provider)
         raw = json.loads(arguments_json or "{}")
+        model_arguments = dict(raw)
         if spec.takes_timezone and timezone is not None:
             raw["timezone"] = timezone
+        notes = []
+        if "provider" in raw and "provider" in spec.params.model_fields:
+            raw.pop("provider")
+            notes.append("provider_filter_ignored")
+        if provider is not None and "provider" in spec.params.model_fields:
+            raw["provider"] = provider
+            notes.append("provider_from_request")
+        windows = ("baseline_start", "baseline_end", "current_start", "current_end")
+        if (
+            name == "period_comparison"
+            and all(isinstance(raw.get(f), str) for f in windows)
+            and raw["baseline_start"] > raw["current_start"]
+        ):
+            raw["baseline_start"], raw["current_start"] = (
+                raw["current_start"],
+                raw["baseline_start"],
+            )
+            raw["baseline_end"], raw["current_end"] = raw["current_end"], raw["baseline_end"]
+            notes.append("windows_reordered_baseline_is_earlier")
         try:
             params = spec.params.model_validate(raw)
         except Exception:
-            return await super().execute(name, arguments_json, user_id, timezone)
+            return await super().execute(name, arguments_json, user_id, timezone, provider)
         arguments = params.model_dump(mode="json")
         self.calls.append((name, arguments, user_id))
         if spec.run is None:
-            return ToolOutcome(
-                ToolCallRecord(name=name, arguments=arguments, status="ok"),
-                None,
-                None,
-                declined=True,
+            record = ToolCallRecord(
+                name=name, arguments=arguments, model_arguments=model_arguments, status="ok"
             )
+            if isinstance(params, FindingsParams):
+                return ToolOutcome(record, None, None, findings=params)
+            return ToolOutcome(record, None, None, declined=True)
         result = self.results[name]
         record = ToolCallRecord(
-            name=name, arguments=arguments, status="ok", warnings=result.get("warnings", [])
+            name=name,
+            arguments=arguments,
+            model_arguments=model_arguments,
+            status="ok",
+            warnings=notes + result.get("warnings", []),
         )
         return ToolOutcome(record, result, result, has_usable_data=has_usable_data(name, result))
 
@@ -96,6 +121,46 @@ SUMMARY = {
     "definitions": {},
 }
 NO_DATA = {**SUMMARY, "providers": [], "record_count": 0, "warnings": ["no_records_in_window"]}
+SUMMARY_WITH_GAP = {
+    **SUMMARY,
+    "window": {"timezone": NY, "start_date": "2026-09-26", "end_date": "2026-09-28"},
+    "providers": [
+        {
+            "provider": "healthkit",
+            "record_count": 2,
+            "days": [
+                {
+                    "date": "2026-09-26",
+                    "sample_count": 1,
+                    "sample_mean": "60.500000",
+                    "daily_summary": None,
+                    "daily_total": None,
+                    "interval_total_sum": None,
+                    "warnings": [],
+                },
+                {
+                    "date": "2026-09-27",
+                    "sample_count": 1,
+                    "sample_mean": "62.000000",
+                    "daily_summary": None,
+                    "daily_total": None,
+                    "interval_total_sum": None,
+                    "warnings": [],
+                },
+                {
+                    "date": "2026-09-28",
+                    "sample_count": 0,
+                    "sample_mean": None,
+                    "daily_summary": None,
+                    "daily_total": None,
+                    "interval_total_sum": None,
+                    "warnings": [],
+                },
+            ],
+        }
+    ],
+    "warnings": [],
+}
 
 
 def make(turns, results=None, **settings):
@@ -134,6 +199,10 @@ def test_tool_call_is_validated_and_executed_with_server_identity():
     )
     response = ask(assistant)
     assert response.status == "answered"
+    assert response.explanation_status == "unverified"  # prose, not structured claims
+    assert response.answer == FALLBACK_EXPLANATION
+    assert response.model_text.startswith("Your resting heart rate averaged")
+    assert response.cards and response.cards[0].evidence_id == "e1.healthkit"
     assert toolbox.calls[0][2] == USER  # identity injected by the server, never by the model
     # No identity field in any tool schema: the model cannot choose whose data to read.
     properties = {
@@ -146,7 +215,6 @@ def test_tool_call_is_validated_and_executed_with_server_identity():
         "sparse_window"
     ]
     assert response.evidence[0]["result"]["record_count"] == 7
-    assert response.numeric_consistency.status == "consistent"
     assert response.time_semantics.last_week_start == date(2026, 9, 21)
     assert "not medical advice" in response.disclaimer
 
@@ -161,6 +229,16 @@ def test_model_never_receives_dates_to_compute_itself():
 
 
 def test_numeric_consistency_flags_numbers_absent_from_evidence_but_is_not_fact_checking():
+    # The diagnostic now runs on the rendered answer; free prose is checked directly here.
+    evidence = [{"result": SUMMARY}]
+    diagnostic = numeric.check(
+        "It dropped from 62 to 60.5 bpm, and 99 is a made-up number.", evidence
+    )
+    assert diagnostic.status == "unmatched" and diagnostic.unmatched == ["99"]
+    assert "does not verify direction" in diagnostic.note
+
+
+def _unused_prose_flow():
     assistant, _, _ = make(
         [
             ModelTurn(
@@ -222,18 +300,31 @@ def test_insufficient_data_status_when_every_tool_result_has_no_records():
     assert ask(assistant).status == "insufficient_data"
 
 
-def test_decline_tool_produces_refused_status_without_data_access():
+def test_decline_tool_produces_refused_status_with_fixed_text_only():
     assistant, _, toolbox = make(
         [
             ModelTurn(
-                tool_calls=[call("decline_request", reason="medical advice is out of scope")]
+                tool_calls=[
+                    call(
+                        "decline_request",
+                        category="medical_advice",
+                        detail="Your resting heart rate is 999 bpm.",  # must never reach answer
+                    )
+                ]
             ),
         ]
     )
     response = ask(assistant, "Do I have heart disease?")
     assert response.status == "refused"
-    assert "medical advice is out of scope" in response.answer
+    assert "999" not in response.answer and "medical advice" in response.answer
+    assert response.model_text == "Your resting heart rate is 999 bpm."  # debug field only
     assert response.evidence == [] and toolbox.calls[0][0] == "decline_request"
+
+
+def test_unknown_decline_category_maps_to_the_generic_fixed_text():
+    assistant, _, _ = make([ModelTurn(tool_calls=[call("decline_request", category="weather")])])
+    response = ask(assistant, "What is the weather?")
+    assert response.status == "refused" and response.answer.endswith("outside that scope.")
 
 
 def test_invalid_arguments_get_one_retry_then_tool_error():
@@ -378,6 +469,7 @@ def test_request_timezone_is_injected_and_overrides_the_model():
     assert toolbox.calls[0][1]["timezone"] == NY
     for tool in model.requests[0][1]:
         assert "timezone" not in tool["function"]["parameters"]["properties"]
+        assert "provider" not in tool["function"]["parameters"]["properties"]
         assert "timezone" not in tool["function"]["parameters"].get("required", [])
 
 
@@ -494,3 +586,237 @@ def test_last_night_is_defined_as_yesterday_for_sleep():
     system = model.requests[0][0][0]["content"]
     assert "Last night (sleep, assigned to its start day): 2026-10-01" in system
     assert "do not compute averages, totals or differences across days yourself" in system.lower()
+
+
+def test_text_without_any_tool_call_is_not_reported_as_answered():
+    assistant, _, _ = make([ModelTurn(text="I cannot help with that.")])
+    response = ask(assistant)
+    assert response.status == "no_tool_answer" and response.evidence == []
+    assert response.answer == FALLBACK_EXPLANATION  # the prose is kept only as model_text
+    assert response.model_text == "I cannot help with that."
+
+
+def test_prose_dates_are_not_counted_as_numbers():
+    text = "From September 21 to Sep 27, 2026 the mean was 56.83 bpm; on October 2nd it was 60."
+    assert numeric.numbers_in_text(text) == ["56.83", "60"]
+
+
+def test_provider_filter_from_the_model_is_dropped_and_recorded():
+    assistant, model, toolbox = make(
+        [
+            ModelTurn(
+                tool_calls=[
+                    call(
+                        "daily_summary",
+                        metric="resting_heart_rate",
+                        provider="healthkit",
+                        start_date="2026-09-26",
+                        end_date="2026-10-02",
+                    )
+                ]
+            ),
+            ModelTurn(text="ok"),
+        ]
+    )
+    response = ask(assistant)
+    assert "provider" not in toolbox.calls[0][1] or toolbox.calls[0][1]["provider"] is None
+    assert "provider_filter_ignored" in response.tool_calls[0].warnings
+    tool_message = model.requests[1][0][-1]
+    assert "provider filter was ignored" in tool_message["content"]
+
+
+def test_reversed_comparison_windows_are_reordered_deterministically():
+    comparison = {
+        "providers": [
+            {
+                "provider": "healthkit",
+                "baseline": {"value": "1"},
+                "current": {"value": "2"},
+                "difference": "1",
+                "warnings": [],
+            }
+        ],
+        "warnings": [],
+    }
+    assistant, model, toolbox = make(
+        [
+            ModelTurn(
+                tool_calls=[
+                    call(
+                        "period_comparison",
+                        metric="steps",
+                        baseline_start="2026-09-21",
+                        baseline_end="2026-09-27",  # later window
+                        current_start="2026-09-14",
+                        current_end="2026-09-20",
+                    )
+                ]
+            ),
+            ModelTurn(text="ok"),
+        ],
+        results={"period_comparison": comparison},
+    )
+    response = ask(assistant)
+    arguments = toolbox.calls[0][1]
+    assert (arguments["baseline_start"], arguments["current_start"]) == ("2026-09-14", "2026-09-21")
+    assert "windows_reordered_baseline_is_earlier" in response.tool_calls[0].warnings
+    assert "reordered" in model.requests[1][0][-1]["content"]
+
+
+def test_text_after_only_failed_tool_calls_is_not_an_answer():
+    bad = call("daily_summary", metric="pulse", start_date="2026-09-26", end_date="2026-10-02")
+    assistant, _, _ = make([ModelTurn(tool_calls=[bad]), ModelTurn(text="Your heart rate is 65.")])
+    response = ask(assistant)
+    assert response.status == "no_tool_answer"
+    assert response.tool_calls[0].status == "invalid_arguments" and response.evidence == []
+
+
+def test_model_arguments_are_kept_separately_from_executed_arguments():
+    assistant, _, _ = make(
+        [
+            ModelTurn(
+                tool_calls=[
+                    call(
+                        "period_comparison",
+                        metric="steps",
+                        provider="healthkit",
+                        baseline_start="2026-09-21",
+                        baseline_end="2026-09-27",
+                        current_start="2026-09-14",
+                        current_end="2026-09-20",
+                    )
+                ]
+            ),
+            ModelTurn(text="ok"),
+        ],
+        results={"period_comparison": {"providers": [], "warnings": []}},
+    )
+    record = ask(assistant).tool_calls[0]
+    assert record.model_arguments["baseline_start"] == "2026-09-21"
+    assert record.model_arguments["provider"] == "healthkit"
+    assert record.arguments["baseline_start"] == "2026-09-14"
+    assert record.arguments["provider"] is None
+
+
+def findings(*claims):
+    return call(
+        "state_findings",
+        findings=[
+            " ".join(str(v) for v in (c["type"], c["evidence_id"], c.get("date")) if v)
+            for c in claims
+        ],
+    )
+
+
+def test_structured_findings_are_verified_and_rendered_by_templates():
+    assistant, _, _ = make(
+        [
+            ModelTurn(
+                tool_calls=[
+                    call(
+                        "daily_summary",
+                        metric="resting_heart_rate",
+                        start_date="2026-09-26",
+                        end_date="2026-10-02",
+                    )
+                ]
+            ),
+            ModelTurn(
+                tool_calls=[
+                    findings(
+                        {
+                            "type": "value_on_date",
+                            "evidence_id": "e1.healthkit",
+                            "date": "2026-09-27",
+                        },
+                        {
+                            "type": "missing_data",
+                            "evidence_id": "e1.healthkit",
+                            "date": "2026-09-28",
+                        },
+                    )
+                ]
+            ),
+        ],
+        results={"daily_summary": SUMMARY_WITH_GAP},
+    )
+    response = ask(assistant)
+    assert response.status == "answered" and response.explanation_status == "verified"
+    assert response.answer == (
+        "On 2026-09-27, your resting_heart_rate (healthkit) was 62 bpm, mean of recorded samples "
+        "(not an all-day average). No resting_heart_rate records on 2026-09-28 (healthkit)."
+    )
+    assert [c.valid for c in response.claims] == [True, True]
+    assert response.numeric_consistency.status == "consistent"
+
+
+def test_one_invalid_claim_gives_fallback_text_but_keeps_cards_and_data_status():
+    assistant, _, _ = make(
+        [
+            ModelTurn(
+                tool_calls=[
+                    call(
+                        "daily_summary",
+                        metric="resting_heart_rate",
+                        start_date="2026-09-26",
+                        end_date="2026-10-02",
+                    )
+                ]
+            ),
+            ModelTurn(
+                tool_calls=[
+                    findings(
+                        {
+                            "type": "value_on_date",
+                            "evidence_id": "e1.healthkit",
+                            "date": "2026-09-28",
+                        }
+                    )
+                ]
+            ),
+        ],
+        results={"daily_summary": SUMMARY_WITH_GAP},
+    )
+    response = ask(assistant)
+    assert response.status == "answered"  # the data query succeeded
+    assert response.explanation_status == "unverified" and response.answer == FALLBACK_EXPLANATION
+    assert response.claims[0].reason == "no recorded value on that date"
+    assert response.cards[0].rows[2].display == "no data"
+
+
+def test_channel_names_in_the_question_require_a_ui_selection():
+    assistant, model, _ = make([ModelTurn(text="never")])
+    response = ask(assistant, "Show my Fitbit steps for yesterday.")
+    assert response.status == "needs_clarification" and model.requests == []
+    assert "Choose the data source in the interface" in response.answer
+    assert response.explanation_status == "not_applicable"
+
+
+def test_ui_provider_selection_is_injected_into_tool_calls():
+    assistant, _, toolbox = make(
+        [
+            ModelTurn(
+                tool_calls=[
+                    call(
+                        "daily_summary",
+                        metric="steps",
+                        start_date="2026-10-01",
+                        end_date="2026-10-01",
+                    )
+                ]
+            ),
+            ModelTurn(text="x"),
+        ]
+    )
+    request = AskRequest(question="my steps yesterday", timezone=NY, provider="google_health")
+    response = run(assistant.ask(request, USER, today=date(2026, 10, 2)))
+    assert toolbox.calls[0][1]["provider"] == "google_health"
+    assert "provider_from_request" in response.tool_calls[0].warnings
+
+
+def test_debug_page_has_no_secrets_and_renders_api_text_as_text_nodes():
+    from healthops.assistant.debug_page import DEBUG_PAGE_HTML
+
+    assert "Bearer " + "x" not in DEBUG_PAGE_HTML
+    assert "innerHTML" not in DEBUG_PAGE_HTML and "textContent" in DEBUG_PAGE_HTML
+    assert "not the iOS app" in DEBUG_PAGE_HTML

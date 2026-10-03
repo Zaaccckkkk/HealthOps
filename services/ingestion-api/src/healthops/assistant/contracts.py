@@ -3,9 +3,24 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from healthops.assistant.cards import Card
+from healthops.assistant.claims import VerifiedClaim
+from healthops.schemas import Provider
+
 AskStatus = Literal[
-    "answered", "insufficient_data", "refused", "tool_error", "budget_exceeded", "model_error"
+    "answered",
+    "insufficient_data",
+    "refused",
+    "needs_clarification",
+    "no_tool_answer",
+    "tool_error",
+    "budget_exceeded",
+    "model_error",
 ]
+# verified: every claim checked against the cards; unverified: a claim failed or the model
+# produced prose instead of claims, so the fixed fallback text is shown; not_applicable: the
+# request did not reach the explanation step.
+ExplanationStatus = Literal["verified", "unverified", "not_applicable"]
 ToolCallStatus = Literal["ok", "invalid_arguments", "rejected", "error", "not_executed"]
 
 
@@ -13,6 +28,9 @@ class AskRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     question: str = Field(min_length=1, max_length=2000)
     timezone: str = Field(min_length=1, max_length=80)
+    # Data channel chosen in the interface and injected by the server into every tool call.
+    # Channel names written inside the question are not applied; they trigger a clarification.
+    provider: Provider | None = None
     # Allowed only when the server runs with assistant_allow_today_override (evaluation mode).
     today: date | None = None
 
@@ -41,7 +59,10 @@ class TimeSemantics(BaseModel):
 
 class ToolCallRecord(BaseModel):
     name: str
+    # Arguments actually executed after validation and server adjustments.
     arguments: dict[str, Any]
+    # Arguments exactly as the model wrote them, before any server adjustment.
+    model_arguments: dict[str, Any] = Field(default_factory=dict)
     status: ToolCallStatus
     warnings: list[str] = Field(default_factory=list)
     duration_ms: int = 0
@@ -72,8 +93,11 @@ class ModelInfo(BaseModel):
     temperature: float
     # None: the adapter does not control the model's reasoning mode; the server default applies.
     thinking: bool | None = None
-    digest: str | None = None
-    context_window: int | None = None
+    # Recorded from the server when available (Ollama: /api/tags, /api/show, /api/ps).
+    digest: str | None = None  # full digest; shorten only for display
+    quantization: str | None = None
+    model_max_context: int | None = None  # the model's maximum context length
+    loaded_context: int | None = None  # context the running instance was loaded with, if running
 
 
 class Limits(BaseModel):
@@ -85,8 +109,19 @@ class Limits(BaseModel):
 
 
 class AskResponse(BaseModel):
+    # Data query status: did the tools run and return usable data.
     status: AskStatus
+    # Explanation status is independent: data can be present while the explanation failed.
+    explanation_status: ExplanationStatus
+    # Rendered from verified claims by fixed templates, or the fixed fallback text. For
+    # refusals and errors this is the fixed message. Never free model prose.
     answer: str
+    claims: list[VerifiedClaim]
+    # Deterministic cards built from the evidence; shown regardless of the explanation.
+    cards: list[Card]
+    # Raw model prose when the model produced any (debug only). Clients must not display it
+    # as an answer or execute anything embedded in it.
+    model_text: str | None = None
     tool_calls: list[ToolCallRecord]
     # Full tool results for traceability, within evidence_budget_bytes; a result that does not
     # fit is replaced by an explicit omission marker, never silently cut.

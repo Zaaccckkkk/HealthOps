@@ -13,10 +13,11 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
+from healthops.assistant.claims import FindingsParams
 from healthops.assistant.contracts import ToolCallRecord
 from healthops.tools.availability import availability_tool
 from healthops.tools.contracts import (
@@ -28,9 +29,30 @@ from healthops.tools.daily_summary import daily_summary_tool
 from healthops.tools.local_days import ToolInputError
 from healthops.tools.period_comparison import period_comparison_tool
 
+DECLINE_CATEGORIES = (
+    "medical_advice",
+    "other_person",
+    "unsupported_time_range",
+    "invented_value_requested",
+    "out_of_scope",
+)
+
 
 class DeclineParams(BaseModel):
-    reason: str
+    """Why the question is declined. Only the category reaches the user, as fixed text."""
+
+    model_config = ConfigDict(extra="ignore")
+    category: str = Field(
+        default="out_of_scope",
+        description="One of: " + ", ".join(DECLINE_CATEGORIES),
+    )
+    detail: str | None = Field(default=None, description="Optional free text; debugging only")
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def normalise(cls, value):
+        text = str(value or "").strip().lower().replace(" ", "_")
+        return text if text in DECLINE_CATEGORIES else "out_of_scope"
 
 
 @dataclass
@@ -42,6 +64,11 @@ class ToolSpec:
     run: Callable[[Session, UUID, BaseModel], BaseModel] | None
     compact: Callable[[dict[str, Any]], dict[str, Any]] | None = None
 
+    # Fields the model never sees. `timezone` is injected by the server. `provider` is hidden
+    # because results are already grouped per provider and, on the development set, the local
+    # model added a wrong provider filter to most calls and reported missing data.
+    HIDDEN_FIELDS = frozenset({"timezone", "provider"})
+
     @property
     def takes_timezone(self) -> bool:
         return "timezone" in self.params.model_fields
@@ -49,9 +76,11 @@ class ToolSpec:
     def schema(self) -> dict[str, Any]:
         parameters = self.params.model_json_schema()
         parameters.pop("title", None)
-        # The server injects the request timezone; the model never sees or chooses it.
-        parameters.get("properties", {}).pop("timezone", None)
-        parameters["required"] = [r for r in parameters.get("required", []) if r != "timezone"]
+        for hidden in self.HIDDEN_FIELDS:
+            parameters.get("properties", {}).pop(hidden, None)
+        parameters["required"] = [
+            r for r in parameters.get("required", []) if r not in self.HIDDEN_FIELDS
+        ]
         for prop in parameters.get("properties", {}).values():
             prop.pop("title", None)
         return {
@@ -71,6 +100,23 @@ class ToolOutcome:
     for_model: dict[str, Any] | None  # bounded representation sent back to the model
     declined: bool = False
     has_usable_data: bool = False
+    findings: FindingsParams | None = (
+        None  # the model's structured claims, if this was state_findings
+    )
+
+
+_WINDOW_FIELDS = ("baseline_start", "baseline_end", "current_start", "current_end")
+
+
+def _windows_reversed(raw: dict[str, Any]) -> bool:
+    """True only when all four window fields are present strings and baseline starts later.
+
+    Incomplete or non-string fields are left for Pydantic to report; reordering them first
+    would raise or hide the real validation error.
+    """
+    if not all(isinstance(raw.get(field), str) for field in _WINDOW_FIELDS):
+        return False
+    return raw["baseline_start"] > raw["current_start"]  # ISO dates sort as text
 
 
 def has_usable_data(name: str, result: dict[str, Any]) -> bool:
@@ -163,10 +209,20 @@ def build_registry() -> dict[str, ToolSpec]:
             compact=_compact_period_comparison,
         ),
         ToolSpec(
+            name="state_findings",
+            description="Finish the answer. Pass findings as plain strings, one per item, in the "
+            "form '<type> <evidence_id> [<ISO date>]'. Types: value_on_date (date required), "
+            "window_difference (no date), missing_data (date optional). Example: "
+            "['value_on_date e1.healthkit 2026-10-01', 'missing_data e1.healthkit 2026-10-02']. "
+            "The server reads the numbers and writes the sentences.",
+            params=FindingsParams,
+            run=None,
+        ),
+        ToolSpec(
             name="decline_request",
-            description="Decline a question that is not about this user's own recorded health "
-            "history or that asks for medical advice, another person's data or anything outside "
-            "the tools.",
+            description="Decline a question. Pass category: medical_advice, other_person, "
+            "unsupported_time_range, invented_value_requested or out_of_scope. The user sees a "
+            "fixed sentence for the category; detail is kept for debugging only.",
             params=DeclineParams,
             run=None,
         ),
@@ -185,7 +241,12 @@ class Toolbox:
         return [spec.schema() for spec in self.registry.values()]
 
     async def execute(
-        self, name: str, arguments_json: str, user_id: UUID, timezone: str | None = None
+        self,
+        name: str,
+        arguments_json: str,
+        user_id: UUID,
+        timezone: str | None = None,
+        provider: str | None = None,
     ) -> ToolOutcome:
         started = time.monotonic()
         spec = self.registry.get(name)
@@ -212,8 +273,24 @@ class Toolbox:
                 None,
                 None,
             )
+        model_arguments = dict(raw)  # what the model wrote, kept for evaluation and audit
         if spec.takes_timezone and timezone is not None:
             raw["timezone"] = timezone  # request timezone always wins over anything the model wrote
+        notes: list[str] = []
+        if "provider" in raw and "provider" in spec.params.model_fields:
+            raw.pop("provider")  # hidden field; results stay grouped per provider
+            notes.append("provider_filter_ignored")
+        if provider is not None and "provider" in spec.params.model_fields:
+            raw["provider"] = provider  # the channel the user chose in the interface
+            notes.append("provider_from_request")
+        if name == "period_comparison" and _windows_reversed(raw):
+            # Convention: baseline is the earlier window. Reorder deterministically and say so.
+            raw["baseline_start"], raw["current_start"] = (
+                raw["current_start"],
+                raw["baseline_start"],
+            )
+            raw["baseline_end"], raw["current_end"] = raw["current_end"], raw["baseline_end"]
+            notes.append("windows_reordered_baseline_is_earlier")
         try:
             params = spec.params.model_validate(raw)
         except ValidationError as exc:
@@ -223,7 +300,8 @@ class Toolbox:
             return ToolOutcome(
                 ToolCallRecord(
                     name=name,
-                    arguments=raw,
+                    arguments={},
+                    model_arguments=model_arguments,
                     status="invalid_arguments",
                     error=f"invalid fields: {locations}",
                 ),
@@ -232,15 +310,25 @@ class Toolbox:
             )
         arguments = params.model_dump(mode="json")
         if spec.run is None:
-            return ToolOutcome(
-                ToolCallRecord(name=name, arguments=arguments, status="ok", duration_ms=0),
-                None,
-                None,
-                declined=True,
+            record = ToolCallRecord(
+                name=name,
+                arguments=arguments,
+                model_arguments=model_arguments,
+                status="ok",
+                duration_ms=0,
             )
+            if isinstance(params, FindingsParams):
+                return ToolOutcome(record, None, None, findings=params)
+            return ToolOutcome(record, None, None, declined=True)
         if self._session_factory is None:
             return ToolOutcome(
-                ToolCallRecord(name=name, arguments=arguments, status="error", error="no database"),
+                ToolCallRecord(
+                    name=name,
+                    arguments=arguments,
+                    model_arguments=model_arguments,
+                    status="error",
+                    error="no database",
+                ),
                 None,
                 None,
             )
@@ -258,6 +346,7 @@ class Toolbox:
                 ToolCallRecord(
                     name=name,
                     arguments=arguments,
+                    model_arguments=model_arguments,
                     status="rejected",
                     error=str(exc),
                     duration_ms=int((time.monotonic() - started) * 1000),
@@ -270,6 +359,7 @@ class Toolbox:
                 ToolCallRecord(
                     name=name,
                     arguments=arguments,
+                    model_arguments=model_arguments,
                     status="error",
                     error="storage error",
                     duration_ms=int((time.monotonic() - started) * 1000),
@@ -278,10 +368,11 @@ class Toolbox:
                 None,
             )
         result = result_model.model_dump(mode="json")
-        warnings = list(result.get("warnings", []))
+        warnings = notes + list(result.get("warnings", []))
         record = ToolCallRecord(
             name=name,
             arguments=arguments,
+            model_arguments=model_arguments,
             status="ok",
             warnings=warnings,
             duration_ms=int((time.monotonic() - started) * 1000),
