@@ -1,61 +1,54 @@
 # HealthOps
 Harvard APCOMP215 Course Project
 
-## Milestone A: local ingestion, user history and deterministic tools
+## Current status (2026-10-05)
 
-The first implemented slice is a **Python FastAPI + PostgreSQL** backend, with Pydantic
-validation, SQLAlchemy persistence, Alembic migrations, a locked uv environment, and
-Docker Compose. It accepts canonical observations and retrieves the authenticated user's history.
-The second slice adds three deterministic, user-scoped history tools in the same process:
-`GET /v1/tools/availability`, `GET /v1/tools/daily-summary` and `GET /v1/tools/period-comparison`.
-They are typed Python functions intended for a future tool-using LLM; the LLM itself, RAG and
-tool orchestration are not included.
-Tool results carry statistical definitions and warnings and never fill missing data with zero.
-Every tool requires a timezone and date windows (93 days per summary or comparison window, 366
-for availability, dates 2000-2100); summaries and comparisons cap records read into memory at 10000,
-applied incrementally across a comparison's two windows. Requests above a limit are refused with 422, never
-truncated. Verification used
-synthetic records only; no live device-to-tool path has been exercised.
+A single-tester development system, verified end to end on a physical iPhone against a
+single-GPU cloud VM. It is not a publicly deployable or multi-user health platform.
 
-The third slice adds an iOS upload adapter in `ios/HealthOpsUploader/`: HealthKit samples are
-read with anchored queries, uploaded only after explicit consent, and synced incrementally with
-a persisted pending page whose anchor commits only after the server confirms it. The whole
-loop (HealthKit read -> consent -> FastAPI -> PostgreSQL -> tools) was exercised in the **iOS
-Simulator with synthetic samples**; see the [adapter README](ios/HealthOpsUploader/README.md).
+- **Server** (`services/ingestion-api/`): FastAPI + PostgreSQL ingestion with replay-safe
+  deduplication and conflict detection; three deterministic, user-scoped history tools
+  (`availability`, `daily-summary`, `period-comparison`) that never fill missing data with zero
+  and refuse requests above explicit limits (93-day windows, 10000 records) instead of
+  truncating; a single-turn assistant (`POST /v1/assistant/ask`) in which a local open-weight
+  model may only call those tools, the server resolves dates and injects identity, and the
+  model never writes numbers: Python builds data cards, the model cites them in three finding
+  types, the server verifies each finding and renders fixed templates (unverifiable
+  explanations degrade to a fixed fallback; refusals are fixed sentences by category); a
+  server-side **Google Health connector** (OAuth on the server, encrypted refresh tokens,
+  user-triggered sync of Fitbit steps, resting heart rate, HRV RMSSD and sleep; continuous
+  heart rate is not synced; Apple Health copies inside Google Health are skipped).
+- **iOS** (`ios/HealthOpsUploader/`): HealthKit upload with consent and replay-safe
+  incremental sync; an Overview tab with one deterministic chart per metric and separate
+  Apple Health / Google Health lines; an Ask tab that decodes only display fields and treats
+  unknown statuses as unverified; a Setup tab for server, Health access, consent, sync and
+  the Google Health connection.
+- **Deployment** (`infra/cloud/`, `scripts/cloud/`): one GCP L4 VM running Caddy (automatic
+  HTTPS), the API, PostgreSQL and Ollama (`qwen3:8b`) in Compose, with a dedicated network
+  exposing only 443, per-user rate limits and two-hour auto-stop. Stopped between sessions.
+- **Evaluation** (`ml/eval/`): synthetic question sets and in-process evaluation runs;
+  observed numbers and failures are in [ml/eval/RESULTS.md](ml/eval/RESULTS.md).
+- **Not included**: RAG, conversation storage, background or scheduled sync, deletion sync,
+  production identity, vLLM or Kubernetes.
 
-The fourth slice adds a single-turn assistant, `POST /v1/assistant/ask`: a bounded tool-calling
-loop in which a chat model may call only the three tools above (plus a decline tool), the server
-validates arguments, injects identity and resolves relative dates, and the response carries the
-answer, every tool call, full evidence, statuses and a numeric-consistency diagnostic. The
-assistant is disabled until an OpenAI-compatible model endpoint is configured; engineering is
-tested with a scripted model, and model quality is evaluated separately on synthetic data
-(`ml/eval/`, `scripts/eval_assistant.py`). No RAG, no conversation storage.
-The model never writes the numbers: Python builds deterministic data cards (per-day tables,
-unit-faithful display conversions, explicit "no data" versus "no reliable value"), the model only cites evidence in three
-finding types, and the server verifies each finding and renders fixed template sentences; an
-unverifiable explanation degrades to a fixed fallback while the cards still show the data.
-Refusals are fixed sentences chosen by category; model prose never becomes the answer.
-A server-side **Google Health connector** (OAuth on the server, encrypted refresh token, user
-triggered sync of steps, heart rate, resting heart rate, HRV RMSSD and sleep) stores Fitbit
-data as a second channel, `google_health`; the app draws Apple Health and Google Health as
-separate lines and never sums channels. It is tested against a fake Google and not yet run
-against the real service.
-A same-origin debug page (`/debug/assistant`) shows the actual window, channel, cards, claims
-and tool calls; it is a local verification interface, not the iOS chat feature.
-The iOS app has an **Overview** tab with one deterministic line chart per metric read
-directly from the daily-summary tool (no model, gaps preserved), a **Setup** tab for the
-server, Health access, consent and sync, and an **Ask** tab that consumes this contract: it decodes only the display
-fields (statuses, template answer, cards, disclaimer), treats unknown statuses as unverified,
-keeps the question history in memory only and drops late responses after a server, token or
-account change. A single-GPU cloud development deployment exists and was exercised once from a
-physical iPhone with synthetic data; it is stopped between sessions. See
-[docs/cloud-dev-deployment.md](docs/cloud-dev-deployment.md).
-
-This is a **local development foundation**, not a publicly deployable health platform.
-No physical-device upload, Google Health connector, RAG, remote GPU serving, or cloud
-deployment is included.
+The debug page `GET /debug/assistant` is a local verification interface, not the iOS feature.
 The existing `AppleHealthKitMVP` prototype outside this repository was inspected for mapping
-requirements but was not copied or modified. All committed sample data is synthetic.
+and API requirements but was not copied or modified. All committed sample data is synthetic.
+
+## Development history (the status described in each paragraph is the status at that time)
+
+The first slice was the **Python FastAPI + PostgreSQL** backend, with Pydantic validation,
+SQLAlchemy persistence, Alembic migrations, a locked uv environment and Docker Compose,
+accepting canonical observations and retrieving the authenticated user's history.
+The second slice added the three deterministic history tools in the same process, verified
+with synthetic records only; at that time no device-to-tool path had been exercised.
+The third slice added the iOS upload adapter; the loop (HealthKit read -> consent -> FastAPI ->
+PostgreSQL -> tools) was first exercised in the iOS Simulator with synthetic samples.
+The fourth slice added the assistant with a scripted-model test suite and a separate model
+evaluation; the cards-and-claims increment then removed model-written numbers from answers.
+Later increments added the user-facing iOS screens, the cloud VM deployment (first with
+synthetic accounts, then with the owner's own HealthKit data under explicit consent) and the
+Google Health connector, which was verified once against the real service.
 
 Start with the [API contract](docs/api-contract.md) and
 [architecture and repository boundaries](docs/architecture.md).
@@ -117,6 +110,25 @@ Host commands explicitly set `PYTHONPATH=services/ingestion-api/src`: on this Ma
 loads the checked-out source without relying on that file. Pytest config sets the same path.
 The Linux container installation was verified independently and does not need this workaround.
 
+## Reproducing this project (for teammates)
+
+Everything needed is in this repository except secrets and private data, which are never
+committed: `.env`, `.env.cloud`, `.local/` (credential files, VM settings, evaluation raw
+outputs), and the local learning notes under `docs/learning/`. Real health data lives only on
+the owner's cloud disk and phone. Start from a Git clone, not from a copied folder, so the
+ignore rules and the policy tests apply.
+
+| Goal | What you need | Steps |
+|---|---|---|
+| Server, tools and tests | Docker with Compose, `uv` | Quick start above; then "Tests and checks" (host suite, Docker suite). |
+| Assistant with a real model | Ollama with `qwen3:8b` on your machine | Set the assistant variables from `.env.example`; run `scripts/eval_assistant.py --set protocol` to see the orchestrator work on synthetic data; read `ml/eval/RESULTS.md` for what to expect. |
+| iOS app in the Simulator | Xcode 26, optional XcodeGen | `ios/HealthOpsUploader/README.md`; debug builds seed synthetic HealthKit samples; the Simulator talks to the local stack on `127.0.0.1:8000`. |
+| iOS app on a phone | An Apple developer account (a free personal team works for seven days), a phone in Developer Mode | Pass your own `DEVELOPMENT_TEAM` to `xcodebuild`; nothing about teams is committed. |
+| Cloud GPU deployment | Your own Google Cloud project with billing, GPU quota and, for Fitbit, a Google Health API OAuth client | `docs/cloud-dev-deployment.md`, section "First-time setup"; copy `infra/cloud/vm.env.example` to `.local/cloud/vm.env`. Costs money; the scripts refuse billable actions without `--yes`. |
+
+Expected results are documented, not promised: test counts are in this file, model behaviour in
+`ml/eval/RESULTS.md`, and the deployment's observed numbers in the deployment document.
+
 ## Tests and checks
 
 ```bash
@@ -157,8 +169,9 @@ schema; on a host with Swift it regenerates the fixture, elsewhere that half is 
 The Swift package has its own tests (`cd ios/HealthOpsUploader && swift test`) for mapping and
 the sync engine (first sync, no-op incremental sync, replay, failure with retained pending page,
 lost response, conflict, consent filter, deletions, scope isolation).
-The eight repository-policy tests run on the host with Git, separately from the 95 application
-tests in the container. The application image does not install Git for repository checks.
+Repository-policy tests run on the host with Git, separately from the application tests in
+the container (counts at the time of writing: host 181 passed, container 221 passed, Swift 51).
+The application image does not install Git for repository checks.
 
 ## Local development without rebuilding the API
 
@@ -195,7 +208,7 @@ services/
     migrations/      Service-owned PostgreSQL schema history
 ios/HealthOpsUploader/  Swift package (core + tests), SwiftUI app, XcodeGen spec and project
 infra/docker/        Container build definition
-infra/cloud/         Compose, Caddy and startup files for the single-GPU development VM (not yet created)
+infra/cloud/         Compose, Caddy, startup and env templates for the single-GPU development VM
 tests/               Unit and real-PostgreSQL integration tests
 examples/            Synthetic request fixture and tool response examples
 ml/eval/             Synthetic assistant evaluation sets, rubric and history generator
@@ -226,10 +239,9 @@ Git ignore rules do not untrack previously committed files. No local learning no
 tracked when this policy was introduced. This language/path check is not a secrets scanner
 or a full English-language detector; manually review the staged diff before pushing.
 
-Planned, not implemented: physical-device networking (LAN/TLS, a reachable host), background
-sync, Google Health upload, deletion sync, further tools (workout history), user default
-timezones, production identity, RAG, conversation storage, remote GPU serving and cloud
-provisioning. To try the assistant locally, run Ollama with `qwen3:8b` and set the assistant variables from
+Planned, not implemented: background or scheduled sync, deletion sync, further tools (workout
+history, window averages as a claim type), user default timezones, production identity, RAG,
+conversation storage, vLLM serving, Kubernetes or Terraform. To try the assistant locally, run Ollama with `qwen3:8b` and set the assistant variables from
 `.env.example` (native Ollama backend with thinking off is the verified configuration; the
 OpenAI-compatible endpoint ignores the thinking flag and Qwen3's reasoning then exhausts the
 output budget). Observed results and the exact configuration are in

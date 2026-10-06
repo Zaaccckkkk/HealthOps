@@ -7,7 +7,8 @@ It replaces the display-string prototype outside this repository; nothing was co
 Status: **upload and Ask paths exercised on a physical iPhone 15 against the cloud development
 deployment, first with synthetic accounts and then, under the owner's explicit consent, with
 the owner's own HealthKit history (seven metrics, 14 days) into a dedicated account.** No real
-values are in this repository. There is still no Google Health / Fitbit path. Do not
+values are in this repository. Fitbit data arrives through the server-side Google Health
+connector (Setup step 5), not through the phone. Do not
 describe this as a live wearable integration.
 
 ## Layout

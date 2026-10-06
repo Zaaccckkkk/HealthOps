@@ -117,8 +117,8 @@ are operator decisions, never automatic.
 ## Lessons from the first session
 
 - The Deep Learning VM image ships the NVIDIA driver and the NVIDIA Container Toolkit but not
-  Docker; `remote.sh preflight` fails until Docker Engine and the Compose plugin are installed
-  from Docker's repository and `nvidia-ctk runtime configure --runtime=docker` has run.
+  Docker; `remote.sh bootstrap` installs Docker Engine and the Compose plugin from Docker's
+  repository and runs `nvidia-ctk runtime configure --runtime=docker`.
 - macOS `tar` adds AppleDouble `._*` files unless `COPYFILE_DISABLE=1` is set; Alembic imported
   them as migrations and failed with "source code string cannot contain null bytes".
   `vm.sh sync` now builds the tarball from `git ls-files` with that flag and deletes `._*` on
@@ -127,22 +127,67 @@ are operator decisions, never automatic.
 - An empty `email` directive makes Caddy refuse its configuration; the directive was removed.
 - A 64 KB body limit rejected 500-record synthetic batches with 413; the limit is 1 MB.
 
-## Run book
+## First-time setup (one session, counts against the two hours)
+
+Prerequisites on the Mac: `gcloud` installed and logged in, a project with billing enabled,
+`GPUS_ALL_REGIONS` >= 1 and `NVIDIA_L4_GPUS` >= 1 in the chosen region, and
+`.local/cloud/vm.env` copied from `infra/cloud/vm.env.example`. For the Fitbit connector you
+also need a Web application OAuth client of the same project (see "Google Health connector").
 
 ```bash
-scripts/cloud/vm.sh check          # read-only: project, quotas, image, machine type
-scripts/cloud/vm.sh network        # free: dedicated VPC and the two firewall rules
-scripts/cloud/vm.sh reserve-ip --yes
-scripts/cloud/vm.sh create --yes   # prints the scheduling block for the auto-stop
-scripts/cloud/vm.sh sync           # rsync the repository (honours .dockerignore)
+scripts/cloud/vm.sh check              # read-only: quotas, image, machine type
+scripts/cloud/vm.sh network            # free: dedicated VPC + two firewall rules
+scripts/cloud/vm.sh reserve-ip --yes   # billable from here on
+scripts/cloud/vm.sh create --yes       # prints maxRunDuration=7200s / STOP; the guest also arms shutdown -h +115
+scripts/cloud/vm.sh sync               # uploads exactly the Git-publishable files as a tarball (no .env, .local, .git, notes)
 scripts/cloud/vm.sh ssh
-# on the VM, from ~/healthops:
-cp infra/cloud/env.cloud.example .env.cloud && $EDITOR .env.cloud
-scripts/cloud/remote.sh preflight && scripts/cloud/remote.sh up && scripts/cloud/remote.sh pull-model
-scripts/cloud/remote.sh token      # synthetic tester credential, delete the file after use
-scripts/cloud/remote.sh status
-# back on the Mac:
-scripts/cloud/vm.sh stop
+```
+
+On the VM, from `~/healthops`:
+
+```bash
+scripts/cloud/remote.sh bootstrap      # Docker Engine + Compose plugin, NVIDIA runtime, data directories
+cp infra/cloud/env.cloud.example .env.cloud && nano .env.cloud   # public host, DB password, Google client, Fernet key
+sudo scripts/cloud/remote.sh preflight # nvidia-smi on the host and inside a CUDA container
+sudo scripts/cloud/remote.sh up        # builds the API image, runs migrations, starts Caddy, API, PostgreSQL, Ollama
+sudo scripts/cloud/remote.sh pull-model  # qwen3:8b (5.2 GB, persists on the disk)
+sudo scripts/cloud/remote.sh token my-synthetic-tester   # 0600 credential file; type the token into the phone, then delete it
+sudo scripts/cloud/remote.sh status    # containers, GPU memory, loaded model
+```
+
+Then from the Mac: `curl https://<host>/health/ready` must return `{"status":"ready"}` with a
+Let's Encrypt certificate. The first assistant question loads the model (about 100 s on an
+L4) and may hit the 120 s deadline; the second answers in a few seconds. Stop with
+`scripts/cloud/vm.sh stop`. The verified versions were: image
+`common-cu129-ubuntu-2204-nvidia-580-v20261001` (driver 580.178.04), Ollama 0.35.1 (pinned
+in Compose), Caddy 2.10, PostgreSQL 17, Docker Engine from Docker's stable repository at the
+time of bootstrap (not pinned; `remote.sh bootstrap` prints the installed version).
+
+## Later sessions
+
+On the Mac, from the repository root:
+
+```bash
+scripts/cloud/vm.sh start      # prints the auto-stop block again
+scripts/cloud/vm.sh sync       # only if code changed
+scripts/cloud/vm.sh ssh        # lands in the home directory of the VM
+```
+
+On the VM (SSH opens in `~`, so change directory first):
+
+```bash
+cd ~/healthops
+sudo scripts/cloud/remote.sh up        # rebuilds the API image only if the code changed; migrations run first
+sudo scripts/cloud/remote.sh status
+# ... use it from the phone ...
+sudo scripts/cloud/remote.sh down      # containers only; data stays on the disk
+exit
+```
+
+Back on the Mac:
+
+```bash
+scripts/cloud/vm.sh stop && scripts/cloud/vm.sh status   # TERMINATED, disk and address retained
 ```
 
 Protocol regression on the VM: `PYTHONPATH=services/ingestion-api/src uv run python

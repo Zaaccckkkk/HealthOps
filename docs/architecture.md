@@ -64,8 +64,11 @@ transaction -> PostgreSQL; user-scoped history can be retrieved through HTTP.
 
 The iOS adapter feeds that boundary: HealthKit anchored query -> consent filter -> deterministic
 mapping -> persisted pending page -> `POST /v1/observations/batch` -> anchor commit on success.
-Verified in the iOS Simulator against the loopback API with synthetic samples; no physical
-device, LAN exposure or TLS is involved.
+First verified in the iOS Simulator against the loopback API with synthetic samples; since
+2026-10-03 also from a physical iPhone over HTTPS against the cloud development VM, with
+synthetic accounts and then the owner's own HealthKit data under explicit consent. A second
+channel, `google_health`, is filled by the server-side Google Health connector
+(`healthops/connectors/`), which keeps Fitbit-platform points only.
 
 The assistant sits on top of the tools: authenticated route -> server-resolved time semantics
 -> model turn -> validated tool call with injected identity -> tool executed in a worker
@@ -74,17 +77,19 @@ with evidence, statuses and a numeric-consistency diagnostic. The model never se
 never computes dates and cannot name any tool outside the registry. Since the cards increment, the model also never writes numbers: Python
 builds data cards from the evidence, the model cites them in three finding types, and the
 server verifies and renders the sentences. The same-origin debug page is a local verification
-interface; the cards contract is meant to be reused by the iOS client later.
+interface; the iOS Ask tab consumes the same cards contract.
 
 Deterministic tools read that history back: authenticated route -> typed tool parameters ->
 user-scoped, bounded SQL -> Decimal computation in Python -> typed result with statistical
 definitions and warnings. Rules are in the [API contract](api-contract.md). Migration `0002`
 adds only an index on `(user_id, metric, ended_at)` so the tool's overlap-context query is
-bounded by intervals ending after the window instead of a metric's whole history. Tools were
-verified with synthetic records only; no live device-to-tool path has been exercised.
+bounded by intervals ending after the window instead of a metric's whole history. Tool rules
+were established with synthetic records; the same tools now serve the owner's real HealthKit
+and Fitbit history on the development VM, with the same definitions and limits.
 
-This is the first durable interface for future Swift/provider adapters and Python analytics.
-It does not yet collect wearable data itself. No iOS sources were copied into the new repository.
+This boundary is shared by the Swift adapter, the Google Health connector and the assistant.
+The server does not read wearables itself: data arrives through the phone (HealthKit) or the
+connector (Google Health). No iOS sources were copied from the earlier prototype.
 
 ## Why these choices
 
@@ -118,15 +123,20 @@ It does not yet collect wearable data itself. No iOS sources were copied into th
 - uv lockfile for Python dependencies. Base images use version tags, not immutable digests;
   a future deployment release should pin tested digests and establish security-update cadence.
 
-## Deliberately deferred
+## Deliberately deferred (as of 2026-10-05)
 
-Production login/session management, secret management, external network exposure, HTTPS,
-rate limits/body-size gateway limits, Cloud SQL/GCS provisioning, backups and full
-account deletion, source OAuth/token renewal, background workers, background or automatic
-device sync, physical-device networking, Google Health upload, source update/delete sync,
-structured workouts/check-ins, further analytics (workout history), user default timezone
-settings, RAG/pgvector, conversation storage, streaming answers, remote GPU serving (vLLM),
-GKE and Bayesian models.
+Production login/session management and secret management beyond environment files on one
+VM; Cloud SQL/GCS provisioning; backups and full account deletion (only the Google channel
+has a per-user delete action); background workers and scheduled or automatic sync (both
+channels sync on user action); source update/delete sync (upstream revisions are reported as
+conflicts, not applied); structured workouts/check-ins; further analytics (workout history,
+window averages as a claim type); user default timezone settings; RAG/pgvector; conversation
+storage; streaming answers; vLLM serving; GKE/Terraform; Bayesian models.
+
+Implemented since the earlier version of this list and documented elsewhere: external HTTPS
+exposure on the development VM (Caddy, Let's Encrypt), per-user rate limits and request-body
+limits at the edge, physical-device networking, the Google Health connector with server-side
+OAuth and refresh-token handling.
 
 An eight-metric observation schema is not a complete health-domain model. Subjective check-ins,
 sleep stages, workouts and sets will have their own contracts when implemented. The Swift

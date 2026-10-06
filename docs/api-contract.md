@@ -362,7 +362,7 @@ descriptive results, not deployment measurements.
 ## Provider connections v0: Google Health (server-side connector)
 
 Status: implemented and tested against a fake Google (OAuth + Health API) in the integration
-suite; not yet exercised against the real service. Enabled only when the four
+suite and exercised once against the real service (2026-10-03). Enabled only when the four
 `HEALTHOPS_GOOGLE_OAUTH_*` / `HEALTHOPS_CONNECTION_KEY` settings are present; otherwise every
 route answers 503.
 
@@ -391,7 +391,7 @@ appears under `conflicts`. Active energy and active minutes are not mapped yet.
 `source_device` is the Google data source's device display name when present, otherwise
 null; the channel label in the app is "Google Health", never a guessed device.
 
-## iOS upload adapter (implemented; Simulator-verified with synthetic data)
+## iOS upload adapter (implemented; Simulator-verified with synthetic data, then used on a physical iPhone)
 
 [ios/HealthOpsUploader](../ios/HealthOpsUploader/README.md) is the first client of this
 contract. It maps HealthKit samples to canonical observations and uploads them with
@@ -426,8 +426,10 @@ replay-safe incremental sync. No server behavior changed for it.
 - HealthKit deletions are counted on the device but not propagated: this API has no deletion
   sync. Sleep stage samples are summed by the daily-summary tool under its own rules; the
   adapter does not reproduce Apple's source priority or produce a "total sleep last night".
-- Verified only in the iOS Simulator against the loopback server with synthetic samples.
-  Physical devices, LAN/TLS exposure and Google Health remain unimplemented.
+- First verified in the iOS Simulator against the loopback server with synthetic samples;
+  later used from a physical iPhone over HTTPS against the cloud development VM (synthetic
+  accounts, then the owner's own data under explicit consent). Google Health data arrives
+  through the server-side connector above, not through the phone.
 
 The cross-language test `tests/test_ios_contract.py` validates the adapter's actual encoding
 ([ios-upload.synthetic.json](../examples/ios-upload.synthetic.json)) with this schema and, where

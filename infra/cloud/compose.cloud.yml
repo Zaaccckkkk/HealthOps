@@ -79,7 +79,8 @@ services:
       retries: 20
 
   ollama:
-    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    # Pinned to the version verified on the VM; change deliberately and re-run the protocol set.
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.35.1}
     restart: unless-stopped
     environment:
       # One model, one request at a time, explicit context: the configuration verified on the

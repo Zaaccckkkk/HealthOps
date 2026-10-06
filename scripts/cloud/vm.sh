@@ -4,6 +4,8 @@
 # .local/cloud/vm.env (ignored by Git):
 #   PROJECT=...  ZONE=us-east4-a  VM=healthops-gpu  MACHINE=g2-standard-4  DISK_GB=100
 #   NETWORK=healthops-net  ADDRESS=healthops-ip  IMAGE_FAMILY=common-cu129-ubuntu-2204-nvidia-580
+#   IMAGE=<exact image name>   # optional: pins the image instead of resolving the family
+# Template: infra/cloud/vm.env.example
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ENV_FILE="${CLOUD_ENV_FILE:-$ROOT/.local/cloud/vm.env}"
@@ -28,7 +30,12 @@ case "$cmd" in
     run "${G[@]}" billing projects describe "$PROJECT" || true
     run "${G[@]}" compute project-info describe --format='value(quotas.filter(metric:GPUS_ALL_REGIONS))'
     run "${G[@]}" compute regions describe "$REGION" --format='value(quotas.filter(metric:NVIDIA_L4_GPUS))'
-    run "${G[@]}" compute images describe-from-family "$IMAGE_FAMILY" --project deeplearning-platform-release --format='value(name,diskSizeGb,creationTimestamp)'
+    # Check exactly what `create` will use: the pinned image when IMAGE is set, else the family.
+    if [ -n "${IMAGE:-}" ]; then
+      run "${G[@]}" compute images describe "$IMAGE" --project deeplearning-platform-release --format='value(name,diskSizeGb,creationTimestamp,status)'
+    else
+      run "${G[@]}" compute images describe-from-family "$IMAGE_FAMILY" --project deeplearning-platform-release --format='value(name,diskSizeGb,creationTimestamp,status)'
+    fi
     run "${G[@]}" compute machine-types describe "$MACHINE" --zone "$ZONE" --format='value(guestCpus,memoryMb,accelerators)'
     ;;
   network)  # free: dedicated VPC with only our two rules (the default network allows SSH from anywhere)
@@ -41,8 +48,9 @@ case "$cmd" in
     run "${G[@]}" compute addresses describe "$ADDRESS" --region "$REGION" --format='value(address)'
     ;;
   create) need_yes
+    if [ -n "${IMAGE:-}" ]; then image_args=(--image "$IMAGE"); else image_args=(--image-family "$IMAGE_FAMILY"); fi
     run "${G[@]}" compute instances create "$VM" --zone "$ZONE" --machine-type "$MACHINE" \
-      --image-family "$IMAGE_FAMILY" --image-project deeplearning-platform-release \
+      "${image_args[@]}" --image-project deeplearning-platform-release \
       --boot-disk-size "${DISK_GB}GB" --boot-disk-type pd-balanced --maintenance-policy TERMINATE \
       --max-run-duration "$MAX_RUN" --instance-termination-action STOP \
       --network "$NETWORK" --address "$ADDRESS" --tags healthops --no-service-account --no-scopes \
