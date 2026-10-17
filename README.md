@@ -212,6 +212,7 @@ infra/cloud/         Compose, Caddy, startup and env templates for the single-GP
 tests/               Unit and real-PostgreSQL integration tests
 examples/            Synthetic request fixture and tool response examples
 ml/eval/             Synthetic assistant evaluation sets, rubric and history generator
+knowledge/           Reference-source manifest (licences, checksums) and project-authored reference notes; raw texts stay local
 scripts/             Local HTTP smoke test, publication checks, assistant evaluation, cloud VM wrappers
 docs/                Public English API contract and architecture decisions
 compose.yaml         Local database, migration, API, isolated test services

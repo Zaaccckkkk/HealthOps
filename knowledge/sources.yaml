@@ -1,0 +1,126 @@
+# Reference sources for the HealthOps knowledge base.
+#
+# Raw documents are NOT committed: scripts/knowledge/fetch_sources.py downloads them into
+# .local/knowledge/raw/ (ignored by Git and Docker) and verifies the sha256 below. Each entry
+# records the licence that was checked on retrieved_at and how the text may be used by the
+# assistant (quotation only; the model never paraphrases a source as its own statement).
+# Our own documents live in knowledge/own/ and are the only full texts kept in the repository.
+
+sources:
+  - id: hhs-pag-2018
+    title: "Physical Activity Guidelines for Americans, 2nd edition (2018)"
+    publisher: "U.S. Department of Health and Human Services (ODPHP)"
+    url: "https://odphp.health.gov/sites/default/files/2019-09/Physical_Activity_Guidelines_2nd_edition.pdf"
+    file: "hhs_pag_2nd_edition.pdf"
+    kind: "pdf"
+    license: "Public domain (U.S. federal work; text only; some figures may be third-party)"
+    license_url: "https://odphp.health.gov/copyright-policy"
+    allowed_use: "verbatim quotation with link and ODPHP acknowledgement"
+    retrieved_at: "2026-10-17"
+    sha256: "0147d4dfc5ae76613a8b8d9d1c95244477527989f1d841845866ae5b5340cda5"
+    size_bytes: 15360711
+    topics: ["physical_activity", "steps", "exercise_duration"]
+  - id: who-pa-2020
+    title: "WHO guidelines on physical activity and sedentary behaviour (2020)"
+    publisher: "World Health Organization"
+    url: "https://iris.who.int/server/api/core/bitstreams/faa83413-d89e-4be9-bb01-b24671aef7ca/content"
+    file: "who_pa_guidelines_2020.pdf"
+    kind: "pdf"
+    license: "CC BY-NC-SA 3.0 IGO"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/3.0/igo/"
+    allowed_use: "non-commercial quotation and adaptation with attribution and share-alike; third-party figures excluded"
+    retrieved_at: "2026-10-17"
+    sha256: "50b66c44e7083cc3752849f301ae1d60d9360d511e34c0c948b39bdf6e13dc88"
+    size_bytes: 4041257
+    topics: ["physical_activity", "steps", "exercise_duration"]
+  - id: aasm-srs-sleep-2015
+    title: "Recommended Amount of Sleep for a Healthy Adult: joint consensus statement (J Clin Sleep Med 2015;11(6))"
+    publisher: "American Academy of Sleep Medicine and Sleep Research Society"
+    url: "https://aasm.org/resources/pdf/pressroom/adult-sleep-duration-consensus.pdf"
+    file: "aasm_adult_sleep_consensus_2015.pdf"
+    kind: "pdf"
+    license: "Copyright AASM; publicly hosted PDF"
+    license_url: "https://aasm.org/aasm-and-srs-publish-new-sleep-duration-consensus-statement/"
+    allowed_use: "short verbatim quotation with citation and link only; do not redistribute the document"
+    retrieved_at: "2026-10-17"
+    sha256: "e410c5c52658db1be994ba0f18d0841076a7b942448e6ec06e8e51a13d6d16ae"
+    size_bytes: 256804
+    topics: ["sleep"]
+  - id: nhlbi-how-much-sleep
+    title: "How Much Sleep Is Enough? (NHLBI)"
+    publisher: "National Heart, Lung, and Blood Institute, NIH"
+    url: "https://www.nhlbi.nih.gov/health/sleep/how-much-sleep"
+    file: "nhlbi_how_much_sleep.html"
+    kind: "html"
+    license: "Public domain (U.S. federal work; check page-level notices for images)"
+    license_url: "https://www.nhlbi.nih.gov/about/policies-and-notices"
+    allowed_use: "verbatim quotation with link"
+    retrieved_at: "2026-10-17"
+    sha256: "e8dd6cafe361283f8f3d4b32ae79390f08fc286cc9575329ca107862c7355a36"
+    size_bytes: 62798
+    topics: ["sleep"]
+  - id: medlineplus-healthy-sleep
+    title: "Healthy Sleep (MedlinePlus)"
+    publisher: "National Library of Medicine, NIH"
+    url: "https://medlineplus.gov/healthysleep.html"
+    file: "medlineplus_healthy_sleep.html"
+    kind: "html"
+    license: "Public domain for NLM-authored text; linked third-party content excluded"
+    license_url: "https://medlineplus.gov/about/using/usingcontent/"
+    allowed_use: "verbatim quotation of NLM text with link"
+    retrieved_at: "2026-10-17"
+    sha256: "c4a70efbca53552c516145f46ffb6b9108ad1c916286c990f112109b7ad9a8dc"
+    size_bytes: 127654
+    topics: ["sleep"]
+  - id: openstax-ap2e-19-4
+    title: "Anatomy and Physiology 2e, 19.4 Cardiac Physiology"
+    publisher: "OpenStax, Rice University"
+    url: "https://openstax.org/books/anatomy-and-physiology-2e/pages/19-4-cardiac-physiology"
+    file: "openstax_ap2e_19-4.html"
+    kind: "html"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    allowed_use: "non-commercial quotation with the required attribution: 'Access for free at https://openstax.org/books/anatomy-and-physiology-2e/pages/1-introduction'"
+    retrieved_at: "2026-10-17"
+    sha256: "6795b20618a95e179abc997a0751beadb42727e504df31f70907d533f23a1f1f"
+    size_bytes: 387288
+    topics: ["heart_rate", "resting_heart_rate"]
+  - id: openstax-ap2e-19-2
+    title: "Anatomy and Physiology 2e, 19.2 Cardiac Muscle and Electrical Activity"
+    publisher: "OpenStax, Rice University"
+    url: "https://openstax.org/books/anatomy-and-physiology-2e/pages/19-2-cardiac-muscle-and-electrical-activity"
+    file: "openstax_ap2e_19-2.html"
+    kind: "html"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    allowed_use: "non-commercial quotation with the required attribution: 'Access for free at https://openstax.org/books/anatomy-and-physiology-2e/pages/1-introduction'"
+    retrieved_at: "2026-10-17"
+    sha256: "16937d381f913b0de4ebe0d923be0f31084f7244d06abb9aa7e620200a09dd8e"
+    size_bytes: 388215
+    topics: ["heart_rate", "hrv"]
+  - id: apple-hkqti-hrv-sdnn
+    title: "HKQuantityTypeIdentifier.heartRateVariabilitySDNN (Apple Developer Documentation, JSON rendition)"
+    publisher: "Apple Inc."
+    url: "https://developer.apple.com/tutorials/data/documentation/healthkit/hkquantitytypeidentifier/heartratevariabilitysdnn.json"
+    file: "apple_hkqti_hrv_sdnn.json"
+    kind: "json"
+    license: "Copyright Apple Inc.; developer documentation"
+    license_url: "https://developer.apple.com/documentation/healthkit/hkquantitytypeidentifier/heartratevariabilitysdnn"
+    allowed_use: "short verbatim quotation of the definition with link only"
+    retrieved_at: "2026-10-17"
+    sha256: "1f2970b0f92d2bb51b192b73ca442a8b9d6edd6700a6acdad674500584481d4a"
+    size_bytes: 35589
+    topics: ["hrv", "healthkit"]
+  - id: google-health-hr-hrv
+    title: "Track your heart rate with your Pixel Watch or Fitbit device (Google Health Help)"
+    publisher: "Google LLC"
+    url: "https://support.google.com/googlehealth/answer/14237938?hl=en"
+    file: "google_health_hr_hrv.html"
+    kind: "html"
+    license: "Copyright Google LLC; help center article"
+    license_url: "https://support.google.com/googlehealth/answer/14237938?hl=en"
+    allowed_use: "short verbatim quotation of the HRV/RMSSD and resting heart rate definitions with link only"
+    retrieved_at: "2026-10-17"
+    sha256: "ab0b488ffb617659391e4a6cf8a00aefd7419f880fbd5d37e866ecb91b0e8728"
+    size_bytes: 1769558
+    topics: ["hrv", "resting_heart_rate", "google_health"]
