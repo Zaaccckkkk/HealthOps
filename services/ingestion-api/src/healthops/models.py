@@ -3,6 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 import sqlalchemy as sa
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -112,3 +113,45 @@ class ConnectionSession(Base):
     used_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     # Outcome written by the callback so the app can read it with its own bearer token.
     outcome: Mapped[str | None] = mapped_column(sa.String(40))
+
+
+class ReferenceChunk(Base):
+    """One retrievable passage of a reference source (knowledge base).
+
+    Source metadata is copied onto every chunk so a retrieved passage carries its own licence
+    and quotation rule; the answer templates read `quote_limit_chars` to decide how much text
+    may be quoted verbatim. Embeddings are nomic-embed-text (768 dimensions); a different model
+    requires re-ingesting everything, which is why the model name is stored per row.
+    """
+
+    __tablename__ = "reference_chunks"
+    __table_args__ = (
+        sa.UniqueConstraint("source_id", "chunk_index", name="uq_reference_chunk"),
+        sa.Index("ix_reference_chunks_source", "source_id"),
+        # Declared here as well so the migration/model consistency test sees the HNSW index.
+        sa.Index(
+            "ix_reference_chunks_embedding",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    source_id: Mapped[str] = mapped_column(sa.String(80))
+    source_title: Mapped[str] = mapped_column(sa.String(300))
+    publisher: Mapped[str] = mapped_column(sa.String(200))
+    url: Mapped[str] = mapped_column(sa.String(500))
+    license: Mapped[str] = mapped_column(sa.String(200))
+    allowed_use: Mapped[str] = mapped_column(sa.Text)
+    quote_limit_chars: Mapped[int] = mapped_column(sa.Integer)
+    section: Mapped[str] = mapped_column(sa.String(300))
+    page: Mapped[int | None] = mapped_column(sa.Integer)
+    chunk_index: Mapped[int] = mapped_column(sa.Integer)
+    text: Mapped[str] = mapped_column(sa.Text)
+    topics: Mapped[str] = mapped_column(sa.String(300), server_default="")
+    embedding_model: Mapped[str] = mapped_column(sa.String(80))
+    embedding = mapped_column(Vector(768), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )

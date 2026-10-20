@@ -63,6 +63,7 @@ public enum CardKind: String, TolerantEnum {
     case dailyTable = "daily_table"
     case comparison
     case availability
+    case reference
     case unknown
 }
 
@@ -125,11 +126,18 @@ public struct Card: Decodable, Equatable, Sendable, Identifiable {
     public var difference: String?
     public var direction: Direction?
     public var warningText: [String]
+    /// Reference cards: the quotable passage and its provenance.
+    public var text: String?
+    public var section: String?
+    public var publisher: String?
+    public var sourceURL: String?
+    public var license: String?
 
     enum CodingKeys: String, CodingKey {
         case evidenceID = "evidence_id", kind, title, timezone, startDate = "start_date", endDate = "end_date"
         case provider, metric, unit, statistic, rows, baseline, current, difference, direction
         case warningText = "warning_text"
+        case text, section, publisher, sourceURL = "source_url", license
     }
 
     public init(from decoder: Decoder) throws {
@@ -150,6 +158,11 @@ public struct Card: Decodable, Equatable, Sendable, Identifiable {
         difference = try c.decodeIfPresent(String.self, forKey: .difference)
         direction = try c.decodeIfPresent(Direction.self, forKey: .direction)
         warningText = try c.decodeIfPresent([String].self, forKey: .warningText) ?? []
+        text = try c.decodeIfPresent(String.self, forKey: .text)
+        section = try c.decodeIfPresent(String.self, forKey: .section)
+        publisher = try c.decodeIfPresent(String.self, forKey: .publisher)
+        sourceURL = try c.decodeIfPresent(String.self, forKey: .sourceURL)
+        license = try c.decodeIfPresent(String.self, forKey: .license)
     }
 }
 

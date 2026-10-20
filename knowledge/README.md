@@ -1,7 +1,10 @@
 # Knowledge base (retrieval corpus) for the assistant
 
-Status: corpus collection only; retrieval, embeddings and the `lookup_reference` tool are
-planned and not implemented. See `docs/architecture.md` for the intended design.
+Status: implemented. `scripts/knowledge/ingest.py` chunks the sources, embeds them with
+`nomic-embed-text` through Ollama and stores them in PostgreSQL with pgvector (migration
+0004); the assistant's `lookup_reference` tool retrieves passages and the `reference` finding
+type quotes them verbatim within each source's quotation limit. Verified locally on the Mac
+(570 chunks from 12 sources) and with the reference evaluation set; see `ml/eval/RESULTS.md`.
 
 ## What the corpus is for
 
@@ -26,6 +29,18 @@ NHLBI, MedlinePlus; public domain text), WHO (CC BY-NC-SA 3.0 IGO), OpenStax (CC
 attribution required), Apple and Google documentation and the AASM statement (copyright,
 quotation only). The non-commercial terms fit a course project; a commercial use would have to
 drop the NC-licensed sources.
+
+## Ingesting
+
+```bash
+HEALTHOPS_ASSISTANT_MODEL_BASE_URL=http://127.0.0.1:11434 uv run python scripts/knowledge/ingest.py
+```
+
+Chunks follow document structure (HTML headings, PDF pages, Markdown sections), merged or
+split to roughly 400 to 1800 characters at sentence boundaries. Each chunk carries the
+source's licence and a quotation limit: 1800 characters for public-domain and Creative
+Commons sources, 300 for copyrighted documentation quoted under short-quotation terms. The
+embedding model name is stored per chunk; switching models means re-ingesting.
 
 ## Fetching
 

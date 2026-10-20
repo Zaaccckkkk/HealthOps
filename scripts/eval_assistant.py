@@ -276,7 +276,9 @@ async def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--set", choices=["dev", "test", "heldout2", "protocol"], default="dev")
+    parser.add_argument(
+        "--set", choices=["dev", "test", "heldout2", "protocol", "reference"], default="dev"
+    )
     parser.add_argument("--limit", type=int, default=0)
     asyncio.run(run(parser.parse_args()))
 

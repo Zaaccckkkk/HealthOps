@@ -1,0 +1,166 @@
+{
+  "answer": "Data channels and why HRV values are not comparable across them (HealthOps project, HRV definitions differ by channel) says: \"Apple Health reports heart rate variability as SDNN: the standard deviation of the intervals between heartbeats. Fitbit reports RMSSD: the root mean square of successive differences between heartbeat intervals.\" Source: https://example.test/knowledge/own/channels-and-hrv.md. This is general reference material, not an assessment of your own values.",
+  "cards": [
+    {
+      "baseline": null,
+      "current": null,
+      "difference": null,
+      "direction": null,
+      "end_date": null,
+      "evidence_id": "e1.r1",
+      "kind": "reference",
+      "license": "Project licence",
+      "metric": null,
+      "provider": null,
+      "publisher": "HealthOps project",
+      "rows": [],
+      "section": "HRV definitions differ by channel",
+      "series": [],
+      "similarity": 0.81,
+      "source_url": "https://example.test/knowledge/own/channels-and-hrv.md",
+      "start_date": null,
+      "statistic": null,
+      "text": "Apple Health reports heart rate variability as SDNN: the standard deviation of the intervals between heartbeats. Fitbit reports RMSSD: the root mean square of successive differences between heartbeat intervals.",
+      "timezone": "",
+      "title": "Data channels and why HRV values are not comparable across them",
+      "tool": "lookup_reference",
+      "unit": null,
+      "warning_text": [],
+      "warnings": []
+    }
+  ],
+  "claims": [
+    {
+      "claim": {
+        "date": null,
+        "evidence_id": "e1.r1",
+        "type": "reference"
+      },
+      "raw": null,
+      "reason": null,
+      "sentence": "Data channels and why HRV values are not comparable across them (HealthOps project, HRV definitions differ by channel) says: \"Apple Health reports heart rate variability as SDNN: the standard deviation of the intervals between heartbeats. Fitbit reports RMSSD: the root mean square of successive differences between heartbeat intervals.\" Source: https://example.test/knowledge/own/channels-and-hrv.md. This is general reference material, not an assessment of your own values.",
+      "valid": true
+    }
+  ],
+  "disclaimer": "This assistant summarizes the user's own recorded data using deterministic tools. It is not medical advice, not a diagnosis and not a clinically validated assessment.",
+  "evidence": [
+    {
+      "arguments": {
+        "query": "SDNN versus RMSSD"
+      },
+      "result": {
+        "definitions": {},
+        "query": "SDNN versus RMSSD",
+        "references": [
+          {
+            "license": "Project licence",
+            "page": null,
+            "publisher": "HealthOps project",
+            "quote_limit_chars": 1800,
+            "section": "HRV definitions differ by channel",
+            "similarity": 0.81,
+            "source_id": "own-channels-and-hrv",
+            "source_title": "Data channels and why HRV values are not comparable across them",
+            "text": "Apple Health reports heart rate variability as SDNN: the standard deviation of the intervals between heartbeats. Fitbit reports RMSSD: the root mean square of successive differences between heartbeat intervals.",
+            "url": "https://example.test/knowledge/own/channels-and-hrv.md"
+          }
+        ],
+        "warnings": []
+      },
+      "tool": "lookup_reference"
+    }
+  ],
+  "explanation_status": "verified",
+  "limits": {
+    "deadline_seconds": 120.0,
+    "evidence_budget_bytes": 262144,
+    "max_model_turns": 6,
+    "max_tool_calls": 4,
+    "model_context_budget_chars": 24000
+  },
+  "model": {
+    "digest": null,
+    "endpoint_host": null,
+    "loaded_context": null,
+    "max_output_tokens": 0,
+    "model_max_context": null,
+    "name": "scripted",
+    "prompt_version": "test",
+    "quantization": null,
+    "temperature": 0.0,
+    "thinking": null
+  },
+  "model_text": null,
+  "numeric_consistency": {
+    "note": "Numeric consistency diagnostic: numbers in the answer were looked up in the tool results. It does not verify direction, unit, window, provider or interpretation.",
+    "numbers_in_answer": [],
+    "status": "not_applicable",
+    "unmatched": []
+  },
+  "status": "answered",
+  "time_semantics": {
+    "definitions": {
+      "explicit_dates": "Dates written in the question are used as written. Any other relative phrase is unsupported and must be declined rather than guessed.",
+      "last_night": "For sleep: the local day before today, because sleep intervals are assigned to the day they start (the evening before counts as that day's sleep).",
+      "last_week": "The previous calendar week, Monday through Sunday, inclusive.",
+      "past_30_days": "The thirty local days ending today, inclusive of today.",
+      "past_7_days": "The seven local days ending today, inclusive of today.",
+      "previous_30_days": "The thirty local days immediately before the past 30 days.",
+      "previous_7_days": "The seven local days immediately before the past 7 days.",
+      "this_week": "Monday of the current week through today, inclusive.",
+      "three_weeks_ago": "The calendar week three weeks before the current week, Monday to Sunday.",
+      "timezone": "All dates use the request timezone; the server injects it into every tool call.",
+      "today": "The current local date in the request timezone (or the evaluation override).",
+      "week_before_last": "The calendar week before last week (two weeks ago), Monday to Sunday.",
+      "yesterday": "The local day before today."
+    },
+    "last_week_end": "2026-09-27",
+    "last_week_start": "2026-09-21",
+    "past_30_days_start": "2026-09-03",
+    "past_7_days_start": "2026-09-26",
+    "previous_30_days_end": "2026-09-02",
+    "previous_30_days_start": "2026-08-04",
+    "previous_7_days_end": "2026-09-25",
+    "previous_7_days_start": "2026-09-19",
+    "this_week_start": "2026-09-28",
+    "three_weeks_ago_end": "2026-09-13",
+    "three_weeks_ago_start": "2026-09-07",
+    "timezone": "America/New_York",
+    "today": "2026-10-02",
+    "week_before_last_end": "2026-09-20",
+    "week_before_last_start": "2026-09-14",
+    "yesterday": "2026-10-01"
+  },
+  "tool_calls": [
+    {
+      "arguments": {
+        "query": "SDNN versus RMSSD"
+      },
+      "duration_ms": 0,
+      "error": null,
+      "model_arguments": {
+        "query": "SDNN versus RMSSD"
+      },
+      "name": "lookup_reference",
+      "status": "ok",
+      "warnings": []
+    },
+    {
+      "arguments": {
+        "findings": [
+          "reference e1.r1"
+        ]
+      },
+      "duration_ms": 0,
+      "error": null,
+      "model_arguments": {
+        "findings": [
+          "reference e1.r1"
+        ]
+      },
+      "name": "state_findings",
+      "status": "ok",
+      "warnings": []
+    }
+  ]
+}

@@ -19,13 +19,13 @@ FALLBACK_EXPLANATION = (
     "exactly what was found."
 )
 
-CLAIM_TYPES = ("value_on_date", "window_difference", "missing_data")
+CLAIM_TYPES = ("value_on_date", "window_difference", "missing_data", "reference")
 _ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 class Claim(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    type: Literal["value_on_date", "window_difference", "missing_data"]
+    type: Literal["value_on_date", "window_difference", "missing_data", "reference"]
     evidence_id: str = Field(description="Card id to cite, e.g. e1.healthkit")
     date: str | None = Field(default=None, description="ISO date for value_on_date or missing_data")
 
@@ -111,6 +111,20 @@ def verify_claim(claim: Claim, cards: list[Card]) -> VerifiedClaim:
         return VerifiedClaim(claim=claim, valid=False, reason="unknown evidence id")
     if claim.date is not None and _calendar_date(claim.date) is None:
         return VerifiedClaim(claim=claim, valid=False, reason="not a calendar date")
+    if claim.type == "reference" or card.kind == "reference":
+        if claim.type != "reference" or card.kind != "reference":
+            return VerifiedClaim(
+                claim=claim, valid=False, reason="reference claims need a reference card"
+            )
+        if not card.text:
+            return VerifiedClaim(claim=claim, valid=False, reason="reference card has no text")
+        where = f", {card.section}" if card.section else ""
+        sentence = (
+            f'{card.title} ({card.publisher}{where}) says: "{card.text}" '
+            f"Source: {card.source_url}. This is general reference material, not an "
+            "assessment of your own values."
+        )
+        return VerifiedClaim(claim=claim, valid=True, sentence=sentence)
     if claim.type == "value_on_date":
         if card.kind != "daily_table" or claim.date is None:
             return VerifiedClaim(

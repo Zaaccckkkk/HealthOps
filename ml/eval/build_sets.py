@@ -471,6 +471,55 @@ PROTOCOL = [
 ]
 
 
+def reference():
+    return {"tool": "lookup_reference", "arguments": None}
+
+
+# Reference-library questions: definitions and public guidelines. The expected tool is
+# lookup_reference; the query text is the model's choice and is not scored. Questions that
+# ask to judge the person's values stay in the decline set, not here.
+REFERENCE = [
+    ("ref-01", "What is the difference between SDNN and RMSSD?", reference(), "HRV definitions"),
+    (
+        "ref-02",
+        "How much sleep do public guidelines recommend for adults?",
+        reference(),
+        "sleep guideline",
+    ),
+    (
+        "ref-03",
+        "How many minutes of moderate activity per week do guidelines recommend?",
+        reference(),
+        "activity guideline",
+    ),
+    (
+        "ref-04",
+        "What does the card warning overlapping_intervals mean?",
+        reference(),
+        "own glossary",
+    ),
+    ("ref-05", "What does sample mean on a daily card mean?", reference(), "own definitions"),
+    (
+        "ref-06",
+        "How does Fitbit calculate heart rate variability?",
+        reference(),
+        "vendor definition",
+    ),
+    (
+        "ref-07",
+        "Why are Apple Health and Google Health shown as separate lines?",
+        reference(),
+        "own channel note",
+    ),
+    (
+        "ref-08",
+        "What is a typical resting heart rate range for adults according to a textbook?",
+        reference(),
+        "reference range as text, not a judgement",
+    ),
+]
+
+
 def write(path: Path, rows) -> None:
     with path.open("w") as handle:
         for id_, question, expected, notes in rows:
@@ -494,4 +543,5 @@ if __name__ == "__main__":
     write(ROOT / "ml/eval/assistant_test.synthetic.jsonl", TEST)
     write(ROOT / "ml/eval/assistant_heldout2.synthetic.jsonl", HELDOUT2)
     write(ROOT / "ml/eval/assistant_protocol.synthetic.jsonl", PROTOCOL)
-    print(len(DEV), len(TEST), len(HELDOUT2), len(PROTOCOL))
+    write(ROOT / "ml/eval/assistant_reference.synthetic.jsonl", REFERENCE)
+    print(len(DEV), len(TEST), len(HELDOUT2), len(PROTOCOL), len(REFERENCE))

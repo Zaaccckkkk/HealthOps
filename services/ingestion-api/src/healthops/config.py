@@ -53,6 +53,21 @@ class Settings(BaseSettings):
     # Where the browser is sent after the callback; the app registers this URL scheme.
     app_callback_url: str = "healthops://google-health"
 
+    # Knowledge base (retrieval). Embeddings come from the same Ollama endpoint as the chat
+    # model unless an embedding URL is set. The model name is stored per chunk; changing it
+    # means re-ingesting.
+    knowledge_embedding_model: str = "nomic-embed-text"
+    knowledge_embedding_base_url: str | None = None  # defaults to assistant_model_base_url
+    knowledge_embedding_dimensions: int = 768
+    knowledge_top_k: int = 3
+    # Cosine similarity below this is "no reference". Probed locally with nomic-embed-text:
+    # unrelated questions peaked at 0.49, genuine matches were 0.63 and above.
+    knowledge_min_similarity: float = 0.55
+
+    @property
+    def knowledge_embedding_url(self) -> str | None:
+        return self.knowledge_embedding_base_url or self.assistant_model_base_url
+
     @property
     def google_health_configured(self) -> bool:
         return bool(

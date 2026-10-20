@@ -43,7 +43,7 @@ services:
         condition: service_healthy
 
   db:
-    image: postgres:17-bookworm
+    image: pgvector/pgvector:pg17  # PostgreSQL 17 with the pgvector extension
     restart: unless-stopped
     environment:
       POSTGRES_USER: healthops

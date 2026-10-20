@@ -61,6 +61,29 @@ SLEEP_UNUSABLE = {
 }
 
 
+REFERENCE_RESULT = {
+    "query": "SDNN versus RMSSD",
+    "references": [
+        {
+            "source_id": "own-channels-and-hrv",
+            "source_title": "Data channels and why HRV values are not comparable across them",
+            "publisher": "HealthOps project",
+            "url": "https://example.test/knowledge/own/channels-and-hrv.md",
+            "license": "Project licence",
+            "section": "HRV definitions differ by channel",
+            "page": None,
+            "quote_limit_chars": 1800,
+            "text": "Apple Health reports heart rate variability as SDNN: the standard deviation "
+            "of the intervals between heartbeats. Fitbit reports RMSSD: the root mean square "
+            "of successive differences between heartbeat intervals.",
+            "similarity": 0.81,
+        }
+    ],
+    "warnings": [],
+    "definitions": {},
+}
+
+
 def scenarios() -> dict[str, AskResponse]:
     out = {}
     a, _, _ = make(
@@ -165,12 +188,28 @@ def scenarios() -> dict[str, AskResponse]:
     )
     out["refused"] = ask(a, "Do I have heart disease?")
 
-    a, _, _ = make([ModelTurn(text="never")])
+    a, _, _ = make(
+        [
+            ModelTurn(
+                tool_calls=[call("availability", start_date="2026-09-26", end_date="2026-10-02")]
+            )
+        ]
+    )
     out["needs_clarification"] = ask(a, "Show my Fitbit steps for yesterday.")
 
     bad = call("daily_summary", metric="pulse", start_date="2026-09-26", end_date="2026-10-02")
     a, _, _ = make([ModelTurn(tool_calls=[bad]), ModelTurn(tool_calls=[bad])])
     out["tool_error"] = ask(a)
+
+    # A definitional question answered from the reference library (synthetic passage).
+    a, _, _ = make(
+        [
+            ModelTurn(tool_calls=[call("lookup_reference", query="SDNN versus RMSSD")]),
+            ModelTurn(tool_calls=[call("state_findings", findings=["reference e1.r1"])]),
+        ],
+        results={"lookup_reference": REFERENCE_RESULT},
+    )
+    out["answered_reference"] = ask(a, "What is the difference between SDNN and RMSSD?")
     return out
 
 

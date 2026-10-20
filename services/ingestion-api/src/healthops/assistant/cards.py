@@ -65,7 +65,7 @@ class CardRow(BaseModel):
 
 class Card(BaseModel):
     evidence_id: str
-    kind: Literal["daily_table", "comparison", "availability"]
+    kind: Literal["daily_table", "comparison", "availability", "reference"]
     title: str
     tool: str
     timezone: str
@@ -83,6 +83,14 @@ class Card(BaseModel):
     direction: Literal["higher", "lower", "unchanged", "unavailable"] | None = None
     # Availability cards only.
     series: list[dict[str, Any]] = Field(default_factory=list)
+    # Reference cards only (knowledge base): the passage and its provenance. `text` is the
+    # part that may be quoted (already cut to the source's quotation limit).
+    text: str | None = None
+    section: str | None = None
+    publisher: str | None = None
+    source_url: str | None = None
+    license: str | None = None
+    similarity: float | None = None
     warnings: list[str] = Field(default_factory=list)
     warning_text: list[str] = Field(default_factory=list)
 
@@ -172,6 +180,49 @@ def build_cards(evidence: list[dict[str, Any]]) -> list[Card]:
             cards.extend(_comparison_cards(evidence_id, result))
         elif tool == "availability":
             cards.append(_availability_card(evidence_id, result))
+        elif tool == "lookup_reference":
+            cards.extend(_reference_cards(evidence_id, result))
+    return cards
+
+
+def quotable(text: str, limit: int) -> str:
+    """The longest prefix within `limit` that ends at a sentence boundary, else a hard cut."""
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    for mark in (". ", "! ", "? ", ".\n"):
+        index = cut.rfind(mark)
+        if index >= limit // 3:
+            return cut[: index + 1]
+    return cut.rstrip() + "..."
+
+
+def _reference_cards(evidence_id: str, result: dict[str, Any]) -> list[Card]:
+    cards = []
+    for index, reference in enumerate(result.get("references") or []):
+        cards.append(
+            Card(
+                evidence_id=f"{evidence_id}.r{index + 1}",
+                kind="reference",
+                title=reference.get("source_title", "reference"),
+                tool="lookup_reference",
+                timezone="",
+                start_date=None,
+                end_date=None,
+                provider=None,
+                metric=None,
+                unit=None,
+                statistic=None,
+                text=quotable(
+                    reference.get("text", ""), int(reference.get("quote_limit_chars", 300))
+                ),
+                section=reference.get("section"),
+                publisher=reference.get("publisher"),
+                source_url=reference.get("url"),
+                license=reference.get("license"),
+                similarity=reference.get("similarity"),
+            )
+        )
     return cards
 
 

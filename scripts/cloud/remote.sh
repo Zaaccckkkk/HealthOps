@@ -31,6 +31,7 @@ case "${1:-help}" in
   up)       "${COMPOSE[@]}" build; "${COMPOSE[@]}" up -d; "${COMPOSE[@]}" ps ;;  # migrate runs first
   pull-model)
     "${COMPOSE[@]}" exec ollama ollama pull "${OLLAMA_MODEL:-qwen3:8b}"
+    "${COMPOSE[@]}" exec ollama ollama pull "${KNOWLEDGE_EMBEDDING_MODEL:-nomic-embed-text}"
     "${COMPOSE[@]}" exec ollama ollama show "${OLLAMA_MODEL:-qwen3:8b}" | head -20
     ;;
   status)
@@ -48,6 +49,11 @@ case "${1:-help}" in
       healthops create-user --name "${2:-synthetic-phone-tester}" --output "/creds/${2:-synthetic-phone-tester}.json"
     echo "credential file: /srv/healthops/credentials/${2:-synthetic-phone-tester}.json (delete after use)"
     ;;
+  knowledge)  # fetch the licence-checked sources and ingest the whole corpus into pgvector
+    sudo mkdir -p /srv/healthops/knowledge && sudo chown 10001:10001 /srv/healthops/knowledge
+    "${COMPOSE[@]}" run --rm -v /srv/healthops/knowledge:/app/.local/knowledge/raw api python scripts/knowledge/fetch_sources.py
+    "${COMPOSE[@]}" run --rm -v /srv/healthops/knowledge:/app/.local/knowledge/raw api python scripts/knowledge/ingest.py
+    ;;
   down)     "${COMPOSE[@]}" down ;;   # containers only; /srv/healthops data stays
-  *) echo "usage: $0 {bootstrap|preflight|up|pull-model|status|logs [service]|token [name]|down}" ;;
+  *) echo "usage: $0 {bootstrap|preflight|up|pull-model|knowledge|status|logs [service]|token [name]|down}" ;;
 esac

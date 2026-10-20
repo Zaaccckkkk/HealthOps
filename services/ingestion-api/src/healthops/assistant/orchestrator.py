@@ -56,6 +56,10 @@ CHANNEL_WORDS = re.compile(
     r"\b(fitbit|apple watch|watch|google health|healthkit|health ?kit|garmin|oura|whoop|manual)\b",
     re.IGNORECASE,
 )
+# Tools that read the user's records; a channel named in the question must be chosen in the
+# interface before any of these run.
+DATA_TOOLS = frozenset({"availability", "daily_summary", "period_comparison"})
+
 CLARIFICATION = (
     "Choose the data source in the interface; names of devices or channels written in the "
     "question are not applied as filters. Note that a channel such as healthkit is not the "
@@ -103,6 +107,13 @@ def card_hint(card) -> dict:
             if card.direction != "unavailable"
             else ["missing_data"],
         }
+    if card.kind == "reference":
+        return {
+            "evidence_id": card.evidence_id,
+            "claim_types": ["reference"],
+            "source": card.title,
+            "section": card.section,
+        }
     return {
         "evidence_id": card.evidence_id,
         "claim_types": ["missing_data"] if not card.series else [],
@@ -132,6 +143,7 @@ class _RunState:
         self.explanation_status: ExplanationStatus = "unverified"
         self.claims = []
         self.model_text: str | None = None
+        self.channel_named = False
 
     def finish(self, status: AskStatus, answer: str) -> None:
         if self.status is None:
@@ -164,9 +176,12 @@ class Assistant:
         semantics = resolve(request.timezone, request.today if request.today is not None else today)
         deadline = _Deadline(self.settings.deadline_seconds)
         state = _RunState(semantics)
-        if request.provider is None and CHANNEL_WORDS.search(request.question):
-            state.finish("needs_clarification", CLARIFICATION)
-            return self._response(state)
+        # A channel named in the question (Fitbit, Apple Watch, ...) is never applied as a filter.
+        # It only matters when the model goes on to read data; definitional questions about a
+        # channel are answered from the reference library without clarification.
+        state.channel_named = request.provider is None and bool(
+            CHANNEL_WORDS.search(request.question)
+        )
         try:
             # Queueing time counts against the deadline too.
             async with asyncio.timeout(max(deadline.remaining, 0)):
@@ -251,6 +266,9 @@ class Assistant:
                     state.finish(
                         "budget_exceeded", "The question needed more tool calls than allowed."
                     )
+                    return
+                if state.channel_named and call.name in DATA_TOOLS:
+                    state.finish("needs_clarification", CLARIFICATION)
                     return
                 state.tool_calls_made += 1
                 async with asyncio.timeout(max(deadline.remaining, 0)):

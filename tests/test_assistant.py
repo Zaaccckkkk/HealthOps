@@ -785,11 +785,53 @@ def test_one_invalid_claim_gives_fallback_text_but_keeps_cards_and_data_status()
 
 
 def test_channel_names_in_the_question_require_a_ui_selection():
-    assistant, model, _ = make([ModelTurn(text="never")])
+    # The channel word matters only when the model goes on to read data: the first data tool
+    # call turns into a clarification request, and no tool runs.
+    assistant, model, toolbox = make(
+        [
+            ModelTurn(
+                tool_calls=[call("availability", start_date="2026-09-26", end_date="2026-10-02")]
+            )
+        ]
+    )
     response = ask(assistant, "Show my Fitbit steps for yesterday.")
-    assert response.status == "needs_clarification" and model.requests == []
+    assert response.status == "needs_clarification" and len(model.requests) == 1
+    assert toolbox.calls == [] and response.tool_calls == []
     assert "Choose the data source in the interface" in response.answer
     assert response.explanation_status == "not_applicable"
+
+
+def test_channel_names_do_not_block_reference_questions():
+    assistant, _, _ = make(
+        [
+            ModelTurn(tool_calls=[call("lookup_reference", query="Fitbit HRV RMSSD")]),
+            ModelTurn(tool_calls=[call("state_findings", findings=["reference e1.r1"])]),
+        ],
+        results={
+            "lookup_reference": {
+                "query": "Fitbit HRV RMSSD",
+                "references": [
+                    {
+                        "source_id": "google-health-hr-hrv",
+                        "source_title": "Track your heart rate",
+                        "publisher": "Google LLC",
+                        "url": "https://example.test/help",
+                        "license": "Copyright Google LLC",
+                        "section": "HRV",
+                        "page": None,
+                        "quote_limit_chars": 300,
+                        "text": "Fitbit devices use RMSSD to derive HRV.",
+                        "similarity": 0.7,
+                    }
+                ],
+                "warnings": [],
+                "definitions": {},
+            }
+        },
+    )
+    response = ask(assistant, "How does Fitbit calculate heart rate variability?")
+    assert response.status == "answered" and response.explanation_status == "verified"
+    assert response.cards[0].kind == "reference"
 
 
 def test_ui_provider_selection_is_injected_into_tool_calls():

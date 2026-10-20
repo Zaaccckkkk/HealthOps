@@ -275,3 +275,62 @@ learned from the real account, with counts only:
   heart rate 48 / 29 / 19; HRV 47 / 27 / 20; sleep 34 / 33 / 1; no conflicts, no errors.
   The Google channel now holds steps, resting heart rate, HRV (RMSSD) and sleep for the owner's
   dedicated account; HRV from Google is RMSSD and is stored and charted apart from Apple's SDNN.
+
+# Reference library (RAG) increment (2026-10-17, local Mac runs)
+
+Configuration: same `qwen3:8b` Q4_K_M via Ollama on the Mac (M4 Pro), prompt `2026-10-17.1`
+(adds the `lookup_reference` tool and the `reference` finding type); embeddings
+`nomic-embed-text` (768 dimensions, `num_ctx` 8192) through the same Ollama; pgvector 0.8.7 in
+the local PostgreSQL; corpus of 570 chunks from 12 sources (9 licence-checked public or
+documented sources plus 3 project notes, see `knowledge/sources.yaml`). Retrieval threshold
+0.55 cosine similarity, chosen from a six-question probe: unrelated questions ("which stocks
+should I buy") peaked at 0.49, genuine matches ranged from 0.63 (own glossary) to 0.87
+(resting heart rate in vendor documentation).
+
+| Run | Set | Result |
+|---|---|---|
+| `20261018T000357Z` | reference (8) | 6 answered, all verified; 2 `needs_clarification` because the pre-model channel-word guard fired on "Fitbit" and "Apple Health / Google Health" in definitional questions |
+| `20261018T000808Z` | reference (8), after moving the guard | 8 answered, 8 verified; tool selection 8/8; claims valid 14/14; warm p50 18.6 s, p95 19.4 s on the Mac (the local model is slower than the L4) |
+
+Per question (second run), the sources the model cited were the expected ones: the project's
+channel note for SDNN versus RMSSD, the AASM statement and MedlinePlus for adult sleep, the
+WHO guidelines for weekly activity minutes, the project glossary and definitions for card
+warnings and `sample_mean`, Apple and Google documentation for how HRV is measured, and the
+OpenStax physiology text for the adult resting heart-rate range. A question asking whether the
+person's own HRV is normal was declined as medical advice (tested manually through the API).
+
+Design change made from the first run: the channel-word clarification used to fire before the
+model saw the question; it now fires only when the model is about to call a data tool, so
+"how does Fitbit calculate HRV" is answered from references while "show my Fitbit steps"
+still asks for a channel. Known limitation: a quotation is the head of the retrieved chunk up
+to the source's quotation limit (1800 characters for public-domain and Creative Commons
+sources, 300 for copyrighted documentation), so PDF page headers can appear at the start of a
+quote; the chunk, not a model-chosen span, is what gets quoted, which keeps the quote verbatim.
+These are small-sample numbers on synthetic questions; no human grading has been done.
+
+## Cloud development VM run (2026-10-18, run `20261018T174515Z`)
+
+Same code and prompt deployed to the `g2-standard-4` VM (one NVIDIA L4): API image rebuilt,
+migration 0004 applied (`pgvector` 0.8.7 inside `pgvector/pgvector:pg17`), `nomic-embed-text`
+pulled next to `qwen3:8b`, and the corpus ingested on the VM (570 chunks from 12 sources,
+1.5 minutes). The WHO repository answered 403 to the download from the Google Cloud address,
+so the files verified on the Mac were copied over and re-checked against the manifest hashes
+(byte-identical corpus; see `docs/cloud-dev-deployment.md`). The evaluation ran inside the API
+container against the synthetic evaluation user.
+
+| Metric | L4 run |
+|---|---|
+| Status | 8 answered, 0 declined, 0 clarified |
+| explanation_status | 8 verified |
+| Tool selection | 8/8 (`lookup_reference` first on every question) |
+| Claims valid | 17/17 (the model cited more passages per answer than on the Mac: 17 claims against 14) |
+| Latency | cold first question 44.5 s (model load), warm p50 12.5 s, p95 13.3 s |
+
+Cited sources were again the expected ones per question (project channel note; AASM/SRS
+statement and MedlinePlus; HHS and WHO activity guidelines; OpenStax and the glossary; project
+definitions; Apple, Google and project HRV notes; Google and OpenStax for resting heart rate).
+The `numeric_consistency` diagnostic reports "unmatched" on the four answers whose quotations
+contain numbers (years, page numbers, "150 minutes", "60 to 100 beats"): that check compares
+answer numbers with numeric cards, and quoted reference text is not a numeric card, so the
+flag is expected for reference answers and is not a verification failure. Still a small
+sample without human grading. The VM run is the deployment measurement for this increment.

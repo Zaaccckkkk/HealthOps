@@ -55,6 +55,89 @@ class DeclineParams(BaseModel):
         return text if text in DECLINE_CATEGORIES else "out_of_scope"
 
 
+class ReferenceLookupParams(BaseModel):
+    """What to look up in the reference library (definitions and public guidelines)."""
+
+    model_config = ConfigDict(extra="ignore")
+    query: str = Field(min_length=3, max_length=300, description="Topic or question to look up")
+
+
+class ReferencePassage(BaseModel):
+    source_id: str
+    source_title: str
+    publisher: str
+    url: str
+    license: str
+    section: str
+    page: int | None = None
+    quote_limit_chars: int
+    text: str  # the passage, already cut to what may be quoted
+    similarity: float
+
+
+class ReferenceLookupResult(BaseModel):
+    query: str
+    references: list[ReferencePassage]
+    warnings: list[str] = Field(default_factory=list)
+    definitions: dict[str, str] = Field(default_factory=dict)
+
+
+@dataclass
+class KnowledgeContext:
+    """Retrieval dependencies for lookup_reference; None means the library is unavailable."""
+
+    embedder: Any
+    top_k: int = 3
+    min_similarity: float = 0.35
+
+
+def lookup_reference_tool(
+    session: Session,
+    user_id: UUID,
+    params: ReferenceLookupParams,
+    knowledge: KnowledgeContext | None,
+) -> ReferenceLookupResult:
+    """Semantic search over the reference library. Reads nothing about the user."""
+    from healthops.assistant.cards import quotable
+    from healthops.knowledge.store import search
+
+    definitions = {
+        "reference": "A passage from a licence-checked public source or this project's own "
+        "documentation. It describes definitions and public guidelines only; it is not an "
+        "assessment of the user's values."
+    }
+    if knowledge is None or knowledge.embedder is None:
+        return ReferenceLookupResult(
+            query=params.query,
+            references=[],
+            warnings=["knowledge_base_unavailable"],
+            definitions=definitions,
+        )
+    vector = knowledge.embedder.embed([params.query])[0]
+    hits = search(
+        session, vector, knowledge.top_k, knowledge.min_similarity, knowledge.embedder.model
+    )
+    references = [
+        ReferencePassage(
+            source_id=hit.chunk.source_id,
+            source_title=hit.chunk.source_title,
+            publisher=hit.chunk.publisher,
+            url=hit.chunk.url,
+            license=hit.chunk.license,
+            section=hit.chunk.section,
+            page=hit.chunk.page,
+            quote_limit_chars=hit.chunk.quote_limit_chars,
+            text=quotable(hit.chunk.text, hit.chunk.quote_limit_chars),
+            similarity=round(hit.similarity, 4),
+        )
+        for hit in hits
+    ]
+    warnings = [] if references else ["no_reference_found"]
+    return ReferenceLookupResult(
+        query=params.query, references=references, warnings=warnings, definitions=definitions
+    )
+
+
 @dataclass
 class ToolSpec:
     name: str
@@ -130,6 +213,8 @@ def has_usable_data(name: str, result: dict[str, Any]) -> bool:
             provider["baseline"]["value"] is not None or provider["current"]["value"] is not None
             for provider in result.get("providers", [])
         )
+    if name == "lookup_reference":
+        return bool(result.get("references"))
     return True
 
 
@@ -181,8 +266,19 @@ def _compact_period_comparison(result: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in result.items() if k != "details"} | {"definitions": definitions}
 
 
-def build_registry() -> dict[str, ToolSpec]:
+def build_registry(knowledge: KnowledgeContext | None = None) -> dict[str, ToolSpec]:
     specs = [
+        ToolSpec(
+            name="lookup_reference",
+            description="Look up definitions and public guidelines in the reference library "
+            "(what a metric means, how SDNN and RMSSD differ, what activity or sleep guidelines "
+            "recommend, what a card warning means). Returns quotable passages with sources. "
+            "Never use it to judge whether the user's own values are good or bad.",
+            params=ReferenceLookupParams,
+            run=lambda session, user_id, params: lookup_reference_tool(
+                session, user_id, params, knowledge
+            ),
+        ),
         ToolSpec(
             name="availability",
             description="List which (provider, metric, aggregation) series the user has in a date "
@@ -232,10 +328,13 @@ def build_registry() -> dict[str, ToolSpec]:
 
 class Toolbox:
     def __init__(
-        self, session_factory: sessionmaker | None, registry: dict[str, ToolSpec] | None = None
+        self,
+        session_factory: sessionmaker | None,
+        registry: dict[str, ToolSpec] | None = None,
+        knowledge: KnowledgeContext | None = None,
     ):
         self._session_factory = session_factory
-        self.registry = registry or build_registry()
+        self.registry = registry or build_registry(knowledge)
 
     def schemas(self) -> list[dict[str, Any]]:
         return [spec.schema() for spec in self.registry.values()]

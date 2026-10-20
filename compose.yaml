@@ -10,7 +10,7 @@ x-app: &app
 
 services:
   db:
-    image: postgres:17-bookworm
+    image: pgvector/pgvector:pg17  # PostgreSQL 17 with the pgvector extension
     environment:
       POSTGRES_USER: healthops
       POSTGRES_PASSWORD: local-only-password
@@ -47,7 +47,7 @@ services:
 
   # Separate ephemeral database: integration tests cannot erase the demo database.
   test-db:
-    image: postgres:17-bookworm
+    image: pgvector/pgvector:pg17  # PostgreSQL 17 with the pgvector extension
     profiles: ["test"]
     environment:
       POSTGRES_USER: healthops

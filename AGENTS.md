@@ -25,7 +25,9 @@
 
 ## Verification
 
-- Unit tests: `uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_assistant_toolbox.py tests/test_assistant_cards.py tests/test_assistant_limits.py tests/test_assistant_fixtures.py tests/test_eval_sets.py tests/test_ios_contract.py tests/test_public_content.py`.
+- Unit tests: `uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_assistant_toolbox.py tests/test_assistant_cards.py tests/test_assistant_limits.py tests/test_assistant_fixtures.py tests/test_knowledge.py tests/test_knowledge_manifest.py tests/test_eval_sets.py tests/test_ios_contract.py tests/test_public_content.py`.
+- Knowledge base: third-party texts stay in `.local/knowledge/raw/` (fetched by manifest); only `knowledge/sources.yaml`
+  and `knowledge/own/` are committed. Quotation limits per source are enforced in code, never relaxed for a demo.
 - iOS adapter: `cd ios/HealthOpsUploader && swift test`; build with `xcodebuild` using a DerivedData path outside the synced Desktop folder (see its README). Tests and fixtures are Simulator-only with synthetic data; device builds are
   signed with a locally supplied team and never add real health data or Team IDs to the repository.
 - Full integration suite: `docker compose --profile test build test`, then

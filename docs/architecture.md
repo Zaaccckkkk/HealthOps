@@ -27,7 +27,7 @@ introduce service-specific packages/lockfiles when dependency or release isolati
 | `ios/HealthOpsUploader/` | Implemented; verified on a physical iPhone against the cloud deployment, including one consented upload of the owner's own HealthKit history | Consented HealthKit upload with replay-safe incremental sync, plus the Ask tab over the cards contract; old prototype is outside this repo and unchanged |
 | `services/ingestion-api/src/healthops/connectors/` | Implemented in the API process; tested against a fake Google | Google Health connector: server-side OAuth, windowed sync, per-type watermarks. A separate worker service is not justified while one tester syncs on demand |
 | `services/api-service/` | Planned; not created | Future home of orchestration and tools if a second runtime is justified; today both live in the ingestion API process |
-| `services/retrieval-service/` | Planned; not created | Knowledge ingestion, retrieval and citation metadata |
+| `services/ingestion-api/src/healthops/knowledge/`, `knowledge/` | Implemented in the API process; pgvector in the same PostgreSQL | Licence-checked reference corpus, chunking, nomic-embed-text embeddings, cosine retrieval, quotation limits per source; a separate retrieval service is not justified for one tester |
 | `services/llm-serving/` | Planned; not created | vLLM GPU inference. Development uses Ollama (Mac, and the scripted GPU VM); switching servers needs protocol tests and re-evaluation |
 | `schemas/` | Planned; not created | Versioned cross-language contracts; today the Swift adapter is checked against the Python schema by `tests/test_ios_contract.py` |
 | `infra/kubernetes/`, `infra/terraform/` | Planned; not created | Deployment/infrastructure definitions when authorized |
@@ -130,10 +130,11 @@ VM; Cloud SQL/GCS provisioning; backups and full account deletion (only the Goog
 has a per-user delete action); background workers and scheduled or automatic sync (both
 channels sync on user action); source update/delete sync (upstream revisions are reported as
 conflicts, not applied); structured workouts/check-ins; further analytics (workout history,
-window averages as a claim type); user default timezone settings; RAG/pgvector; conversation
+window averages as a claim type); user default timezone settings; conversation
 storage; streaming answers; vLLM serving; GKE/Terraform; Bayesian models.
 
-Implemented since the earlier version of this list and documented elsewhere: external HTTPS
+Implemented since the earlier version of this list and documented elsewhere: the reference
+library (pgvector retrieval with verbatim, licence-limited quotation), external HTTPS
 exposure on the development VM (Caddy, Let's Encrypt), per-user rate limits and request-body
 limits at the edge, physical-device networking, the Google Health connector with server-side
 OAuth and refresh-token handling.

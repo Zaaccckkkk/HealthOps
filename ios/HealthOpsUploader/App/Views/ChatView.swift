@@ -209,6 +209,7 @@ struct CardView: View {
             case .availability:
                 Text("Availability summary; see the metrics listed by the server.")
                     .font(.caption).foregroundStyle(.secondary)
+            case .reference: reference
             case .unknown:
                 Text("Card type not supported by this app version.").font(.caption).foregroundStyle(.orange)
             }
@@ -221,6 +222,27 @@ struct CardView: View {
         }
         .padding(10)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    /// A quoted passage from the reference library: the quote is the server's text, cut to the
+    /// source's quotation limit; the link opens the original.
+    private var reference: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let text = card.text {
+                Text("\u{201C}\(text)\u{201D}").font(.callout).italic()
+            }
+            HStack(spacing: 6) {
+                if let publisher = card.publisher { Text(publisher).font(.caption).foregroundStyle(.secondary) }
+                if let section = card.section { Text("· \(section)").font(.caption).foregroundStyle(.secondary) }
+            }
+            if let urlText = card.sourceURL, let url = URL(string: urlText) {
+                Link("Open source", destination: url).font(.caption)
+            }
+            if let license = card.license {
+                Text("Licence: \(license)").font(.caption2).foregroundStyle(.secondary)
+            }
+            Text("Reference material, not an assessment of your values.").font(.caption2).foregroundStyle(.secondary)
+        }
     }
 
     private var dailyTable: some View {

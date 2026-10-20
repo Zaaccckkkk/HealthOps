@@ -9,8 +9,10 @@
       "end_date": "2026-09-28",
       "evidence_id": "e1.healthkit",
       "kind": "daily_table",
+      "license": null,
       "metric": "resting_heart_rate",
       "provider": "healthkit",
+      "publisher": null,
       "rows": [
         {
           "date": "2026-09-26",
@@ -43,9 +45,13 @@
           "warnings": []
         }
       ],
+      "section": null,
       "series": [],
+      "similarity": null,
+      "source_url": null,
       "start_date": "2026-09-26",
       "statistic": "mean of recorded samples (not an all-day average)",
+      "text": null,
       "timezone": "America/New_York",
       "title": "resting_heart_rate per day (healthkit)",
       "tool": "daily_summary",

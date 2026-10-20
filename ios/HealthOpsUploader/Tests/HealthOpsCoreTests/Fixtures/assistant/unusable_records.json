@@ -9,8 +9,10 @@
       "end_date": "2026-10-03",
       "evidence_id": "e1.healthkit",
       "kind": "daily_table",
+      "license": null,
       "metric": "sleep_duration",
       "provider": "healthkit",
+      "publisher": null,
       "rows": [
         {
           "date": "2026-10-01",
@@ -45,9 +47,13 @@
           "warnings": []
         }
       ],
+      "section": null,
       "series": [],
+      "similarity": null,
+      "source_url": null,
       "start_date": "2026-10-01",
       "statistic": "sum of recorded intervals (not full-day coverage)",
+      "text": null,
       "timezone": "America/New_York",
       "title": "sleep_duration per day (healthkit)",
       "tool": "daily_summary",

@@ -76,6 +76,18 @@ final class AssistantContractsTests: XCTestCase {
         XCTAssertEqual(response.cards[0].rows[0].quality, .unknown)  // unknown quality text
     }
 
+    func testReferenceAnswerDecodesAsAReferenceCard() throws {
+        let response = try load("answered_reference")
+        XCTAssertEqual(response.status, .answered)
+        XCTAssertEqual(AnswerPresentation(response).explanationBadge, .verified)
+        let card = try XCTUnwrap(response.cards.first)
+        XCTAssertEqual(card.kind, .reference)
+        XCTAssertEqual(card.publisher, "HealthOps project")
+        XCTAssertTrue(card.text?.contains("SDNN") == true)
+        XCTAssertTrue(card.sourceURL?.hasPrefix("https://") == true)
+        XCTAssertTrue(response.answer.contains("not an assessment of your own values"))
+    }
+
     func testUnparseableFindingDecodesWithNilClaim() throws {
         let response = try load("answered_unverified")
         XCTAssertTrue(response.claims.contains { $0.claim == nil && !$0.valid })

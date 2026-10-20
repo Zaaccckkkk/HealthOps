@@ -316,6 +316,20 @@ still show the data. Model prose is returned only as `model_text` for debugging;
 not display it as an answer or execute JSON embedded in it. `answer` is therefore always
 template text or a fixed message.
 
+**Reference library (RAG).** A fourth model-callable tool, `lookup_reference(query)`, runs a
+semantic search (pgvector, cosine) over licence-checked reference passages embedded with
+`nomic-embed-text` and returns up to `knowledge_top_k` passages above
+`knowledge_min_similarity` (default 0.55), each with source title, publisher, section, URL,
+licence and the quotable text already cut to the source's quotation limit. Passages become
+cards of kind `reference` (`e<n>.r<k>`), and the model may cite one with the finding type
+`reference <evidence_id>`; the template renders the source, section, the verbatim quote, the
+URL and the sentence "This is general reference material, not an assessment of your own
+values." A reference claim against a data card, or a data claim against a reference card, is
+invalid. When nothing is above the threshold the tool answers `no_reference_found`; when no
+embedding endpoint is configured it answers `knowledge_base_unavailable`. The tool reads
+nothing about the user. Questions that ask to judge the user's values against a guideline are
+still declined as medical advice.
+
 **Request.** `provider` (optional) is the data channel chosen in the interface and is injected
 by the server into every tool call (`provider_from_request`). A channel named only in the
 question yields `needs_clarification`; a channel such as `healthkit` is not one device.

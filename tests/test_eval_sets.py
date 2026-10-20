@@ -20,12 +20,14 @@ SETS = [
     "assistant_test.synthetic.jsonl",
     "assistant_heldout2.synthetic.jsonl",
     "assistant_protocol.synthetic.jsonl",
+    "assistant_reference.synthetic.jsonl",
 ]
 ROWS = {
     "assistant_dev.synthetic.jsonl": "DEV",
     "assistant_test.synthetic.jsonl": "TEST",
     "assistant_heldout2.synthetic.jsonl": "HELDOUT2",
     "assistant_protocol.synthetic.jsonl": "PROTOCOL",
+    "assistant_reference.synthetic.jsonl": "REFERENCE",
 }
 
 
@@ -55,7 +57,7 @@ def test_expected_arguments_validate_and_dates_come_from_listed_windows(name):
     registry = build_registry()
     for item in load(name):
         expected = item["expected"]
-        if expected["tool"] in ("decline", "clarify"):
+        if expected["tool"] in ("decline", "clarify", "lookup_reference"):
             assert expected["arguments"] is None
             continue
         spec = registry[expected["tool"]]

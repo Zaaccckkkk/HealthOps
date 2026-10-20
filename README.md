@@ -28,7 +28,11 @@ single-GPU cloud VM. It is not a publicly deployable or multi-user health platfo
   exposing only 443, per-user rate limits and two-hour auto-stop. Stopped between sessions.
 - **Evaluation** (`ml/eval/`): synthetic question sets and in-process evaluation runs;
   observed numbers and failures are in [ml/eval/RESULTS.md](ml/eval/RESULTS.md).
-- **Not included**: RAG, conversation storage, background or scheduled sync, deletion sync,
+- **Reference library** (`knowledge/`): licence-checked public sources and project notes,
+  chunked and embedded with `nomic-embed-text` into pgvector; the assistant's
+  `lookup_reference` tool quotes passages verbatim within each source's quotation limit, and
+  reference material is never combined with the person's values into a judgement.
+- **Not included**: conversation storage, background or scheduled sync, deletion sync,
   production identity, vLLM or Kubernetes.
 
 The debug page `GET /debug/assistant` is a local verification interface, not the iOS feature.
@@ -133,7 +137,7 @@ Expected results are documented, not promised: test counts are in this file, mod
 
 ```bash
 # Fast schema/tool/unit tests, no database required:
-uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_assistant_toolbox.py tests/test_assistant_cards.py tests/test_assistant_limits.py tests/test_assistant_fixtures.py tests/test_debug_page_dom.py tests/test_eval_sets.py tests/test_ios_contract.py tests/test_public_content.py
+uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_assistant_toolbox.py tests/test_assistant_cards.py tests/test_assistant_limits.py tests/test_assistant_fixtures.py tests/test_knowledge.py tests/test_knowledge_manifest.py tests/test_debug_page_dom.py tests/test_eval_sets.py tests/test_ios_contract.py tests/test_public_content.py
 uv run ruff check .
 uv run ruff format --check .
 python3 scripts/check_public_content.py
@@ -212,7 +216,7 @@ infra/cloud/         Compose, Caddy, startup and env templates for the single-GP
 tests/               Unit and real-PostgreSQL integration tests
 examples/            Synthetic request fixture and tool response examples
 ml/eval/             Synthetic assistant evaluation sets, rubric and history generator
-knowledge/           Reference-source manifest (licences, checksums) and project-authored reference notes; raw texts stay local
+knowledge/           Reference-source manifest (licences, checksums), project-authored reference notes, ingestion into pgvector; raw texts stay local
 scripts/             Local HTTP smoke test, publication checks, assistant evaluation, cloud VM wrappers
 docs/                Public English API contract and architecture decisions
 compose.yaml         Local database, migration, API, isolated test services

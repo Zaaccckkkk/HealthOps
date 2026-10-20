@@ -19,13 +19,14 @@ from healthops.assistant.limits import RateLimiter
 from healthops.assistant.model import ChatModel, OllamaChatModel, OpenAICompatibleChatModel
 from healthops.assistant.orchestrator import Assistant, AssistantSettings, TodayOverrideNotAllowed
 from healthops.assistant.prompts import PROMPT_VERSION
-from healthops.assistant.toolbox import Toolbox
+from healthops.assistant.toolbox import KnowledgeContext, Toolbox
 from healthops.auth import SessionDep, UserDep, bearer, current_user
 from healthops.config import Settings
 from healthops.connections import router as connections_router
 from healthops.connectors.crypto import TokenCipher
 from healthops.connectors.google_health import GoogleHealthClient, GoogleOAuthConfig
 from healthops.db import build_engine
+from healthops.knowledge.embeddings import OllamaEmbedder
 from healthops.models import Observation, User
 from healthops.repository import SourceConflict, ingest_batch
 from healthops.schemas import (
@@ -75,9 +76,20 @@ def build_assistant(
             temperature=settings.assistant_temperature,
             thinking=settings.assistant_thinking,
         )
+    knowledge = None
+    if settings.knowledge_embedding_url:
+        knowledge = KnowledgeContext(
+            embedder=OllamaEmbedder(
+                settings.knowledge_embedding_url,
+                settings.knowledge_embedding_model,
+                settings.knowledge_embedding_dimensions,
+            ),
+            top_k=settings.knowledge_top_k,
+            min_similarity=settings.knowledge_min_similarity,
+        )
     return Assistant(
         chat_model,
-        Toolbox(session_factory),
+        Toolbox(session_factory, knowledge=knowledge),
         AssistantSettings(
             max_tool_calls=settings.assistant_max_tool_calls,
             max_model_turns=settings.assistant_max_model_turns,

@@ -18,7 +18,7 @@ highly available and not a production security posture.
 |---|---|---|
 | Caddy (HTTPS edge, ACME certificates) | container, publishes 443 | the internet (firewall tcp/443) |
 | FastAPI (`healthops`) | container, no published port | Caddy only, by service name |
-| PostgreSQL 17 | container, no published port, bind mount `/srv/healthops/postgres` | the API only |
+| PostgreSQL 17 with pgvector (`pgvector/pgvector:pg17`) | container, no published port, bind mount `/srv/healthops/postgres` | the API only |
 | Ollama + `qwen3:8b` | container with one NVIDIA L4, no published port, bind mount `/srv/healthops/ollama` | the API only |
 | SSH | VM port 22 | Identity-Aware Proxy range `35.235.240.0/20` only |
 
@@ -150,10 +150,20 @@ scripts/cloud/remote.sh bootstrap      # Docker Engine + Compose plugin, NVIDIA 
 cp infra/cloud/env.cloud.example .env.cloud && nano .env.cloud   # public host, DB password, Google client, Fernet key
 sudo scripts/cloud/remote.sh preflight # nvidia-smi on the host and inside a CUDA container
 sudo scripts/cloud/remote.sh up        # builds the API image, runs migrations, starts Caddy, API, PostgreSQL, Ollama
-sudo scripts/cloud/remote.sh pull-model  # qwen3:8b (5.2 GB, persists on the disk)
+sudo scripts/cloud/remote.sh pull-model  # qwen3:8b (5.2 GB) and nomic-embed-text (274 MB); both persist on the disk
+sudo scripts/cloud/remote.sh knowledge   # fetches the reference sources and ingests them into pgvector (about 600 chunks)
 sudo scripts/cloud/remote.sh token my-synthetic-tester   # 0600 credential file; type the token into the phone, then delete it
 sudo scripts/cloud/remote.sh status    # containers, GPU memory, loaded model
 ```
+
+If a publisher refuses the VM's address (observed 2026-10-18: the WHO repository answered
+403 to the fetch from Google Cloud while the same download worked from the Mac), copy the
+already-verified files instead of re-downloading: on the Mac,
+`tar -czf raw.tgz -C .local/knowledge/raw .` (with `COPYFILE_DISABLE=1`), `gcloud compute scp`
+the archive to the VM, extract it into `/srv/healthops/knowledge`, `chown -R 10001:10001` that
+directory and re-run `remote.sh knowledge`. The fetch step skips files that already exist and
+still verifies every sha256 against `knowledge/sources.yaml`, so the corpus on the VM is
+byte-identical to the one checked on the Mac.
 
 Then from the Mac: `curl https://<host>/health/ready` must return `{"status":"ready"}` with a
 Let's Encrypt certificate. The first assistant question loads the model (about 100 s on an
