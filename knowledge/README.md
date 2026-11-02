@@ -1,10 +1,14 @@
 # Knowledge base (retrieval corpus) for the assistant
 
-Status: implemented. `scripts/knowledge/ingest.py` chunks the sources, embeds them with
+Status: implemented. `src/api-service/scripts/knowledge/ingest.py` chunks the sources, embeds them with
 `nomic-embed-text` through Ollama and stores them in PostgreSQL with pgvector (migration
 0004); the assistant's `lookup_reference` tool retrieves passages and the `reference` finding
 type quotes them verbatim within each source's quotation limit. Verified locally on the Mac
-(570 chunks from 12 sources) and with the reference evaluation set; see `ml/eval/RESULTS.md`.
+(570 chunks from 12 sources), on the cloud L4 VM and with the reference evaluation set; see
+`src/api-service/eval/RESULTS.md`. One command runs the whole ingest in Compose: `make rag`
+(repository root; needs an Ollama on the host with `nomic-embed-text`). A committed run log and a
+complete retrieval example are in `src/api-service/examples/` (`rag-ingest-run.log`,
+`reference-lookup.synthetic.json`).
 
 ## What the corpus is for
 
@@ -20,7 +24,7 @@ interpreting a user's values as healthy or unhealthy; those questions stay refus
 |---|---|---|
 | `knowledge/sources.yaml` | One entry per third-party source: URL, publisher, licence checked on the retrieval date, allowed use, sha256, size | yes |
 | `knowledge/own/*.md` | Documents written for this project (statistical definitions, warning glossary, channel notes) | yes |
-| `.local/knowledge/raw/` | Downloaded third-party PDFs and pages, fetched by `scripts/knowledge/fetch_sources.py` | no |
+| `src/api-service/.local/knowledge/raw/` | Downloaded third-party PDFs and pages, fetched by `src/api-service/scripts/knowledge/fetch_sources.py` | no |
 
 Third-party texts are never committed, even public-domain ones: the manifest plus the fetch
 script reproduce them, and copyrighted help pages (Apple, Google) and the AASM statement are
@@ -33,7 +37,7 @@ drop the NC-licensed sources.
 ## Ingesting
 
 ```bash
-HEALTHOPS_ASSISTANT_MODEL_BASE_URL=http://127.0.0.1:11434 uv run python scripts/knowledge/ingest.py
+cd src/api-service && HEALTHOPS_ASSISTANT_MODEL_BASE_URL=http://127.0.0.1:11434 uv run python scripts/knowledge/ingest.py
 ```
 
 Chunks follow document structure (HTML headings, PDF pages, Markdown sections), merged or
@@ -45,8 +49,8 @@ embedding model name is stored per chunk; switching models means re-ingesting.
 ## Fetching
 
 ```bash
-uv run python scripts/knowledge/fetch_sources.py            # downloads, verifies sha256
-uv run python scripts/knowledge/fetch_sources.py --check    # verifies existing files only
+cd src/api-service && uv run python scripts/knowledge/fetch_sources.py            # downloads, verifies sha256
+cd src/api-service && uv run python scripts/knowledge/fetch_sources.py --check    # verifies existing files only
 ```
 
 A changed checksum means the publisher changed the page; re-read the licence and update the

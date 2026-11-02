@@ -24,6 +24,28 @@ def scripted_client(migrated_database, turns, **overrides):
     return TestClient(create_app(settings, chat_model=ScriptedChatModel(turns)))
 
 
+def router_call(metric="heart_rate", phrase="2026-10-01", kind="explicit"):
+    return ModelTurn(
+        tool_calls=[
+            ToolCallRequest(
+                id="router",
+                name="route_request",
+                arguments_json=json.dumps(
+                    {
+                        "decision": "ready",
+                        "task": "summary",
+                        "metrics": [metric],
+                        "time_phrase": phrase,
+                        "baseline_phrase": "",
+                        "language": "en",
+                        "reason": "none",
+                    }
+                ),
+            )
+        ]
+    )
+
+
 def summary_call(**arguments):
     return ToolCallRequest(id="c1", name="daily_summary", arguments_json=json.dumps(arguments))
 
@@ -38,6 +60,7 @@ def test_assistant_is_disabled_without_a_model_endpoint(client, credentials):
 def test_assistant_runs_real_tools_under_the_token_identity(migrated_database, credentials, record):
     alice, bob = credentials
     turns = [
+        router_call(),
         ModelTurn(
             tool_calls=[
                 summary_call(
@@ -46,6 +69,7 @@ def test_assistant_runs_real_tools_under_the_token_identity(migrated_database, c
             ]
         ),
         ModelTurn(text="On 2026-10-01 your heart rate sample mean was 72 bpm (healthkit)."),
+        router_call(),
         ModelTurn(
             tool_calls=[
                 summary_call(
@@ -69,7 +93,7 @@ def test_assistant_runs_real_tools_under_the_token_identity(migrated_database, c
         mine = client.post(
             "/v1/assistant/ask",
             headers=alice,
-            json={"question": "How was my heart rate?", "timezone": NY},
+            json={"question": "How was my heart rate on 2026-10-01?", "timezone": NY},
         )
         assert mine.status_code == 200, mine.text
         body = mine.json()
@@ -84,14 +108,15 @@ def test_assistant_runs_real_tools_under_the_token_identity(migrated_database, c
         theirs = client.post(
             "/v1/assistant/ask",
             headers=bob,
-            json={"question": "How was my heart rate?", "timezone": NY},
+            json={"question": "How was my heart rate on 2026-10-01?", "timezone": NY},
         ).json()
         assert theirs["status"] == "insufficient_data"
         assert theirs["evidence"][0]["result"]["record_count"] == 0
 
 
-def test_tool_limits_still_apply_after_schema_validation(migrated_database, credentials):
+def test_confirmed_scope_blocks_widened_tool_dates_before_execution(migrated_database, credentials):
     turns = [
+        router_call("steps", "yesterday", "yesterday"),
         ModelTurn(
             tool_calls=[
                 summary_call(
@@ -105,10 +130,11 @@ def test_tool_limits_still_apply_after_schema_validation(migrated_database, cred
         body = client.post(
             "/v1/assistant/ask",
             headers=credentials[0],
-            json={"question": "all year", "timezone": NY},
+            json={"question": "Steps yesterday", "timezone": NY},
         ).json()
         assert body["tool_calls"][0]["status"] == "rejected"
-        assert "at most 93" in body["tool_calls"][0]["error"]
+        assert "Dates differ" in body["tool_calls"][0]["error"]
+        assert body["tool_calls"][0]["warnings"] == ["scope_guard_rejected"]
         assert body["evidence"] == []
 
 
@@ -150,3 +176,97 @@ def test_assistant_rate_limit_is_per_user_and_returns_retry_after(migrated_datab
         # Another user still gets through; anonymous callers never reach the limiter.
         assert client.post("/v1/assistant/ask", headers=bob, json=body).status_code == 200
         assert client.post("/v1/assistant/ask", json=body).status_code in (401, 403)
+
+
+def test_clarification_http_resume_and_owner_scope(migrated_database, credentials):
+    from test_assistant_routing import decision
+
+    alice, bob = credentials
+    first_model = [decision("needs_clarification", metrics=["steps"])]
+    with scripted_client(migrated_database, first_model) as client:
+        pending = client.post(
+            "/v1/assistant/ask", headers=alice, json={"question": "Steps recently?", "timezone": NY}
+        ).json()
+    assert pending["status"] == "needs_clarification"
+    assert pending["tool_calls"] == []
+    reply = {
+        "question": "yesterday",
+        "timezone": NY,
+        "conversation_id": pending["conversation_id"],
+        "conversation_version": pending["conversation_version"],
+    }
+    # New application instance, same PostgreSQL store.
+    turns = [router_call("steps", "yesterday", "yesterday")]
+    turns.extend(
+        [
+            ModelTurn(
+                tool_calls=[
+                    summary_call(
+                        metric="steps",
+                        start_date=pending["time_semantics"]["yesterday"],
+                        end_date=pending["time_semantics"]["yesterday"],
+                    )
+                ]
+            ),
+            ModelTurn(
+                tool_calls=[
+                    ToolCallRequest(
+                        id="finish",
+                        name="state_findings",
+                        arguments_json=json.dumps(
+                            {
+                                "findings": [
+                                    "missing_data e1 " + pending["time_semantics"]["yesterday"]
+                                ]
+                            }
+                        ),
+                    )
+                ]
+            ),
+        ]
+    )
+    with scripted_client(migrated_database, turns) as client:
+        assert client.post("/v1/assistant/ask", headers=bob, json=reply).status_code == 409
+        result = client.post("/v1/assistant/ask", headers=alice, json=reply)
+        assert result.status_code == 200
+        assert result.json()["explanation_status"] == "verified"
+        assert result.json()["request_spec"]["metrics"] == ["steps"]
+        assert result.json()["conversation_id"] is None
+        assert client.post("/v1/assistant/ask", headers=alice, json=reply).status_code == 409
+
+
+def test_http_verified_repair_preserves_scope_and_empty_data(migrated_database, credentials):
+    turns = [
+        router_call("steps"),
+        ModelTurn(
+            tool_calls=[
+                summary_call(metric="steps", start_date="2026-10-01", end_date="2026-10-01")
+            ]
+        ),
+    ]
+    for evidence_id in ("e1.healthkit", "e1"):
+        turns.append(
+            ModelTurn(
+                tool_calls=[
+                    ToolCallRequest(
+                        id="finish-" + evidence_id,
+                        name="state_findings",
+                        arguments_json=json.dumps({"findings": ["missing_data " + evidence_id]}),
+                    )
+                ]
+            )
+        )
+    with scripted_client(migrated_database, turns) as client:
+        response = client.post(
+            "/v1/assistant/ask",
+            headers=credentials[0],
+            json={"question": "My steps on 2026-10-01", "timezone": NY},
+        )
+        assert response.status_code == 200
+        result = response.json()
+        assert result["completion_status"] == "complete"
+        assert result["explanation_status"] == "verified"
+        assert result["coverage"][0]["query_status"] == "no_records"
+        assert len(result["verification_attempts"]) == 2
+        assert result["verification_attempts"][0]["invalid_reasons"] == ["unknown evidence id"]
+        assert [r["name"] for r in result["tool_calls"]].count("daily_summary") == 1

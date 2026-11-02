@@ -862,3 +862,105 @@ def test_debug_page_has_no_secrets_and_renders_api_text_as_text_nodes():
     assert "Bearer " + "x" not in DEBUG_PAGE_HTML
     assert "innerHTML" not in DEBUG_PAGE_HTML and "textContent" in DEBUG_PAGE_HTML
     assert "not the iOS app" in DEBUG_PAGE_HTML
+
+
+def test_langgraph_routes_findings_to_a_separate_verifier():
+    from healthops.assistant.orchestrator import _Deadline, _RunState
+
+    assistant, _, _ = make([])
+    request = AskRequest(question="A synthetic question", timezone=NY)
+    graph = assistant._build_graph(
+        request, USER, _RunState(resolve(NY, date(2026, 10, 2))), _Deadline(30)
+    )
+    nodes = graph.get_graph().nodes
+    assert {"model", "tools", "verify", "__start__", "__end__"} == set(nodes)
+    assert graph.checkpointer is None
+
+
+def test_graph_concurrent_requests_keep_messages_and_identity_separate(monkeypatch):
+    from langsmith import get_tracing_context
+
+    monkeypatch.setenv("LANGSMITH_TRACING", "true")
+    other = UUID("00000000-0000-4000-8000-000000000002")
+    observed = []
+
+    class ConcurrentModel(ScriptedChatModel):
+        async def complete(self, messages, tools):
+            # Host tracing settings must not export health evidence from this graph.
+            assert get_tracing_context()["enabled"] is False
+            question = messages[1]["content"]
+            observed.append((question, len(messages)))
+            await asyncio.sleep(0.01)
+            assert sum(m["role"] == "user" for m in messages) == 1
+            if messages[-1]["role"] == "user":
+                return ModelTurn(
+                    tool_calls=[
+                        call(
+                            "daily_summary",
+                            metric="resting_heart_rate",
+                            start_date="2026-09-26",
+                            end_date="2026-10-02",
+                        )
+                    ]
+                )
+            return ModelTurn(
+                tool_calls=[
+                    findings(
+                        {
+                            "type": "value_on_date",
+                            "evidence_id": "e1.healthkit",
+                            "date": "2026-09-27",
+                        }
+                    )
+                ]
+            )
+
+    model = ConcurrentModel([])
+    toolbox = FakeToolbox({"daily_summary": SUMMARY_WITH_GAP})
+    assistant = Assistant(model, toolbox, AssistantSettings(max_concurrency=2))
+
+    async def concurrent():
+        return await asyncio.gather(
+            assistant.ask(AskRequest(question="Synthetic alpha", timezone=NY), USER),
+            assistant.ask(AskRequest(question="Synthetic beta", timezone=NY), other),
+        )
+
+    responses = run(concurrent())
+    assert all(r.explanation_status == "verified" for r in responses)
+    assert all(len(r.evidence) == 1 and len(r.tool_calls) == 2 for r in responses)
+    assert {entry[2] for entry in toolbox.calls} == {USER, other}
+    assert sorted(observed) == [
+        ("Synthetic alpha", 2),
+        ("Synthetic alpha", 4),
+        ("Synthetic beta", 2),
+        ("Synthetic beta", 4),
+    ]
+
+
+def test_graph_cancellation_releases_gate_for_next_request():
+    entered = asyncio.Event()
+
+    class CancellableModel(ScriptedChatModel):
+        async def complete(self, messages, tools):
+            if messages[1]["content"] == "cancel me":
+                entered.set()
+                await asyncio.Event().wait()
+            return ModelTurn(text="No unsupported facts.")
+
+    assistant = Assistant(
+        CancellableModel([]), FakeToolbox({}), AssistantSettings(max_concurrency=1)
+    )
+
+    async def exercise():
+        first = asyncio.create_task(
+            assistant.ask(AskRequest(question="cancel me", timezone=NY), USER)
+        )
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        return await asyncio.wait_for(
+            assistant.ask(AskRequest(question="next request", timezone=NY), USER), timeout=2
+        )
+
+    assert run(exercise()).status == "no_tool_answer"

@@ -71,6 +71,10 @@ services:
 
   test:
     <<: *app
+    build:
+      context: ./src/api-service
+      args:
+        INSTALL_SYNTHETIC: "true"
     profiles: ["test"]
     environment:
       HEALTHOPS_TEST_DATABASE_URL: postgresql+psycopg://healthops:test-only-password@test-db:5432/healthops_test

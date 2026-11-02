@@ -1,0 +1,348 @@
+{
+  "_note": "End-to-end retrieval example recorded on 2026-10-19 against the local stack (make rag corpus, qwen3:8b and nomic-embed-text through Ollama on a Mac). Synthetic user; no personal data is involved because lookup_reference reads nothing about the user. Quotations are cut to each source's quotation limit (see knowledge/sources.yaml).",
+  "request": {
+    "question": "How much sleep do public guidelines recommend for adults?",
+    "timezone": "America/New_York"
+  },
+  "response": {
+    "status": "answered",
+    "explanation_status": "verified",
+    "answer": "Recommended Amount of Sleep for a Healthy Adult: joint consensus statement (J Clin Sleep Med 2015;11(6)) (American Academy of Sleep Medicine and Sleep Research Society, page 1) says: \"• People concerned they are sleeping too little or too\nmuch should consult their healthcare provider. Recommended Amount of Sleep for a Healthy Adult: A Joint\nConsensus Statement of the American Academy of Sleep\nMedicine and Sleep Research Society\nConsensus Conference Panel: Nathaniel F.\" Source: https://aasm.org/resources/pdf/pressroom/adult-sleep-duration-consensus.pdf. This is general reference material, not an assessment of your own values. Recommended Amount of Sleep for a Healthy Adult: joint consensus statement (J Clin Sleep Med 2015;11(6)) (American Academy of Sleep Medicine and Sleep Research Society, page 1) says: \"591 Journal of Clinical Sleep Medicine, Vol. 11, No. 6, 2015\nSleep is essential for optimal health. The American Academy\nof Sleep Medicine (AASM) and Sleep Research Society (SRS)\ndeveloped a consensus recommendation for the amount\nof sleep needed to promote optimal health in adults, using\na modifi e...\" Source: https://aasm.org/resources/pdf/pressroom/adult-sleep-duration-consensus.pdf. This is general reference material, not an assessment of your own values. Healthy Sleep (MedlinePlus) (National Library of Medicine, NIH, How much sleep do I need?) says: \"The amount of sleep you need depends on your age, lifestyle, health, and sleep patterns. The general recommendations for sleep are:\nBabies (4-12 months): 12-16 hours a day (including naps)\nChildren (1-2 years): 11-14 hours a day (including naps)\nChildren (3-5 years): 10-13 hours a day (including naps)\nChildren (6-12 years): 9-12 hours a day\nTeens (13-18 years): 8-10 hours a day\nAdults (18 years and older): 7-9 hours a day\nDuring puberty, teenagers' biological clocks shift. They tend to fall asleep later and wake up later, which can conflict with the early school start times. This is one reason many teenagers don't get enough sleep.\nSome people think adults need less sleep as they age, but there is no evidence to support this. However, older adults often get less sleep or spend less time in the deep, restful stages of sleep. They also wake up more easily.\nIt's not just the number of hours of sleep you get that matters. The quality of the sleep you get is also important. People whose sleep is frequently interrupted might not get enough of certain stages of sleep.\nIf you are wondering whether you are getting enough sleep, including quality sleep, ask yourself:\nDo I have trouble getting up in the morning?\nDo I have trouble focusing during the day?\nDo I doze off during the day?\nIf you answered yes to any of these questions, you may need to improve your sleep habits.\" Source: https://medlineplus.gov/healthysleep.html. This is general reference material, not an assessment of your own values.",
+    "claims": [
+      {
+        "claim": {
+          "type": "reference",
+          "evidence_id": "e1.r1",
+          "date": null
+        },
+        "raw": null,
+        "valid": true,
+        "reason": null,
+        "sentence": "Recommended Amount of Sleep for a Healthy Adult: joint consensus statement (J Clin Sleep Med 2015;11(6)) (American Academy of Sleep Medicine and Sleep Research Society, page 1) says: \"• People concerned they are sleeping too little or too\nmuch should consult their healthcare provider. Recommended Amount of Sleep for a Healthy Adult: A Joint\nConsensus Statement of the American Academy of Sleep\nMedicine and Sleep Research Society\nConsensus Conference Panel: Nathaniel F.\" Source: https://aasm.org/resources/pdf/pressroom/adult-sleep-duration-consensus.pdf. This is general reference material, not an assessment of your own values."
+      },
+      {
+        "claim": {
+          "type": "reference",
+          "evidence_id": "e1.r2",
+          "date": null
+        },
+        "raw": null,
+        "valid": true,
+        "reason": null,
+        "sentence": "Recommended Amount of Sleep for a Healthy Adult: joint consensus statement (J Clin Sleep Med 2015;11(6)) (American Academy of Sleep Medicine and Sleep Research Society, page 1) says: \"591 Journal of Clinical Sleep Medicine, Vol. 11, No. 6, 2015\nSleep is essential for optimal health. The American Academy\nof Sleep Medicine (AASM) and Sleep Research Society (SRS)\ndeveloped a consensus recommendation for the amount\nof sleep needed to promote optimal health in adults, using\na modifi e...\" Source: https://aasm.org/resources/pdf/pressroom/adult-sleep-duration-consensus.pdf. This is general reference material, not an assessment of your own values."
+      },
+      {
+        "claim": {
+          "type": "reference",
+          "evidence_id": "e1.r3",
+          "date": null
+        },
+        "raw": null,
+        "valid": true,
+        "reason": null,
+        "sentence": "Healthy Sleep (MedlinePlus) (National Library of Medicine, NIH, How much sleep do I need?) says: \"The amount of sleep you need depends on your age, lifestyle, health, and sleep patterns. The general recommendations for sleep are:\nBabies (4-12 months): 12-16 hours a day (including naps)\nChildren (1-2 years): 11-14 hours a day (including naps)\nChildren (3-5 years): 10-13 hours a day (including naps)\nChildren (6-12 years): 9-12 hours a day\nTeens (13-18 years): 8-10 hours a day\nAdults (18 years and older): 7-9 hours a day\nDuring puberty, teenagers' biological clocks shift. They tend to fall asleep later and wake up later, which can conflict with the early school start times. This is one reason many teenagers don't get enough sleep.\nSome people think adults need less sleep as they age, but there is no evidence to support this. However, older adults often get less sleep or spend less time in the deep, restful stages of sleep. They also wake up more easily.\nIt's not just the number of hours of sleep you get that matters. The quality of the sleep you get is also important. People whose sleep is frequently interrupted might not get enough of certain stages of sleep.\nIf you are wondering whether you are getting enough sleep, including quality sleep, ask yourself:\nDo I have trouble getting up in the morning?\nDo I have trouble focusing during the day?\nDo I doze off during the day?\nIf you answered yes to any of these questions, you may need to improve your sleep habits.\" Source: https://medlineplus.gov/healthysleep.html. This is general reference material, not an assessment of your own values."
+      }
+    ],
+    "cards": [
+      {
+        "evidence_id": "e1.r1",
+        "kind": "reference",
+        "title": "Recommended Amount of Sleep for a Healthy Adult: joint consensus statement (J Clin Sleep Med 2015;11(6))",
+        "tool": "lookup_reference",
+        "timezone": "",
+        "start_date": null,
+        "end_date": null,
+        "provider": null,
+        "metric": null,
+        "unit": null,
+        "statistic": null,
+        "rows": [],
+        "baseline": null,
+        "current": null,
+        "difference": null,
+        "direction": null,
+        "series": [],
+        "text": "• People concerned they are sleeping too little or too\nmuch should consult their healthcare provider. Recommended Amount of Sleep for a Healthy Adult: A Joint\nConsensus Statement of the American Academy of Sleep\nMedicine and Sleep Research Society\nConsensus Conference Panel: Nathaniel F.",
+        "section": "page 1",
+        "publisher": "American Academy of Sleep Medicine and Sleep Research Society",
+        "source_url": "https://aasm.org/resources/pdf/pressroom/adult-sleep-duration-consensus.pdf",
+        "license": "Copyright AASM; publicly hosted PDF",
+        "similarity": 0.7048,
+        "warnings": [],
+        "warning_text": []
+      },
+      {
+        "evidence_id": "e1.r2",
+        "kind": "reference",
+        "title": "Recommended Amount of Sleep for a Healthy Adult: joint consensus statement (J Clin Sleep Med 2015;11(6))",
+        "tool": "lookup_reference",
+        "timezone": "",
+        "start_date": null,
+        "end_date": null,
+        "provider": null,
+        "metric": null,
+        "unit": null,
+        "statistic": null,
+        "rows": [],
+        "baseline": null,
+        "current": null,
+        "difference": null,
+        "direction": null,
+        "series": [],
+        "text": "591 Journal of Clinical Sleep Medicine, Vol. 11, No. 6, 2015\nSleep is essential for optimal health. The American Academy\nof Sleep Medicine (AASM) and Sleep Research Society (SRS)\ndeveloped a consensus recommendation for the amount\nof sleep needed to promote optimal health in adults, using\na modifi e...",
+        "section": "page 1",
+        "publisher": "American Academy of Sleep Medicine and Sleep Research Society",
+        "source_url": "https://aasm.org/resources/pdf/pressroom/adult-sleep-duration-consensus.pdf",
+        "license": "Copyright AASM; publicly hosted PDF",
+        "similarity": 0.7013,
+        "warnings": [],
+        "warning_text": []
+      },
+      {
+        "evidence_id": "e1.r3",
+        "kind": "reference",
+        "title": "Healthy Sleep (MedlinePlus)",
+        "tool": "lookup_reference",
+        "timezone": "",
+        "start_date": null,
+        "end_date": null,
+        "provider": null,
+        "metric": null,
+        "unit": null,
+        "statistic": null,
+        "rows": [],
+        "baseline": null,
+        "current": null,
+        "difference": null,
+        "direction": null,
+        "series": [],
+        "text": "The amount of sleep you need depends on your age, lifestyle, health, and sleep patterns. The general recommendations for sleep are:\nBabies (4-12 months): 12-16 hours a day (including naps)\nChildren (1-2 years): 11-14 hours a day (including naps)\nChildren (3-5 years): 10-13 hours a day (including naps)\nChildren (6-12 years): 9-12 hours a day\nTeens (13-18 years): 8-10 hours a day\nAdults (18 years and older): 7-9 hours a day\nDuring puberty, teenagers' biological clocks shift. They tend to fall asleep later and wake up later, which can conflict with the early school start times. This is one reason many teenagers don't get enough sleep.\nSome people think adults need less sleep as they age, but there is no evidence to support this. However, older adults often get less sleep or spend less time in the deep, restful stages of sleep. They also wake up more easily.\nIt's not just the number of hours of sleep you get that matters. The quality of the sleep you get is also important. People whose sleep is frequently interrupted might not get enough of certain stages of sleep.\nIf you are wondering whether you are getting enough sleep, including quality sleep, ask yourself:\nDo I have trouble getting up in the morning?\nDo I have trouble focusing during the day?\nDo I doze off during the day?\nIf you answered yes to any of these questions, you may need to improve your sleep habits.",
+        "section": "How much sleep do I need?",
+        "publisher": "National Library of Medicine, NIH",
+        "source_url": "https://medlineplus.gov/healthysleep.html",
+        "license": "Public domain for NLM-authored text; linked third-party content excluded",
+        "similarity": 0.69,
+        "warnings": [],
+        "warning_text": []
+      }
+    ],
+    "model_text": null,
+    "tool_calls": [
+      {
+        "name": "lookup_reference",
+        "arguments": {
+          "query": "sleep recommendations for adults"
+        },
+        "model_arguments": {
+          "query": "sleep recommendations for adults"
+        },
+        "status": "ok",
+        "warnings": [],
+        "duration_ms": 1853,
+        "error": null
+      },
+      {
+        "name": "state_findings",
+        "arguments": {
+          "findings": [
+            "reference e1.r1",
+            "reference e1.r2",
+            "reference e1.r3"
+          ]
+        },
+        "model_arguments": {
+          "findings": [
+            "reference e1.r1",
+            "reference e1.r2",
+            "reference e1.r3"
+          ]
+        },
+        "status": "ok",
+        "warnings": [],
+        "duration_ms": 0,
+        "error": null
+      }
+    ],
+    "evidence": [
+      {
+        "tool": "lookup_reference",
+        "arguments": {
+          "query": "sleep recommendations for adults"
+        },
+        "result": {
+          "query": "sleep recommendations for adults",
+          "references": [
+            {
+              "source_id": "aasm-srs-sleep-2015",
+              "source_title": "Recommended Amount of Sleep for a Healthy Adult: joint consensus statement (J Clin Sleep Med 2015;11(6))",
+              "publisher": "American Academy of Sleep Medicine and Sleep Research Society",
+              "url": "https://aasm.org/resources/pdf/pressroom/adult-sleep-duration-consensus.pdf",
+              "license": "Copyright AASM; publicly hosted PDF",
+              "section": "page 1",
+              "page": 1,
+              "quote_limit_chars": 300,
+              "text": "• People concerned they are sleeping too little or too\nmuch should consult their healthcare provider. Recommended Amount of Sleep for a Healthy Adult: A Joint\nConsensus Statement of the American Academy of Sleep\nMedicine and Sleep Research Society\nConsensus Conference Panel: Nathaniel F.",
+              "similarity": 0.7048
+            },
+            {
+              "source_id": "aasm-srs-sleep-2015",
+              "source_title": "Recommended Amount of Sleep for a Healthy Adult: joint consensus statement (J Clin Sleep Med 2015;11(6))",
+              "publisher": "American Academy of Sleep Medicine and Sleep Research Society",
+              "url": "https://aasm.org/resources/pdf/pressroom/adult-sleep-duration-consensus.pdf",
+              "license": "Copyright AASM; publicly hosted PDF",
+              "section": "page 1",
+              "page": 1,
+              "quote_limit_chars": 300,
+              "text": "591 Journal of Clinical Sleep Medicine, Vol. 11, No. 6, 2015\nSleep is essential for optimal health. The American Academy\nof Sleep Medicine (AASM) and Sleep Research Society (SRS)\ndeveloped a consensus recommendation for the amount\nof sleep needed to promote optimal health in adults, using\na modifi e...",
+              "similarity": 0.7013
+            },
+            {
+              "source_id": "medlineplus-healthy-sleep",
+              "source_title": "Healthy Sleep (MedlinePlus)",
+              "publisher": "National Library of Medicine, NIH",
+              "url": "https://medlineplus.gov/healthysleep.html",
+              "license": "Public domain for NLM-authored text; linked third-party content excluded",
+              "section": "How much sleep do I need?",
+              "page": null,
+              "quote_limit_chars": 1800,
+              "text": "The amount of sleep you need depends on your age, lifestyle, health, and sleep patterns. The general recommendations for sleep are:\nBabies (4-12 months): 12-16 hours a day (including naps)\nChildren (1-2 years): 11-14 hours a day (including naps)\nChildren (3-5 years): 10-13 hours a day (including naps)\nChildren (6-12 years): 9-12 hours a day\nTeens (13-18 years): 8-10 hours a day\nAdults (18 years and older): 7-9 hours a day\nDuring puberty, teenagers' biological clocks shift. They tend to fall asleep later and wake up later, which can conflict with the early school start times. This is one reason many teenagers don't get enough sleep.\nSome people think adults need less sleep as they age, but there is no evidence to support this. However, older adults often get less sleep or spend less time in the deep, restful stages of sleep. They also wake up more easily.\nIt's not just the number of hours of sleep you get that matters. The quality of the sleep you get is also important. People whose sleep is frequently interrupted might not get enough of certain stages of sleep.\nIf you are wondering whether you are getting enough sleep, including quality sleep, ask yourself:\nDo I have trouble getting up in the morning?\nDo I have trouble focusing during the day?\nDo I doze off during the day?\nIf you answered yes to any of these questions, you may need to improve your sleep habits.",
+              "similarity": 0.69
+            }
+          ],
+          "warnings": [],
+          "definitions": {
+            "reference": "A passage from a licence-checked public source or this project's own documentation. It describes definitions and public guidelines only; it is not an assessment of the user's values."
+          }
+        }
+      }
+    ],
+    "numeric_consistency": {
+      "status": "unmatched",
+      "numbers_in_answer": [
+        "2015",
+        "11",
+        "6",
+        "1",
+        "2015",
+        "11",
+        "6",
+        "1",
+        "591",
+        "11",
+        "6",
+        "2015",
+        "4",
+        "12",
+        "12",
+        "16",
+        "1",
+        "2",
+        "11",
+        "14",
+        "3",
+        "5",
+        "10",
+        "13",
+        "6",
+        "12",
+        "9",
+        "12",
+        "13",
+        "18",
+        "8",
+        "10",
+        "18",
+        "7",
+        "9"
+      ],
+      "unmatched": [
+        "2015",
+        "11",
+        "6",
+        "2015",
+        "11",
+        "6",
+        "591",
+        "11",
+        "6",
+        "2015",
+        "4",
+        "12",
+        "12",
+        "16",
+        "2",
+        "11",
+        "14",
+        "3",
+        "5",
+        "10",
+        "13",
+        "6",
+        "12",
+        "9",
+        "12",
+        "13",
+        "18",
+        "8",
+        "10",
+        "18",
+        "7",
+        "9"
+      ],
+      "note": "Numeric consistency diagnostic: numbers in the answer were looked up in the tool results. It does not verify direction, unit, window, provider or interpretation."
+    },
+    "time_semantics": {
+      "timezone": "America/New_York",
+      "today": "2026-10-19",
+      "yesterday": "2026-10-18",
+      "this_week_start": "2026-10-19",
+      "last_week_start": "2026-10-12",
+      "last_week_end": "2026-10-18",
+      "week_before_last_start": "2026-10-05",
+      "week_before_last_end": "2026-10-11",
+      "three_weeks_ago_start": "2026-09-28",
+      "three_weeks_ago_end": "2026-10-04",
+      "past_7_days_start": "2026-10-13",
+      "previous_7_days_start": "2026-10-06",
+      "previous_7_days_end": "2026-10-12",
+      "past_30_days_start": "2026-09-20",
+      "previous_30_days_start": "2026-08-21",
+      "previous_30_days_end": "2026-09-19",
+      "definitions": {
+        "today": "The current local date in the request timezone (or the evaluation override).",
+        "yesterday": "The local day before today.",
+        "last_night": "For sleep: the local day before today, because sleep intervals are assigned to the day they start (the evening before counts as that day's sleep).",
+        "this_week": "Monday of the current week through today, inclusive.",
+        "last_week": "The previous calendar week, Monday through Sunday, inclusive.",
+        "week_before_last": "The calendar week before last week (two weeks ago), Monday to Sunday.",
+        "three_weeks_ago": "The calendar week three weeks before the current week, Monday to Sunday.",
+        "past_7_days": "The seven local days ending today, inclusive of today.",
+        "previous_7_days": "The seven local days immediately before the past 7 days.",
+        "past_30_days": "The thirty local days ending today, inclusive of today.",
+        "previous_30_days": "The thirty local days immediately before the past 30 days.",
+        "timezone": "All dates use the request timezone; the server injects it into every tool call.",
+        "explicit_dates": "Dates written in the question are used as written. Any other relative phrase is unsupported and must be declined rather than guessed."
+      }
+    },
+    "model": {
+      "name": "qwen3:8b",
+      "endpoint_host": "127.0.0.1",
+      "prompt_version": "2026-10-17.1",
+      "max_output_tokens": 800,
+      "temperature": 0.0,
+      "thinking": false,
+      "digest": null,
+      "quantization": null,
+      "model_max_context": null,
+      "loaded_context": null
+    },
+    "limits": {
+      "max_tool_calls": 4,
+      "max_model_turns": 6,
+      "deadline_seconds": 120.0,
+      "model_context_budget_chars": 24000,
+      "evidence_budget_bytes": 262144
+    },
+    "disclaimer": "This assistant summarizes the user's own recorded data using deterministic tools. It is not medical advice, not a diagnosis and not a clinically validated assessment."
+  }
+}

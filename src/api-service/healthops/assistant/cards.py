@@ -11,6 +11,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from healthops.assistant.reference_safety import SOURCE_ONLY, screen_result
+
 RowKind = Literal["sample_mean", "daily_total", "interval_total_sum", "daily_summary", "none"]
 
 STATISTIC_LABELS = {
@@ -199,7 +201,7 @@ def quotable(text: str, limit: int) -> str:
 
 def _reference_cards(evidence_id: str, result: dict[str, Any]) -> list[Card]:
     cards = []
-    for index, reference in enumerate(result.get("references") or []):
+    for index, reference in enumerate(screen_result(result).get("references") or []):
         cards.append(
             Card(
                 evidence_id=f"{evidence_id}.r{index + 1}",
@@ -221,6 +223,7 @@ def _reference_cards(evidence_id: str, result: dict[str, Any]) -> list[Card]:
                 source_url=reference.get("url"),
                 license=reference.get("license"),
                 similarity=reference.get("similarity"),
+                warning_text=[SOURCE_ONLY],
             )
         )
     return cards

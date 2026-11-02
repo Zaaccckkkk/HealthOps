@@ -36,6 +36,21 @@ class ModelError(Exception):
     """The model server failed or returned something the client cannot use."""
 
 
+MODEL_UNAVAILABLE = "The model service is temporarily unavailable. Please try again shortly."
+
+
+class ModelConnectionError(ModelError):
+    """A connection could not be established; no inference response was received."""
+
+
+def model_timeout(read_seconds: float, connect_seconds: float) -> httpx.Timeout:
+    if read_seconds <= 0 or connect_seconds <= 0:
+        raise ValueError("Model timeouts must be positive")
+    # Keep callers' shorter timeouts; do not make connection setup as long as generation.
+    short = min(read_seconds, connect_seconds)
+    return httpx.Timeout(read_seconds, connect=short, pool=short)
+
+
 class ChatModel(Protocol):
     info: ModelInfo
 
@@ -53,6 +68,7 @@ class OpenAICompatibleChatModel:
         *,
         prompt_version: str,
         timeout_seconds: float = 120,
+        connect_timeout_seconds: float = 5,
         max_output_tokens: int = 800,
         temperature: float = 0.0,
         thinking: bool | None = None,
@@ -69,7 +85,7 @@ class OpenAICompatibleChatModel:
             )
         self._base_url = base_url.rstrip("/")
         self._model = model
-        self._timeout = timeout_seconds
+        self._timeout = model_timeout(timeout_seconds, connect_timeout_seconds)
         self._extra_body = extra_body or {}
         self._transport = transport
         self.info = ModelInfo(
@@ -99,6 +115,8 @@ class OpenAICompatibleChatModel:
                 timeout=self._timeout, transport=self._transport
             ) as client:
                 response = await client.post(f"{self._base_url}/v1/chat/completions", json=body)
+        except (httpx.ConnectTimeout, httpx.ConnectError) as exc:
+            raise ModelConnectionError(f"model server unreachable: {type(exc).__name__}") from exc
         except httpx.HTTPError as exc:
             raise ModelError(f"model server unreachable: {type(exc).__name__}") from exc
         if response.status_code != 200:
@@ -194,6 +212,7 @@ class OllamaChatModel:
         *,
         prompt_version: str,
         timeout_seconds: float = 120,
+        connect_timeout_seconds: float = 5,
         max_output_tokens: int = 800,
         temperature: float = 0.0,
         thinking: bool | None = None,
@@ -201,7 +220,7 @@ class OllamaChatModel:
     ):
         self._base_url = base_url.rstrip("/")
         self._model = model
-        self._timeout = timeout_seconds
+        self._timeout = model_timeout(timeout_seconds, connect_timeout_seconds)
         self._transport = transport
         self.info = ModelInfo(
             name=model,
@@ -299,6 +318,8 @@ class OllamaChatModel:
                 timeout=self._timeout, transport=self._transport
             ) as client:
                 response = await client.post(f"{self._base_url}/api/chat", json=body)
+        except (httpx.ConnectTimeout, httpx.ConnectError) as exc:
+            raise ModelConnectionError(f"model server unreachable: {type(exc).__name__}") from exc
         except httpx.HTTPError as exc:
             raise ModelError(f"model server unreachable: {type(exc).__name__}") from exc
         if response.status_code != 200:

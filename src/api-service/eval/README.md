@@ -7,8 +7,9 @@ Two question sets for the single-turn assistant. All questions, users and data a
 | `assistant_dev.synthetic.jsonl` | Development set: used while writing prompts and the orchestrator. |
 | `assistant_heldout2.synthetic.jsonl` | Second held-out batch written after the first became a regression set (includes clarification cases). Run once on 2026-10-02 and read to decide two verification-rule fixes, so it is now a regression set too. |
 | `assistant_test.synthetic.jsonl` | Former held-out set. Its outputs were read to decide fixes after the 2026-10-02 run, so it is now a regression set; a new unseen batch is needed to report generalisation again. |
+| `assistant_reference.synthetic.jsonl` | Reference-library set (8 definitional and guideline questions whose expected tool is `lookup_reference`); results on the Mac and the L4 VM are in `RESULTS.md`. |
 | `synthetic_history.py` | Deterministic history for a dedicated synthetic evaluation user. |
-| `build_sets.py` | Single source of truth: regenerates both JSONL files from the server's time semantics and the synthetic history (`expected_data_days`). `tests/test_eval_sets.py` fails on drift. |
+| `build_sets.py` | Single source of truth: regenerates both JSONL files from the server's time semantics and the synthetic history (`expected_data_days`). `tests/test_eval_sets.py` (in `src/api-service/`) fails on drift. |
 | `rubric.md` | Manual grading sheet for answer correctness. |
 | `RESULTS.md` | Observed numbers from the latest local-model runs, with configuration and a provisional grading. |
 
@@ -47,3 +48,10 @@ hand with `rubric.md`; the script writes a grading sheet with one row per questi
 `uv run python eval/summarize_runs.py` prints one Markdown row per run directory under
 `.local/eval/` from its `summary.json`. Tables in `RESULTS.md` are copied from that output, not
 typed by hand, so the counts can be re-derived from the raw summaries at any time.
+
+## Routed multi-turn diagnostics
+
+The separate [routed evaluation guide](../../../docs/assistant-routed-evaluation.md) describes
+63 scenarios for the current intake, clarification and execution guards. Run
+`python scripts/eval_routed.py --validate-only` from api-service to validate the committed set.
+This diagnostic suite does not replace or silently update frozen baseline prompts.

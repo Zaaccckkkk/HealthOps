@@ -13,7 +13,7 @@ class Node {
   get text() { return this.textContent + this.children.map(c => c.text).join(" "); }
 }
 const ids = {};
-for (const id of ["token", "tz", "provider", "question", "ask", "busy", "out"]) ids[id] = new Node(id);
+for (const id of ["token", "tz", "provider", "question", "ask", "fresh", "busy", "out"]) ids[id] = new Node(id);
 const sandbox = {
   document: { createElement: (tag) => new Node(tag), getElementById: (id) => ids[id] },
   sessionStorage: { getItem: () => null, setItem: () => {} },

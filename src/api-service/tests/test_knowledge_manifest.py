@@ -2,6 +2,8 @@
 
 Third-party texts are not in the repository, so only the manifest and our own documents are
 checked here; scripts/knowledge/fetch_sources.py --check verifies downloaded files locally.
+The corpus description lives at the repository root (knowledge/); the test container receives
+its location through HEALTHOPS_KNOWLEDGE_DIR.
 """
 
 import sys
@@ -10,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts/knowledge"))
 
-from fetch_sources import load_manifest  # noqa: E402
+from fetch_sources import KNOWLEDGE_DIR, load_manifest  # noqa: E402
 
 REQUIRED = {
     "title",
@@ -46,7 +48,7 @@ def test_source_ids_and_files_are_unique():
 
 
 def test_own_documents_exist_and_are_english_markdown():
-    own = sorted((ROOT.parents[1] / "knowledge/own").glob("*.md"))
+    own = sorted((KNOWLEDGE_DIR / "own").glob("*.md"))
     assert {p.name for p in own} >= {
         "statistical-definitions.md",
         "warnings-glossary.md",

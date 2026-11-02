@@ -30,7 +30,7 @@ cards and template sentences verified against them are.</p>
   <option value="manual">manual</option></select></label>
 </div>
 <textarea id="question" placeholder="Ask about your recorded history, for example: How was my resting heart rate last week compared with the week before?"></textarea>
-<div class="row"><button id="ask">Ask</button><span id="busy" class="muted"></span></div>
+<div class="row"><button id="ask">Ask / reply</button><button id="fresh">New question</button><span id="busy" class="muted"></span></div>
 <div id="out"></div>
 <script>
 (function () {
@@ -92,18 +92,23 @@ cards and template sentences verified against them are.</p>
     if (d.model_text) { out.appendChild(el("h2", "Raw model prose (debug only, not an answer)")); out.appendChild(el("pre", d.model_text)); }
     out.appendChild(el("p", d.disclaimer, "muted"));
   }
+  let continuation = null;
+  $("fresh").addEventListener("click", () => { continuation = null; $("out").replaceChildren(); });
+  for (const id of ["token", "tz", "provider"]) $(id).addEventListener("change", () => { continuation = null; });
   window.__healthopsRender = render;  // used by the DOM regression test only
   $("ask").addEventListener("click", async () => {
     const token = $("token").value.trim(); sessionStorage.setItem("healthops_token", token);
     const body = { question: $("question").value, timezone: $("tz").value.trim() };
+    if (continuation) Object.assign(body, continuation);
     if ($("provider").value) body.provider = $("provider").value;
     $("busy").textContent = "asking the local model..."; $("ask").disabled = true;
     try {
       const r = await fetch("/v1/assistant/ask", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }, body: JSON.stringify(body) });
       const d = await r.json();
+      continuation = r.ok && d.conversation_id ? {conversation_id: d.conversation_id, conversation_version: d.conversation_version} : null;
       if (!r.ok) { $("out").replaceChildren(el("p", "HTTP " + r.status + ": " + (d.detail && typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail)), "bad")); }
       else render(d);
-    } catch (e) { $("out").replaceChildren(el("p", "Request failed: " + e, "bad")); }
+    } catch (e) { continuation = null; $("out").replaceChildren(el("p", "Request failed: " + e, "bad")); }
     finally { $("busy").textContent = ""; $("ask").disabled = false; }
   });
 })();

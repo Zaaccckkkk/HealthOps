@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,7 +25,8 @@ class Settings(BaseSettings):
     # "openai_compatible": any OpenAI-style endpoint; assistant_thinking must stay unset.
     assistant_model_backend: str = "ollama"
     assistant_model_name: str = "qwen3:8b"
-    assistant_model_timeout_seconds: float = 120.0
+    assistant_model_timeout_seconds: float = Field(default=120.0, gt=0)
+    assistant_model_connect_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     assistant_max_output_tokens: int = 800
     assistant_temperature: float = 0.0
     assistant_thinking: bool | None = None

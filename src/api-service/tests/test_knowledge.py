@@ -1,5 +1,6 @@
 """Knowledge base units: extraction, chunking, quotation limits and reference claims (no DB)."""
 
+import sys
 from pathlib import Path
 
 from healthops.assistant.cards import build_cards, quotable
@@ -15,6 +16,9 @@ from healthops.knowledge.text import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts/knowledge"))
+
+from fetch_sources import KNOWLEDGE_DIR  # noqa: E402
 
 
 def test_html_extraction_keeps_headings_and_drops_navigation():
@@ -91,7 +95,7 @@ def test_quote_limit_follows_the_allowed_use():
     assert (
         short.quote_limit_chars == SHORT_QUOTE_CHARS and full.quote_limit_chars > SHORT_QUOTE_CHARS
     )
-    own = own_document_specs(ROOT.parents[1] / "knowledge/own", "https://example.test")
+    own = own_document_specs(KNOWLEDGE_DIR / "own", "https://example.test")
     assert {s.id for s in own} >= {"own-statistical-definitions", "own-warnings-glossary"}
     assert all(s.kind == "markdown" for s in own)
 

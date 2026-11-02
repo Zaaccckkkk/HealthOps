@@ -278,3 +278,61 @@ def test_ollama_describe_failure_leaves_fields_null():
 
     info = asyncio.run(ollama_with(handler).describe())
     assert info.digest is None and info.model_max_context is None and info.loaded_context is None
+
+
+@pytest.mark.parametrize("adapter", [OpenAICompatibleChatModel, OllamaChatModel])
+@pytest.mark.parametrize("error", [httpx.ConnectTimeout, httpx.ConnectError])
+def test_connection_failure_is_distinct_and_not_retried(adapter, error):
+    from healthops.assistant.model import ModelConnectionError
+
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        assert request.extensions["timeout"] == {"connect": 5, "read": 120, "write": 120, "pool": 5}
+        raise error("synthetic unreachable host", request=request)
+
+    model = adapter(
+        "http://model.test",
+        "qwen3:8b",
+        prompt_version="test",
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(ModelConnectionError):
+        complete(model)
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize("adapter", [OpenAICompatibleChatModel, OllamaChatModel])
+def test_inference_read_timeout_is_not_classified_as_connection_failure(adapter):
+    from healthops.assistant.model import ModelConnectionError
+
+    def handler(request):
+        assert request.extensions["timeout"]["read"] == 90
+        assert request.extensions["timeout"]["connect"] == 2
+        raise httpx.ReadTimeout("synthetic slow generation", request=request)
+
+    model = adapter(
+        "http://model.test",
+        "qwen3:8b",
+        prompt_version="test",
+        timeout_seconds=90,
+        connect_timeout_seconds=2,
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(ModelError) as caught:
+        complete(model)
+    assert not isinstance(caught.value, ModelConnectionError)
+
+
+def test_timeout_settings_do_not_extend_a_shorter_existing_budget():
+    from pydantic import ValidationError
+
+    from healthops.assistant.model import model_timeout
+    from healthops.config import Settings
+
+    assert model_timeout(0.1, 5).connect == 0.1
+    with pytest.raises(ValidationError):
+        Settings(assistant_model_connect_timeout_seconds=0)
+    with pytest.raises(ValidationError):
+        Settings(assistant_model_timeout_seconds=0)

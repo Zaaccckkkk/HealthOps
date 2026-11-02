@@ -18,13 +18,19 @@ dependencies = [
   "cryptography>=50.0.2",
   "pypdf>=6.21.1",
   "pgvector>=0.5.1",
+  "langgraph>=1.0,<2",
+  "langsmith>=0.14,<1",
 ]
+
+[project.optional-dependencies]
+synthetic = ["pyarrow>=19,<24", "pyyaml>=6,<7"]
 
 [dependency-groups]
 dev = ["pytest>=8.3,<9", "ruff>=0.11,<1"]
 
 [project.scripts]
 healthops = "healthops.cli:main"
+healthops-import-synthetic = "healthops.synthetic_import:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["healthops"]

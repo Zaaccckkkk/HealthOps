@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Literal
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from healthops.assistant.cards import Card
 from healthops.assistant.claims import VerifiedClaim
@@ -26,6 +27,18 @@ ToolCallStatus = Literal["ok", "invalid_arguments", "rejected", "error", "not_ex
 
 class AskRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    conversation_id: UUID | None = None
+    conversation_version: int | None = Field(default=None, ge=1)
+    cancel: bool = False
+
+    @model_validator(mode="after")
+    def continuation_pair(self):
+        if (self.conversation_id is None) != (self.conversation_version is None):
+            raise ValueError("Conversation ID and version must be supplied together.")
+        if self.cancel and self.conversation_id is None:
+            raise ValueError("Cancellation requires a conversation.")
+        return self
+
     question: str = Field(min_length=1, max_length=2000)
     timezone: str = Field(min_length=1, max_length=80)
     # Data channel chosen in the interface and injected by the server into every tool call.
@@ -108,7 +121,53 @@ class Limits(BaseModel):
     evidence_budget_bytes: int
 
 
+class CoverageItem(BaseModel):
+    target: str
+    query_status: Literal[
+        "not_queried", "query_failed", "no_records", "unusable", "insufficient_data", "available"
+    ]
+    evidence_ids: list[str]
+    unreported_evidence_ids: list[str]
+    reported: bool
+
+
+class VerificationAttempt(BaseModel):
+    valid_claims: int
+    invalid_reasons: list[str]
+    missing_targets: list[str]
+
+
+class ClarificationOption(BaseModel):
+    id: str
+    label: str
+    reply_text: str
+
+
+class ClarificationField(BaseModel):
+    id: Literal["intent", "metrics", "time_range", "baseline"]
+    label: str
+    selection: Literal["single", "multiple", "text"]
+    options: list[ClarificationOption] = Field(default_factory=list)
+    allows_custom: bool = True
+
+
+class ClarificationForm(BaseModel):
+    version: Literal[1] = 1
+    fields: list[ClarificationField]
+
+
 class AskResponse(BaseModel):
+    clarification: ClarificationForm | None = None
+    conversation_expires_at: datetime | None = None
+    coverage: list[CoverageItem] = Field(default_factory=list)
+    completion_status: Literal["not_checked", "complete", "incomplete"] = "not_checked"
+    verification_attempts: list[VerificationAttempt] = Field(default_factory=list)
+    conversation_id: UUID | None = None
+    conversation_version: int | None = None
+    request_spec: dict[str, Any] | None = None
+    routing_status: Literal["ready", "needs_clarification", "unsupported", "cancelled"] | None = (
+        None
+    )
     # Data query status: did the tools run and return usable data.
     status: AskStatus
     # Explanation status is independent: data can be present while the explanation failed.

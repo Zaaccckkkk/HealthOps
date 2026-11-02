@@ -334,3 +334,13 @@ contain numbers (years, page numbers, "150 minutes", "60 to 100 beats"): that ch
 answer numbers with numeric cards, and quoted reference text is not a numeric card, so the
 flag is expected for reference answers and is not a verification failure. Still a small
 sample without human grading. The VM run is the deployment measurement for this increment.
+
+## Template layout (milestone2 branch, 2026-10-19)
+
+The reference library was ported onto the course-template layout (`src/api-service/`,
+`knowledge/` at the repository root, `make rag` as the one-command ingest). Re-run on the Mac
+after the move: api-service host suite 188 passed, 2 skipped (database tests skip without a
+test database); Docker suite 238 passed, 5 skipped against the pgvector test database; Swift
+52 passed; repository policy 8 passed; `make rag` ingested the same 570 chunks from 12 sources
+in 23 s with the texts already present. Model behaviour is unchanged (same code, prompt
+`2026-10-17.1`); the Mac and L4 numbers above still describe it.

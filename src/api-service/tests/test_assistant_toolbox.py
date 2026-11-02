@@ -44,3 +44,34 @@ def test_provider_written_by_the_model_is_dropped_but_remembered():
     )
     assert outcome.record.arguments["provider"] is None
     assert outcome.record.model_arguments["provider"] == "healthkit"
+
+
+def test_model_schemas_expose_string_metrics_without_references_or_hidden_fields():
+    import json
+
+    toolbox = Toolbox(None)
+    for tool in toolbox.schemas():
+        schema = tool["function"]["parameters"]
+        serialized = json.dumps(schema)
+        assert "$ref" not in serialized and "$defs" not in serialized
+        assert "timezone" not in schema["properties"]
+        assert "provider" not in schema["properties"]
+        assert "user_id" not in schema["properties"]
+        assert schema["additionalProperties"] is False
+        if "metric" in schema["properties"]:
+            metric = schema["properties"]["metric"]
+            assert metric["type"] == "string" and "steps" in metric["enum"]
+            assert "metric" in schema["required"]
+        for example in schema.get("examples", []):
+            params = toolbox.registry[tool["function"]["name"]].params
+            parsed = params.model_validate(example | {"timezone": NY})
+            assert parsed.metric == "steps"
+
+
+def test_nested_metric_object_is_rejected_not_coerced_by_toolbox():
+    outcome = execute(
+        "daily_summary",
+        '{"metric":{"type":"steps"},"start_date":"2026-09-01","end_date":"2026-09-01"}',
+    )
+    assert outcome.record.status == "invalid_arguments"
+    assert "metric" in outcome.record.error

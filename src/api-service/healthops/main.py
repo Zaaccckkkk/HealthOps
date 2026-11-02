@@ -14,11 +14,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 from healthops.assistant.contracts import AskRequest, AskResponse
+from healthops.assistant.conversations import ConversationConflict, ConversationStore
 from healthops.assistant.debug_page import DEBUG_PAGE_HTML
 from healthops.assistant.limits import RateLimiter
 from healthops.assistant.model import ChatModel, OllamaChatModel, OpenAICompatibleChatModel
 from healthops.assistant.orchestrator import Assistant, AssistantSettings, TodayOverrideNotAllowed
 from healthops.assistant.prompts import PROMPT_VERSION
+from healthops.assistant.routed import RoutedAssistant
 from healthops.assistant.toolbox import KnowledgeContext, Toolbox
 from healthops.auth import SessionDep, UserDep, bearer, current_user
 from healthops.config import Settings
@@ -72,6 +74,7 @@ def build_assistant(
             settings.assistant_model_name,
             prompt_version=PROMPT_VERSION,
             timeout_seconds=settings.assistant_model_timeout_seconds,
+            connect_timeout_seconds=settings.assistant_model_connect_timeout_seconds,
             max_output_tokens=settings.assistant_max_output_tokens,
             temperature=settings.assistant_temperature,
             thinking=settings.assistant_thinking,
@@ -336,7 +339,15 @@ def create_app(
                 headers={"Retry-After": str(limiter.retry_after_seconds(user_id))},
             )
         try:
-            return await assistant.ask(body, user_id)
+            return await RoutedAssistant(
+                assistant, ConversationStore(request.app.state.session_factory)
+            ).ask(body, user_id)
+        except ConversationConflict as exc:
+            raise HTTPException(
+                409,
+                "Conversation unavailable, expired, changed, or already resumed. "
+                "Start a new question.",
+            ) from exc
         except TodayOverrideNotAllowed as exc:
             raise HTTPException(
                 422, "The today override is only allowed in evaluation mode."

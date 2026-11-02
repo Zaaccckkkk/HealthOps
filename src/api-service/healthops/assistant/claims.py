@@ -1,6 +1,7 @@
 """Structured findings: the model picks evidence references, Python reads the values.
 
-Three claim types are supported. Every claim is checked against the cards built from the
+Evidence references support daily values, windows, comparisons, inventory and quotations.
+Every claim is checked against the cards built from the
 evidence; a single invalid claim degrades the whole explanation to a fixed fallback so that no
 partial, possibly misleading, sentence is shown. Direction of change is computed here, never
 taken from the model.
@@ -13,19 +14,34 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from healthops.assistant.cards import WARNING_TEXT, Card, format_value
+from healthops.assistant.reference_safety import reference_allowed
 
 FALLBACK_EXPLANATION = (
     "An explanation could not be generated reliably for this answer. The data cards below show "
     "exactly what was found."
 )
 
-CLAIM_TYPES = ("value_on_date", "window_difference", "missing_data", "reference")
+CLAIM_TYPES = (
+    "value_on_date",
+    "window_difference",
+    "missing_data",
+    "reference",
+    "window_summary",
+    "available_series",
+)
 _ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 class Claim(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    type: Literal["value_on_date", "window_difference", "missing_data", "reference"]
+    type: Literal[
+        "value_on_date",
+        "window_difference",
+        "missing_data",
+        "reference",
+        "window_summary",
+        "available_series",
+    ]
     evidence_id: str = Field(description="Card id to cite, e.g. e1.healthkit")
     date: str | None = Field(default=None, description="ISO date for value_on_date or missing_data")
 
@@ -40,7 +56,8 @@ class FindingsParams(BaseModel):
         min_length=1,
         max_length=31,  # a month of per-day findings degrades the explanation, not the protocol
         description="Each item: '<type> <evidence_id> [<ISO date>]' with type one of "
-        "value_on_date, window_difference, missing_data. Example: "
+        "value_on_date, window_difference, missing_data, window_summary, available_series, "
+        "reference. Example: "
         "'value_on_date e1.healthkit 2026-10-01'.",
     )
 
@@ -118,6 +135,17 @@ def verify_claim(claim: Claim, cards: list[Card]) -> VerifiedClaim:
             )
         if not card.text:
             return VerifiedClaim(claim=claim, valid=False, reason="reference card has no text")
+        if not reference_allowed(
+            {
+                "text": card.text,
+                "source_title": card.title,
+                "publisher": card.publisher,
+                "section": card.section,
+                "license": card.license,
+                "url": card.source_url,
+            }
+        ):
+            return VerifiedClaim(claim=claim, valid=False, reason="reference content withheld")
         where = f", {card.section}" if card.section else ""
         sentence = (
             f'{card.title} ({card.publisher}{where}) says: "{card.text}" '
@@ -125,6 +153,45 @@ def verify_claim(claim: Claim, cards: list[Card]) -> VerifiedClaim:
             "assessment of your own values."
         )
         return VerifiedClaim(claim=claim, valid=True, sentence=sentence)
+    if claim.type == "window_summary":
+        if card.kind != "daily_table" or claim.date is not None:
+            return VerifiedClaim(
+                claim=claim, valid=False, reason="window_summary needs a daily table and no date"
+            )
+        provider = f" ({card.provider})" if card.provider else ""
+        window = _window_text(card.start_date, card.end_date)
+        if not card.rows:
+            sentence = f"No {card.metric} records{provider} between {window}."
+        else:
+            values = sum(r.quality == "value" for r in card.rows)
+            unusable = sum(r.quality == "unusable" for r in card.rows)
+            absent = sum(r.quality == "none" for r in card.rows)
+            sentence = (
+                f"For {card.metric}{provider} between {window}, the daily card shows "
+                f"{values} day(s) with values, {unusable} with records but no reliable value, "
+                f"and {absent} without records. See the card for each day's value in {card.unit} "
+                f"({card.statistic}) and warnings."
+            )
+        return VerifiedClaim(claim=claim, valid=True, sentence=sentence)
+    if claim.type == "available_series":
+        if card.kind != "availability" or claim.date is not None:
+            return VerifiedClaim(
+                claim=claim,
+                valid=False,
+                reason="available_series needs an availability card and no date",
+            )
+        items = (
+            "; ".join(f"{r['metric']} ({r['provider']}, {r['aggregation']})" for r in card.series)
+            or "no recorded series"
+        )
+        return VerifiedClaim(
+            claim=claim,
+            valid=True,
+            sentence=(
+                f"Recorded series between {_window_text(card.start_date, card.end_date)}: {items}. "
+                "This describes accessible records, not device wear or complete coverage."
+            ),
+        )
     if claim.type == "value_on_date":
         if card.kind != "daily_table" or claim.date is None:
             return VerifiedClaim(

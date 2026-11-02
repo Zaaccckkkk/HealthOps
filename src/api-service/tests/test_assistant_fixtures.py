@@ -6,6 +6,7 @@ sends, including the debug fields the phone must ignore. Set HEALTHOPS_UPDATE_FI
 rewrite the files after a contract change; otherwise a stale fixture fails here.
 """
 
+import asyncio
 import json
 import os
 from pathlib import Path
@@ -25,7 +26,10 @@ from healthops.assistant.contracts import AskResponse
 from healthops.assistant.model import ModelTurn
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURES = ROOT.parent / "frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant"
+# The iOS test fixtures live in the frontend-app service; the test container mounts it at /.
+FIXTURES = (
+    ROOT.parent / "frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant"
+)
 
 DAILY = call(
     "daily_summary", metric="resting_heart_rate", start_date="2026-09-26", end_date="2026-09-28"
@@ -222,6 +226,15 @@ def stable(response: AskResponse) -> dict:
 
 def expected_files() -> dict[str, dict]:
     files = {name: stable(response) for name, response in scenarios().items()}
+    from test_assistant_routing import USER, app, decision, request
+
+    routed, _, _ = app([decision("needs_clarification")])
+    pending = asyncio.run(routed.ask(request("How am I doing recently?"), USER))
+    structured = stable(pending)
+    # Normalize volatile identifiers/timestamps; the payload otherwise comes from real routing.
+    structured["conversation_id"] = "11111111-1111-4111-8111-111111111199"
+    structured["conversation_expires_at"] = "2026-11-01T20:00:00Z"
+    files["structured_clarification"] = structured
     # A future server value: the phone must decode it as unknown and never show success.
     unknown = json.loads(json.dumps(files["answered_verified"]))
     unknown["status"] = "future_status"

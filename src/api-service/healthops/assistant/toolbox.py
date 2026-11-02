@@ -132,7 +132,18 @@ def lookup_reference_tool(
         )
         for hit in hits
     ]
-    warnings = [] if references else ["no_reference_found"]
+    from healthops.assistant.reference_safety import BLOCKED, reference_allowed
+
+    # Screen the full stored chunk, before quotation truncation could hide an instruction.
+    safe = [
+        reference
+        for reference, hit in zip(references, hits)
+        if reference_allowed(reference.model_dump() | {"text": hit.chunk.text})
+    ]
+    warnings = [BLOCKED] if len(safe) != len(references) else []
+    references = safe
+    if not references:
+        warnings.append("no_reference_found")
     return ReferenceLookupResult(
         query=params.query, references=references, warnings=warnings, definitions=definitions
     )
@@ -158,14 +169,56 @@ class ToolSpec:
 
     def schema(self) -> dict[str, Any]:
         parameters = self.params.model_json_schema()
-        parameters.pop("title", None)
+        definitions = parameters.pop("$defs", {})
+
+        def inline(value, ancestors=()):
+            if isinstance(value, list):
+                return [inline(item, ancestors) for item in value]
+            if not isinstance(value, dict):
+                return value
+            if "$ref" in value:
+                ref = value["$ref"]
+                if not ref.startswith("#/$defs/") or ref in ancestors:
+                    raise ValueError("Tool schemas require nonrecursive local definitions")
+                target = definitions[ref.removeprefix("#/$defs/")]
+                value = target | {key: item for key, item in value.items() if key != "$ref"}
+                ancestors = (*ancestors, ref)
+            return {key: inline(item, ancestors) for key, item in value.items() if key != "title"}
+
         for hidden in self.HIDDEN_FIELDS:
             parameters.get("properties", {}).pop(hidden, None)
         parameters["required"] = [
             r for r in parameters.get("required", []) if r not in self.HIDDEN_FIELDS
         ]
-        for prop in parameters.get("properties", {}).values():
-            prop.pop("title", None)
+        parameters = inline(parameters)
+        parameters["additionalProperties"] = False
+        properties = parameters.get("properties", {})
+        if "metric" in properties:
+            properties["metric"]["description"] = (
+                'One metric as a plain string from the enum, e.g. "steps". '
+                'Never send an object such as {"type": "steps"}, or a list. '
+                "Use one call per requested metric."
+            )
+        for name, prop in properties.items():
+            if prop.get("format") == "date":
+                prop["description"] = (
+                    f"{name}: ISO YYYY-MM-DD string from the confirmed request; "
+                    "do not widen or shorten its window."
+                )
+        if self.name == "daily_summary":
+            parameters["examples"] = [
+                {"metric": "steps", "start_date": "2026-09-01", "end_date": "2026-09-01"}
+            ]
+        elif self.name == "period_comparison":
+            parameters["examples"] = [
+                {
+                    "metric": "steps",
+                    "baseline_start": "2026-09-01",
+                    "baseline_end": "2026-09-07",
+                    "current_start": "2026-09-08",
+                    "current_end": "2026-09-14",
+                }
+            ]
         return {
             "type": "function",
             "function": {
@@ -308,7 +361,9 @@ def build_registry(knowledge: KnowledgeContext | None = None) -> dict[str, ToolS
             name="state_findings",
             description="Finish the answer. Pass findings as plain strings, one per item, in the "
             "form '<type> <evidence_id> [<ISO date>]'. Types: value_on_date (date required), "
-            "window_difference (no date), missing_data (date optional). Example: "
+            "window_difference (no date), missing_data (date optional), window_summary "
+            "(whole daily table; no date), available_series (inventory; no date), "
+            "reference (no date). Example: "
             "['value_on_date e1.healthkit 2026-10-01', 'missing_data e1.healthkit 2026-10-02']. "
             "The server reads the numbers and writes the sentences.",
             params=FindingsParams,

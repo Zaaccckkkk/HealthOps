@@ -155,3 +155,15 @@ class ReferenceChunk(Base):
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), server_default=sa.func.now()
     )
+
+
+class AssistantConversationState(Base):
+    """Short-lived clarification state, never tool results or model reasoning."""
+
+    __tablename__ = "assistant_conversations"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(sa.ForeignKey("users.id", ondelete="CASCADE"))
+    version: Mapped[int] = mapped_column(sa.Integer())
+    pending: Mapped[bool] = mapped_column(sa.Boolean())
+    payload: Mapped[dict] = mapped_column(sa.JSON())
+    expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), index=True)

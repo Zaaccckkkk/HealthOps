@@ -1,8 +1,8 @@
 # Canonical observation API v1
 
 Status: local-development contract, not a deployed wearable integration.
-OpenAPI at `/docs` is generated from [schemas.py](../services/ingestion-api/src/healthops/schemas.py) and
-[main.py](../services/ingestion-api/src/healthops/main.py). Dates in this document are illustrative.
+OpenAPI at `/docs` is generated from [schemas.py](../src/api-service/healthops/schemas.py) and
+[main.py](../src/api-service/healthops/main.py). Dates in this document are illustrative.
 
 ## Authentication and ownership
 
@@ -31,7 +31,7 @@ list-all endpoint. SQL row-level security is not implemented; isolation is in ap
 
 ## Input
 
-See the complete [synthetic JSON request](../examples/observations.synthetic.json).
+See the complete [synthetic JSON request](../src/api-service/examples/observations.synthetic.json).
 
 | Field | Contract |
 |---|---|
@@ -175,7 +175,7 @@ provider that has at least one record; days without data carry counts of 0 and `
   per-day `warnings`, aggregated `warnings` (including `no_records_in_window`), and `definitions`,
   a dictionary explaining every statistic and warning code for downstream interpretation.
 
-Synthetic example response: [daily-summary.synthetic.json](../examples/daily-summary.synthetic.json).
+Synthetic example response: [daily-summary.synthetic.json](../src/api-service/examples/daily-summary.synthetic.json).
 Values are JSON strings carrying decimal precision. Zones with a DST transition exactly at local
 midnight follow Python's `fold=0` rule and are not specially handled.
 
@@ -227,12 +227,12 @@ the window length and warning `provider_missing_in_window`, and the difference i
   performed. `details` carries both full daily-summary results for traceability, and
   `definitions` explains every statistic and warning code.
 
-Synthetic example response: [period-comparison.synthetic.json](../examples/period-comparison.synthetic.json).
+Synthetic example response: [period-comparison.synthetic.json](../src/api-service/examples/period-comparison.synthetic.json).
 
-## Assistant v0 (single-turn question answering over the tools)
+## Assistant (intent routing, clarification and bounded tool execution)
 
 Status: engineering implemented and tested with a scripted model; **model quality is measured
-separately** by `scripts/eval_assistant.py` against a local model and reported as observed.
+separately** by `src/api-service/scripts/eval_assistant.py` against a local model and reported as observed.
 Disabled unless `HEALTHOPS_ASSISTANT_MODEL_BASE_URL` is set. Two adapters exist behind one
 `ChatModel` interface, selected by `HEALTHOPS_ASSISTANT_MODEL_BACKEND`: `ollama` (default) uses
 Ollama's native `/api/chat`, the only backend with verified reasoning control
@@ -245,7 +245,14 @@ tests and the evaluation.
 
 | Method / route | Meaning |
 |---|---|
-| POST `/v1/assistant/ask` | One question, bounded tool-calling loop, one structured answer; 503 when no model is configured |
+| POST `/v1/assistant/ask` | One question or clarification reply; structured response; 503 when no model is configured |
+
+**Clarification.** The endpoint first routes the request to `ready`, `needs_clarification`, or
+`unsupported`. Responses add nullable `routing_status`, `request_spec`, `conversation_id` and
+`conversation_version`. To reply, send both continuation fields along with the new question
+and unchanged timezone/provider. Missing, foreign, expired or stale versions return 409.
+An authenticated `cancel: true` with both fields closes the pending state. See
+[resumption semantics and limits](assistant-clarification.md).
 
 **Input.** `question` (1-2000 characters), `timezone` (required IANA name; the server injects it
 into every tool call and the model cannot choose another), optional `today` (evaluation mode
@@ -259,18 +266,19 @@ the model; the model never computes dates. Supported phrases: today, yesterday, 
 weeks ago (calendar weeks), past 7 and past 30 days (ending today, inclusive), the previous
 7 and previous 30 days (immediately before those), and "last night" for sleep (yesterday,
 because sleep intervals are assigned to their start day). Dates written in the question are
-used as written. Any other relative phrase is unsupported and must be declined, not guessed. The
-response returns the resolved dates.
+used as written. The intake router also supports past 15 days. Ambiguous or unrecognized
+time phrases produce a clarification instead of guessed dates. On resume, the original
+reference date and timezone are retained. The response returns the resolved dates.
 
-**Tool calls.** The model may call only `availability`, `daily_summary`, `period_comparison`
+**Tool calls.** Intake uses only the structured `route_request` decision. The execution model may call `availability`, `daily_summary`, `period_comparison`
 (schemas generated from the tool parameter models, with no identity, timezone or provider
-field) and `decline_request`. A provider filter written by the model is dropped and reported
-as `provider_filter_ignored`; results are grouped per provider anyway. Comparison windows given
-in reverse order are reordered so that baseline is the earlier window, reported as
+field), `lookup_reference`, `state_findings`, and `decline_request`. In the routed HTTP path, a conflicting model-written provider is rejected before execution.
+The legacy unscoped toolbox drops model filters as `provider_filter_ignored`. Scoped HTTP calls must match the confirmed comparison windows exactly. Legacy unscoped
+comparison windows given in reverse order are reordered so that baseline is earlier, reported as
 `windows_reordered_baseline_is_earlier`, and the model is told. Arguments are validated with the same Pydantic models, the
 authenticated `user_id` and the request `timezone` are injected, and the tool's own limits
 (date range, window overlap, record budget) still apply. Tools run in a worker thread with a
-short-lived database session. Budgets: at most 4 tool calls and 6 model turns; a wall-clock
+short-lived database session. Execution budgets: at most 4 tool calls and 6 model turns, plus one intake model call; a wall-clock
 deadline that covers queueing behind the concurrency gate, every model call and every tool
 call (a tool already running in a worker thread finishes on its own, its result is discarded);
 a character budget checked against the **whole** request sent to the model before every call
@@ -300,7 +308,7 @@ displayed as "no reliable value") or `none` (no records; displayed as "no data")
 value is never displayed as zero), one comparison card per provider (both windows, values, days with
 data, the difference and a direction computed by the server), or one availability card. Cards
 never sum across days or merge providers; interval sums are labelled as not full-day coverage.
-The model finishes by calling `state_findings` with one to eight findings, each a plain string
+The model finishes by calling `state_findings` alone with the complete findings, each a plain string
 `<type> <evidence_id> [<ISO date>]` with type `value_on_date`, `window_difference` or
 `missing_data`, citing a card's `evidence_id`. Parsing is tolerant (commas, repeated findings),
 verification is strict: Python checks every claim against the cards (the date must be a real
@@ -309,12 +317,21 @@ really be missing) and renders fixed template sentences; the direction of change
 the card, never from the model. A `missing_data` sentence distinguishes "no records" from
 "records exist but no reliable value", per day and for a whole window; a date such as
 `2026-09-31` is rejected as "not a calendar date" and degrades the explanation rather than
-raising. If any
-finding is unparseable or invalid, or the model answers in prose instead of findings,
+raising. If a scoped finding is invalid or coverage is incomplete, one bounded correction is offered.
+If the corrected finding is still invalid/incomplete, or the model answers in prose instead of findings,
 `explanation_status` is `unverified` and `answer` is the fixed fallback text while the cards
 still show the data. Model prose is returned only as `model_text` for debugging; clients must
 not display it as an answer or execute JSON embedded in it. `answer` is therefore always
 template text or a fixed message.
+
+**Scope and coverage.** Routed requests enforce the confirmed metrics, tool family, exact
+windows and source context before any data query. `coverage` reports query/result/answer state
+for each required target. `completion_status` is `complete`, `incomplete` or `not_checked`.
+`verification_attempts` records invalid reasons and missing targets (at most two attempts for
+scoped requests). New finding types `window_summary` and `available_series` cover a whole daily
+card or inventory without inventing a health judgement. See [execution guards](assistant-execution-guards.md)
+for exact coverage rules and limitations. Legacy direct-core calls without a request spec do
+not enforce these checks and report `not_checked`.
 
 **Reference library (RAG).** A fourth model-callable tool, `lookup_reference(query)`, runs a
 semantic search (pgvector, cosine) over licence-checked reference passages embedded with
@@ -328,7 +345,7 @@ values." A reference claim against a data card, or a data claim against a refere
 invalid. When nothing is above the threshold the tool answers `no_reference_found`; when no
 embedding endpoint is configured it answers `knowledge_base_unavailable`. The tool reads
 nothing about the user. Questions that ask to judge the user's values against a guideline are
-still declined as medical advice.
+still declined as medical advice. A committed end-to-end example (question, the model's `lookup_reference` call, the retrieved passages with similarity, and the verified answer) is [reference-lookup.synthetic.json](../src/api-service/examples/reference-lookup.synthetic.json); the ingest run log is [rag-ingest-run.log](../src/api-service/examples/rag-ingest-run.log).
 
 **Request.** `provider` (optional) is the data channel chosen in the interface and is injected
 by the server into every tool call (`provider_from_request`). A channel named only in the
@@ -343,13 +360,13 @@ the `cards` and explanation contract are independent of it so a SwiftUI client c
 and `disclaimer` only; `model_text`, `tool_calls`, `evidence`, `model` and `limits` are debug
 fields that the phone does not decode. Unknown enum values decode as "unknown" and are shown as
 unverified, never as success. The response fixtures the Swift tests decode are generated from
-the orchestrator by `tests/test_assistant_fixtures.py`. The route answers `429` with
+the orchestrator by `src/api-service/tests/test_assistant_fixtures.py`. The route answers `429` with
 `Retry-After` when a user exceeds `assistant_rate_limit_per_minute`.
 
 `claims` lists each finding with its parsed claim (null when the string was unparseable, with
 the raw string kept), validity and reason. The debug page renders each section independently,
 so a malformed section never removes the cards from the page; a Node-based DOM test replays a
-synthetic response with an unparseable finding (`tests/test_debug_page_dom.py`).
+synthetic response with an unparseable finding (`src/api-service/tests/test_debug_page_dom.py`).
 `tool_calls` lists name, the executed arguments (after validation and server adjustments),
 `model_arguments` exactly as the model wrote them, status, tool warnings and duration, so an
 adjustment is always visible as a before/after pair. `evidence`
@@ -367,7 +384,7 @@ setting actually sent to the backend (`false`/`true` for the Ollama adapter) or 
 adapter does not control it (the OpenAI-compatible adapter, which refuses a non-empty setting). Logs record tool names and durations,
 never questions or health data.
 
-**Evaluation.** Synthetic development and held-out sets live in `ml/eval/`, generated from one
+**Evaluation.** Synthetic development and held-out sets live in `src/api-service/eval/`, generated from one
 source of truth (`build_sets.py`) so that every expected window comes from the same time
 semantics and every data condition is computed from the synthetic history; a test fails on
 drift. Metrics and the manual rubric are described there. Numbers from a local quantized model are small-sample
@@ -407,7 +424,7 @@ null; the channel label in the app is "Google Health", never a guessed device.
 
 ## iOS upload adapter (implemented; Simulator-verified with synthetic data, then used on a physical iPhone)
 
-[ios/HealthOpsUploader](../ios/HealthOpsUploader/README.md) is the first client of this
+[src/frontend-app/HealthOpsUploader](../src/frontend-app/HealthOpsUploader/README.md) is the first client of this
 contract. It maps HealthKit samples to canonical observations and uploads them with
 replay-safe incremental sync. No server behavior changed for it.
 
@@ -445,6 +462,24 @@ replay-safe incremental sync. No server behavior changed for it.
   accounts, then the owner's own data under explicit consent). Google Health data arrives
   through the server-side connector above, not through the phone.
 
-The cross-language test `tests/test_ios_contract.py` validates the adapter's actual encoding
-([ios-upload.synthetic.json](../examples/ios-upload.synthetic.json)) with this schema and, where
+The cross-language test `src/api-service/tests/test_ios_contract.py` validates the adapter's actual encoding
+([ios-upload.synthetic.json](../src/api-service/examples/ios-upload.synthetic.json)) with this schema and, where
 the Swift toolchain exists, regenerates it to catch drift.
+
+### Structured clarification UI (2026-11-01)
+
+A pending routed response may include `clarification: {version: 1, fields: [...]}`.
+Each field has `id` (`intent`, `metrics`, `time_range`, `baseline`), a localized `label`,
+`selection` (`single`, `multiple`, `text`), `allows_custom`, and `options` containing
+`id`, `label`, and `reply_text`. There are no selected defaults. Only unresolved fields appear.
+Clients compose selected reply text and explicit custom corrections into the next `question`;
+no client selection bypasses routing, grounding, scope or evidence checks.
+
+`conversation_expires_at` is an optional ISO timestamp for conservative local checkpoint expiry;
+it is fixed for the pending conversation, not extended on each reply. Older pending rows may
+omit it. The database remains authoritative and may reject a locally restored version with 409.
+Completed, unsupported and clarification-limit responses do not carry actionable form state.
+
+Empty successful reference retrieval now returns `insufficient_data`, `not_applicable`, no
+claims/cards, and a fixed no-matching-reference message. This is not a verified reference answer
+or proof of complete evidence coverage. Retrieval exceptions still return tool errors.
