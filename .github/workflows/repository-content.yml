@@ -12,3 +12,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check tracked public content
         run: python3 scripts/check_public_content.py --tracked
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build isolated test image
+        run: docker compose -p healthops-ci --profile test build test
+      - name: Run API and PostgreSQL integration suite
+        run: docker compose -p healthops-ci --profile test run --rm test
+      - name: Stop isolated services
+        if: always()
+        run: docker compose -p healthops-ci --profile test down

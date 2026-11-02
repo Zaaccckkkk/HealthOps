@@ -29,3 +29,9 @@ src/frontend-app/**/*.xcworkspace/xcshareddata/swiftpm/
 .build/
 DerivedData/
 xcuserdata/
+
+# Optional external cohort inputs are local to this portfolio.
+/data/
+
+# Legacy local Xcode workspace may be recreated by an open IDE; current client is in src/.
+/ios/

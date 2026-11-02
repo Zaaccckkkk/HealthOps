@@ -90,6 +90,33 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------------------
+  # Operator-only cohort import. Optional parquet dependencies do not enter the API image.
+  synthetic-import:
+    profiles: ["synthetic"]
+    build:
+      context: ./src/api-service
+      args:
+        INSTALL_SYNTHETIC: "true"
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      HEALTHOPS_SYNTHETIC_DATABASE_URL: postgresql+psycopg://healthops:local-only-password@db:5432/healthops
+    volumes:
+      - ./data:/data:ro
+      - ./src/api-service/.local/synthetic-import:/import-output
+    entrypoint: ["healthops-import-synthetic"]
+    command:
+      - --dataset
+      - /data/synthetic/${SYNTHETIC_DATA_VERSION:-synthetic-v0.1}
+      - --manifest
+      - /data/manifests/${SYNTHETIC_DATA_VERSION:-synthetic-v0.1}.yaml
+      - --output-dir
+      - /import-output/${SYNTHETIC_DATA_VERSION:-synthetic-v0.1}
+      - --apply
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # ---------------------------------------------------------------------------------------
   # RAG pipeline (one-shot): collect sources -> chunk -> embed -> pgvector. Same image as the API,
   # so the chunker and the store are exactly what the assistant's lookup_reference tool uses.
   rag-ingest:

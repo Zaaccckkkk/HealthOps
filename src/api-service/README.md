@@ -23,8 +23,8 @@ See [synthetic import](../../docs/synthetic-import.md) for dry-run, identity map
 local credentials and authenticated HTTP verification. API-only images omit the extra.
 
 For the three-account diagnostic evaluation snapshot and deterministic gold preparation, see
-[cohort baseline preparation](../../docs/cohort-baseline.md). Model evaluation has not run as
-part of this preparation step.
+[cohort baseline preparation](../../docs/cohort-baseline.md). Preparation is separate from inference; subsequent measured results are in
+[the V100 report](../../docs/evidence/v100-live-evaluation-20261102.md).
 
 ## LangGraph assistant orchestration
 

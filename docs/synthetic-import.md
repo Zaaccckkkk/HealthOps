@@ -8,19 +8,15 @@ HTTP. A separate smoke script checks the resulting accounts over HTTP.
 
 ## Restore the input
 
-From the repository root, restore only the synthetic version from the team's DVC remote (the
-Cloud Storage bucket by default; a Google login with bucket access is required):
+This advanced path requires the team's synthetic parquet dataset and manifest, which are
+not distributed in this portfolio. For a self-contained demo use [the public fixture quickstart](quickstart.md).
 
-```bash
-gcloud auth application-default login
-uvx --from "dvc[gs]==3.67.1" dvc pull data/synthetic/synthetic-v0.1.dvc
-# Offline alternative: a copy of the store next to the repository
-# uvx --from "dvc[gs]==3.67.1" dvc remote default --local local
-# uvx --from "dvc[gs]==3.67.1" dvc pull data/synthetic/synthetic-v0.1.dvc
-```
-
-This does not rebuild data or change the shared DVC remote. The local override is ignored by
-Git. Keep datasets in DVC, not Git. Do not use raw/canonical real datasets as import input.
+In a separately authorized checkout of the [team repository](https://github.com/HuihanCui/ac215_Megatron),
+follow its DVC instructions to restore `synthetic-v0.1`. Copy only that synthetic dataset directory
+to `data/synthetic/synthetic-v0.1/` here and its manifest to `data/manifests/synthetic-v0.1.yaml`.
+The manifest and the three parquet files must match their recorded checksums. Never substitute
+raw/canonical personal records. This repository does not configure or grant access to a DVC remote.
+Keep the copied input local; the importer is optional and the application does not need it to start.
 
 ## Preview without a database
 

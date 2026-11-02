@@ -8,9 +8,9 @@ duplicates. Synthetic data only; never point this at real health records.
 
     uv run python scripts/seed_synthetic_user.py https://host tester.json [--healthkit-only]
 
-`--healthkit-only` drops the `google_health` records: on an iPhone the only live channel is
-HealthKit (Health Connect exists on Android only), so a phone demo should not show a channel
-the device cannot have.
+`--healthkit-only` drops synthetic `google_health` records for a HealthKit-only demo.
+The iOS app can separately display Fitbit records synced by the server-side Google Health
+connector; these records do not come from the phone's HealthKit store.
 """
 
 import json
