@@ -1,0 +1,22 @@
+# Run on the dedicated model VM; MODEL_PRIVATE_IP must be its VPC address.
+name: healthops-ms3-model
+services:
+  ollama:
+    image: ollama/ollama:0.35.1
+    restart: unless-stopped
+    ports:
+      - "${MODEL_PRIVATE_IP:?set the VM private address}:11434:11434"
+    environment:
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_CONTEXT_LENGTH: "32768"
+      OLLAMA_KEEP_ALIVE: "1h"
+    volumes:
+      - /srv/healthops/ollama:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

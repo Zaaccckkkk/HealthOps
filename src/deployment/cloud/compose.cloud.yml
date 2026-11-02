@@ -3,13 +3,13 @@
 # service name and from nothing else: no host ports, and the VM firewall admits only tcp/443
 # plus IAP-tunnelled SSH. Data lives in bind mounts on the persistent boot disk (see
 # docs/cloud-dev-deployment.md for the deletion policy). Run from the repository root:
-#   docker compose --env-file .env.cloud -f infra/cloud/compose.cloud.yml up -d
+#   docker compose --env-file .env.cloud -f src/deployment/cloud/compose.cloud.yml up -d
 name: healthops-cloud-dev
 
 x-app: &app
   build:
-    context: ../..
-    dockerfile: infra/docker/ingestion-api.Dockerfile
+    context: ../../api-service
+    dockerfile: Dockerfile
   environment:
     HEALTHOPS_ENVIRONMENT: cloud-dev
     HEALTHOPS_DATABASE_URL: postgresql+psycopg://healthops:${HEALTHOPS_DB_PASSWORD:?set in .env.cloud}@db:5432/healthops

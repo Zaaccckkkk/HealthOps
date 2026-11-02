@@ -31,7 +31,7 @@
 ## Verification
 
 - Unit tests (in `src/api-service/`): `uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_assistant_toolbox.py tests/test_assistant_cards.py tests/test_assistant_limits.py tests/test_assistant_fixtures.py tests/test_knowledge.py tests/test_knowledge_manifest.py tests/test_eval_sets.py tests/test_ios_contract.py`;
-  repository policy: `uv run --directory src/api-service pytest -q ../../scripts/tests`.
+  repository policy: `uv run --directory src/api-service python -m pytest -q ../../scripts/tests`.
 - Knowledge base (RAG): third-party texts stay in `src/api-service/.local/knowledge/raw/` (fetched by manifest);
   only `knowledge/sources.yaml` and `knowledge/own/` are committed. Quotation limits per source are enforced in
   code, never relaxed for a demo. `make rag` fetches and ingests the corpus into pgvector in Compose.

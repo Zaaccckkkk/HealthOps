@@ -5,9 +5,9 @@
 #   PROJECT=...  ZONE=us-east4-a  VM=healthops-gpu  MACHINE=g2-standard-4  DISK_GB=100
 #   NETWORK=healthops-net  ADDRESS=healthops-ip  IMAGE_FAMILY=common-cu129-ubuntu-2204-nvidia-580
 #   IMAGE=<exact image name>   # optional: pins the image instead of resolving the family
-# Template: infra/cloud/vm.env.example
+# Template: src/deployment/cloud/vm.env.example
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 ENV_FILE="${CLOUD_ENV_FILE:-$ROOT/.local/cloud/vm.env}"
 [ -f "$ENV_FILE" ] || { echo "missing $ENV_FILE (see docs/cloud-dev-deployment.md)"; exit 1; }
 # shellcheck disable=SC1090
@@ -54,7 +54,7 @@ case "$cmd" in
       --boot-disk-size "${DISK_GB}GB" --boot-disk-type pd-balanced --maintenance-policy TERMINATE \
       --max-run-duration "$MAX_RUN" --instance-termination-action STOP \
       --network "$NETWORK" --address "$ADDRESS" --tags healthops --no-service-account --no-scopes \
-      --metadata-from-file startup-script="$ROOT/infra/cloud/startup.sh" \
+      --metadata-from-file startup-script="$ROOT/src/deployment/cloud/startup.sh" \
       --metadata enable-oslogin=FALSE
     "$0" verify-autostop
     ;;
@@ -81,7 +81,7 @@ case "$cmd" in
     echo "+ upload $(wc -l < "$list" | tr -d ' ') files"
     run "${G[@]}" compute scp "$tgz" "$VM:~/healthops-src.tgz" --zone "$ZONE" --tunnel-through-iap --quiet
     run "${G[@]}" compute ssh "$VM" --zone "$ZONE" --tunnel-through-iap --quiet --command \
-      'mkdir -p ~/healthops && cd ~/healthops && find . -mindepth 1 -maxdepth 1 ! -name .env.cloud -exec rm -rf {} + && tar -xzf ~/healthops-src.tgz && rm ~/healthops-src.tgz && find . -name "._*" -delete && chmod +x scripts/cloud/*.sh && echo synced'
+      'mkdir -p ~/healthops && cd ~/healthops && find . -mindepth 1 -maxdepth 1 ! -name .env.cloud -exec rm -rf {} + && tar -xzf ~/healthops-src.tgz && rm ~/healthops-src.tgz && find . -name "._*" -delete && chmod +x src/deployment/scripts/*.sh && echo synced'
     rm -f "$list" "$tgz"
     ;;
   destroy) need_yes  # deletes the VM AND its boot disk (database and model); addresses and network are separate steps

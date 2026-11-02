@@ -1,0 +1,12 @@
+{
+  "project": "your-gcp-project-id",
+  "region": "us-east4",
+  "service": "healthops-ms3-api",
+  "image": "us-east4-docker.pkg.dev/your-gcp-project-id/healthops/api@sha256:IMAGE_DIGEST",
+  "service_account": "healthops-run@your-gcp-project-id.iam.gserviceaccount.com",
+  "network": "healthops-net",
+  "subnet": "healthops-run",
+  "database_secret": "healthops-ms3-database-url",
+  "database_secret_version": "1",
+  "model_url": "http://10.150.0.2:11434"
+}

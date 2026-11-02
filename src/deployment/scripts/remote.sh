@@ -2,8 +2,8 @@
 # Runs ON the VM from ~/healthops. Brings the stack up or down and reports the measurements
 # the deployment notes ask for (GPU memory, container memory, model digest and context).
 set -euo pipefail
-cd "$(dirname "$0")/../.."
-COMPOSE=(docker compose --env-file .env.cloud -f infra/cloud/compose.cloud.yml)
+cd "$(dirname "$0")/../../.."
+COMPOSE=(docker compose --env-file .env.cloud -f src/deployment/cloud/compose.cloud.yml)
 case "${1:-help}" in
   bootstrap)  # first boot only: the Deep Learning VM image ships the NVIDIA driver and the
               # NVIDIA Container Toolkit but not Docker. Installs Docker Engine + Compose plugin
@@ -51,8 +51,8 @@ case "${1:-help}" in
     ;;
   knowledge)  # fetch the licence-checked sources and ingest the whole corpus into pgvector
     sudo mkdir -p /srv/healthops/knowledge && sudo chown 10001:10001 /srv/healthops/knowledge
-    "${COMPOSE[@]}" run --rm -v /srv/healthops/knowledge:/app/.local/knowledge/raw api python scripts/knowledge/fetch_sources.py
-    "${COMPOSE[@]}" run --rm -v /srv/healthops/knowledge:/app/.local/knowledge/raw api python scripts/knowledge/ingest.py
+    "${COMPOSE[@]}" run --rm -v /srv/healthops/knowledge:/app/.local/knowledge/raw -v "$PWD/knowledge:/knowledge:ro" -e HEALTHOPS_KNOWLEDGE_DIR=/knowledge api python scripts/knowledge/fetch_sources.py
+    "${COMPOSE[@]}" run --rm -v /srv/healthops/knowledge:/app/.local/knowledge/raw -v "$PWD/knowledge:/knowledge:ro" -e HEALTHOPS_KNOWLEDGE_DIR=/knowledge api python scripts/knowledge/ingest.py
     ;;
   down)     "${COMPOSE[@]}" down ;;   # containers only; /srv/healthops data stays
   *) echo "usage: $0 {bootstrap|preflight|up|pull-model|knowledge|status|logs [service]|token [name]|down}" ;;

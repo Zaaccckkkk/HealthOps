@@ -1,0 +1,6 @@
+# Optional override for the temporary V100 evaluation fallback.
+# Host drivers must use the proprietary NVIDIA kernel module; see README.md.
+services:
+  ollama:
+    environment:
+      OLLAMA_LLM_LIBRARY: cuda_v12

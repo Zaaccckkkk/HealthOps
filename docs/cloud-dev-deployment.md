@@ -1,12 +1,12 @@
 # Cloud development deployment (single GPU VM)
 
-Status: **created and exercised once on 2026-10-03** (project `ac215-project-509705`,
+Status: **created and exercised once on 2026-10-03** (project `example-healthops-project`,
 `us-east4-a`, VM `healthops-gpu`, static address, dedicated network with two firewall rules).
 Observed in that session: Let's Encrypt certificate issued through TLS-ALPN on the first start;
 `qwen3:8b` (same digest as the Mac) loaded on the L4 with 9.8 GB of 23 GB GPU memory and the
 context pinned to 32768; cold first request 97 s, warm p50 3.7 s; the ten-question protocol
 regression and five questions from a physical iPhone over the public HTTPS address completed
-with synthetic data only. Numbers are in `ml/eval/RESULTS.md`. The VM is stopped between
+with synthetic data only. Numbers are in `src/api-service/eval/RESULTS.md`. The VM is stopped between
 sessions; the disk and the address are retained.
 
 This is a one-tester development deployment with synthetic data. It is not multi-tenant, not
@@ -22,9 +22,9 @@ highly available and not a production security posture.
 | Ollama + `qwen3:8b` | container with one NVIDIA L4, no published port, bind mount `/srv/healthops/ollama` | the API only |
 | SSH | VM port 22 | Identity-Aware Proxy range `35.235.240.0/20` only |
 
-Files: `infra/cloud/compose.cloud.yml`, `infra/cloud/Caddyfile`, `infra/cloud/env.cloud.example`
-(copy to `.env.cloud` on the VM), `infra/cloud/startup.sh`, `scripts/cloud/vm.sh` (gcloud
-wrapper), `scripts/cloud/remote.sh` (runs on the VM).
+Files: `src/deployment/cloud/compose.cloud.yml`, `src/deployment/cloud/Caddyfile`, `src/deployment/cloud/env.cloud.example`
+(copy to `.env.cloud` on the VM), `src/deployment/cloud/startup.sh`, `src/deployment/scripts/vm.sh` (gcloud
+wrapper), `src/deployment/scripts/remote.sh` (runs on the VM).
 
 ## Networking
 
@@ -52,7 +52,7 @@ API 150 s to answer (the assistant deadline is 120 s).
 The image family `common-cu129-ubuntu-2204-nvidia-580` (Deep Learning VM) ships the NVIDIA
 driver. Compose hands one GPU to the Ollama container through the device reservation
 (`driver: nvidia, count: 1, capabilities: [gpu]`), which requires the NVIDIA Container Toolkit
-on the host; `scripts/cloud/remote.sh preflight` checks `nvidia-smi` both on the host and inside
+on the host; `src/deployment/scripts/remote.sh preflight` checks `nvidia-smi` both on the host and inside
 a CUDA container before anything else starts. Ollama is pinned to one loaded model, one
 parallel request and an explicit context length (32768, the configuration verified on the Mac);
 `remote.sh status` records GPU memory, container memory and the loaded model so the actual
@@ -105,7 +105,7 @@ are operator decisions, never automatic.
 - `--max-run-duration=2h --instance-termination-action=STOP` is set at creation and shown by
   `vm.sh verify-autostop` after every start. The first start/stop cycle must confirm the
   duration counts from each start.
-- `infra/cloud/startup.sh` schedules `shutdown -h +115` on every boot as a second, independent
+- `src/deployment/cloud/startup.sh` schedules `shutdown -h +115` on every boot as a second, independent
   stop.
 - Observed on the first boot: the GCE scheduling block showed `maxRunDuration 7200s` /
   `STOP`, and the guest logged "Shutdown scheduled for 04:34:46 UTC" 115 minutes after boot.
@@ -131,44 +131,44 @@ are operator decisions, never automatic.
 
 Prerequisites on the Mac: `gcloud` installed and logged in, a project with billing enabled,
 `GPUS_ALL_REGIONS` >= 1 and `NVIDIA_L4_GPUS` >= 1 in the chosen region, and
-`.local/cloud/vm.env` copied from `infra/cloud/vm.env.example`. For the Fitbit connector you
+`.local/cloud/vm.env` copied from `src/deployment/cloud/vm.env.example`. For the Fitbit connector you
 also need a Web application OAuth client of the same project (see "Google Health connector").
 
 ```bash
-scripts/cloud/vm.sh check              # read-only: quotas, image, machine type
-scripts/cloud/vm.sh network            # free: dedicated VPC + two firewall rules
-scripts/cloud/vm.sh reserve-ip --yes   # billable from here on
-scripts/cloud/vm.sh create --yes       # prints maxRunDuration=7200s / STOP; the guest also arms shutdown -h +115
-scripts/cloud/vm.sh sync               # uploads exactly the Git-publishable files as a tarball (no .env, .local, .git, notes)
-scripts/cloud/vm.sh ssh
+src/deployment/scripts/vm.sh check              # read-only: quotas, image, machine type
+src/deployment/scripts/vm.sh network            # free: dedicated VPC + two firewall rules
+src/deployment/scripts/vm.sh reserve-ip --yes   # billable from here on
+src/deployment/scripts/vm.sh create --yes       # prints maxRunDuration=7200s / STOP; the guest also arms shutdown -h +115
+src/deployment/scripts/vm.sh sync               # uploads exactly the Git-publishable files as a tarball (no .env, .local, .git, notes)
+src/deployment/scripts/vm.sh ssh
 ```
 
 On the VM, from `~/healthops`:
 
 ```bash
-scripts/cloud/remote.sh bootstrap      # Docker Engine + Compose plugin, NVIDIA runtime, data directories
-cp infra/cloud/env.cloud.example .env.cloud && nano .env.cloud   # public host, DB password, Google client, Fernet key
-sudo scripts/cloud/remote.sh preflight # nvidia-smi on the host and inside a CUDA container
-sudo scripts/cloud/remote.sh up        # builds the API image, runs migrations, starts Caddy, API, PostgreSQL, Ollama
-sudo scripts/cloud/remote.sh pull-model  # qwen3:8b (5.2 GB) and nomic-embed-text (274 MB); both persist on the disk
-sudo scripts/cloud/remote.sh knowledge   # fetches the reference sources and ingests them into pgvector (about 600 chunks)
-sudo scripts/cloud/remote.sh token my-synthetic-tester   # 0600 credential file; type the token into the phone, then delete it
-sudo scripts/cloud/remote.sh status    # containers, GPU memory, loaded model
+src/deployment/scripts/remote.sh bootstrap      # Docker Engine + Compose plugin, NVIDIA runtime, data directories
+cp src/deployment/cloud/env.cloud.example .env.cloud && nano .env.cloud   # public host, DB password, Google client, Fernet key
+sudo src/deployment/scripts/remote.sh preflight # nvidia-smi on the host and inside a CUDA container
+sudo src/deployment/scripts/remote.sh up        # builds the API image, runs migrations, starts Caddy, API, PostgreSQL, Ollama
+sudo src/deployment/scripts/remote.sh pull-model  # qwen3:8b (5.2 GB) and nomic-embed-text (274 MB); both persist on the disk
+sudo src/deployment/scripts/remote.sh knowledge   # fetches the reference sources and ingests them into pgvector (about 570 chunks)
+sudo src/deployment/scripts/remote.sh token my-synthetic-tester   # 0600 credential file; type the token into the phone, then delete it
+sudo src/deployment/scripts/remote.sh status    # containers, GPU memory, loaded model
 ```
 
 If a publisher refuses the VM's address (observed 2026-10-18: the WHO repository answered
 403 to the fetch from Google Cloud while the same download worked from the Mac), copy the
 already-verified files instead of re-downloading: on the Mac,
-`tar -czf raw.tgz -C .local/knowledge/raw .` (with `COPYFILE_DISABLE=1`), `gcloud compute scp`
-the archive to the VM, extract it into `/srv/healthops/knowledge`, `chown -R 10001:10001` that
-directory and re-run `remote.sh knowledge`. The fetch step skips files that already exist and
-still verifies every sha256 against `knowledge/sources.yaml`, so the corpus on the VM is
-byte-identical to the one checked on the Mac.
+`tar -czf raw.tgz -C src/api-service/.local/knowledge/raw .` (with `COPYFILE_DISABLE=1`),
+`gcloud compute scp` the archive to the VM, extract it into `/srv/healthops/knowledge`,
+`chown -R 10001:10001` that directory and re-run `remote.sh knowledge`. The fetch step skips
+files that already exist and still verifies every sha256 against `knowledge/sources.yaml`, so
+the corpus on the VM is byte-identical to the one checked on the Mac.
 
 Then from the Mac: `curl https://<host>/health/ready` must return `{"status":"ready"}` with a
 Let's Encrypt certificate. The first assistant question loads the model (about 100 s on an
 L4) and may hit the 120 s deadline; the second answers in a few seconds. Stop with
-`scripts/cloud/vm.sh stop`. The verified versions were: image
+`src/deployment/scripts/vm.sh stop`. The verified versions were: image
 `common-cu129-ubuntu-2204-nvidia-580-v20261001` (driver 580.178.04), Ollama 0.35.1 (pinned
 in Compose), Caddy 2.10, PostgreSQL 17, Docker Engine from Docker's stable repository at the
 time of bootstrap (not pinned; `remote.sh bootstrap` prints the installed version).
@@ -178,28 +178,28 @@ time of bootstrap (not pinned; `remote.sh bootstrap` prints the installed versio
 On the Mac, from the repository root:
 
 ```bash
-scripts/cloud/vm.sh start      # prints the auto-stop block again
-scripts/cloud/vm.sh sync       # only if code changed
-scripts/cloud/vm.sh ssh        # lands in the home directory of the VM
+src/deployment/scripts/vm.sh start      # prints the auto-stop block again
+src/deployment/scripts/vm.sh sync       # only if code changed
+src/deployment/scripts/vm.sh ssh        # lands in the home directory of the VM
 ```
 
 On the VM (SSH opens in `~`, so change directory first):
 
 ```bash
 cd ~/healthops
-sudo scripts/cloud/remote.sh up        # rebuilds the API image only if the code changed; migrations run first
-sudo scripts/cloud/remote.sh status
+sudo src/deployment/scripts/remote.sh up        # rebuilds the API image only if the code changed; migrations run first
+sudo src/deployment/scripts/remote.sh status
 # ... use it from the phone ...
-sudo scripts/cloud/remote.sh down      # containers only; data stays on the disk
+sudo src/deployment/scripts/remote.sh down      # containers only; data stays on the disk
 exit
 ```
 
 Back on the Mac:
 
 ```bash
-scripts/cloud/vm.sh stop && scripts/cloud/vm.sh status   # TERMINATED, disk and address retained
+src/deployment/scripts/vm.sh stop && src/deployment/scripts/vm.sh status   # TERMINATED, disk and address retained
 ```
 
-Protocol regression on the VM: `PYTHONPATH=services/ingestion-api/src uv run python
+Protocol regression on the VM: `cd src/api-service && PYTHONPATH=. uv run python
 scripts/eval_assistant.py --set protocol` against the synthetic evaluation user, with the raw
-outputs copied back to `.local/eval/` and the counts added to `ml/eval/RESULTS.md`.
+outputs copied back to `src/api-service/.local/eval/` and the counts added to `src/api-service/eval/RESULTS.md`.
