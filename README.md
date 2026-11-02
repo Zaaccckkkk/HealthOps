@@ -2,6 +2,16 @@
 
 **A multi-device health-data assistant that asks for missing context and answers from verified evidence.**
 
+<p align="center">
+  <a href="docs/demo/simulator-demo.mp4">
+    <img src="docs/demo/simulator-preview.gif" width="300" alt="HealthOps native app: clarify a question, receive a verified answer, and inspect evidence cards">
+  </a>
+</p>
+<p align="center">
+  <a href="docs/demo/simulator-demo.mp4"><strong>Watch the full demo</strong></a><br>
+  <sub>iOS Simulator · Synthetic account · Live Qwen3-8B</sub>
+</p>
+
 HealthOps combines Apple HealthKit and Google Health / Fitbit records with a Qwen3-8B assistant.
 Personal numerical answers come from deterministic Python tools; a pgvector reference library
 supports sourced definitions. The same model selects tools, while the server controls identity,
@@ -30,10 +40,6 @@ This is an illustrative interaction, not a transcript or a claim about a specifi
 - **Recorded native demo:** [watch the 45-second Simulator video](docs/demo/simulator-demo.mp4).
   Live Qwen3-8B, synthetic account, local backend; edited waits are labeled.
   [Runtime, editing disclosure and phone acceptance checklist](docs/demo/README.md).
-
-[![Native Simulator demo: clarification, verified answer and evidence](docs/demo/simulator-preview.gif)](docs/demo/simulator-demo.mp4)
-
-Physical-iPhone acceptance of this build is pending.
 
 ## Design that matters
 
