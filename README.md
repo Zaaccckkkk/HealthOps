@@ -8,7 +8,7 @@
   </a>
 </p>
 <p align="center">
-  <a href="docs/demo/simulator-demo.mp4"><strong>Watch the full demo</strong></a><br>
+  <a href="docs/demo/simulator-demo.mp4"><strong>Watch the full demo with audio</strong></a><br>
   <sub>iOS Simulator · Synthetic account · Live Qwen3-8B</sub>
 </p>
 
@@ -37,8 +37,8 @@ This is an illustrative interaction, not a transcript or a claim about a specifi
 - **UI preview:** [interactive HTML prototype](src/frontend-app/prototype/README.md).
   Run `python3 -m http.server 8765 --bind 127.0.0.1 --directory src/frontend-app/prototype`.
   It uses scripted synthetic examples and does not call the API or model.
-- **Recorded native demo:** [watch the 45-second Simulator video](docs/demo/simulator-demo.mp4).
-  Live Qwen3-8B, synthetic account, local backend; edited waits are labeled.
+- **Recorded native demo:** [watch the 37-second Simulator video](docs/demo/simulator-demo.mp4).
+  Live Qwen3-8B, synthetic account, local backend; original audio preserved.
   [Runtime, editing disclosure and phone acceptance checklist](docs/demo/README.md).
 
 ## Design that matters

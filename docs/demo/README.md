@@ -1,6 +1,6 @@
 # Native iOS Simulator demo
 
-[Watch the 45-second video](simulator-demo.mp4)
+[Download the 37-second video with original audio](simulator-demo.mp4)
 
 ![Recorded native app interaction](simulator-preview.gif)
 
@@ -10,16 +10,17 @@ physical-iPhone recording. No application code or model responses were changed f
 
 ## What the recording shows
 
-1. Ask: `How have I been doing recently?`
-2. Receive a server clarification form; select resting heart rate, sleep duration and past 7 days.
-3. Submit `resting_heart_rate, sleep_duration; past 7 days` with the pending conversation ID/version.
-4. Receive an answered response with `explanation verified against the cards`.
-5. Inspect both evidence cards: seven heart-rate days, six sleep days, and one sleep day marked
-   `no data`. Missing records are not displayed as zero.
+1. Ask: `How did I do recently?`
+2. Receive clarification choices for the missing metrics and time range.
+3. Select `heart_rate`, `resting_heart_rate` and `steps`, then confirm without a time range.
+4. Receive another clarification for the remaining time range; select `past 7 days`.
+5. Receive an answer verified against the evidence cards, then scroll through the results.
 
-The data-source picker is **All channels**. The retrieved records in these two cards belong to
-synthetic `healthkit` observations; these labels do not establish that a wearable was read.
-The answer is an evidence-based coverage summary, not a clinical assessment of wellbeing.
+This is a three-user-turn interaction: the question, the metric selection and the time selection.
+The data-source picker is **All channels**. The answer covers seven days per metric, using synthetic
+`healthkit` heart-rate records and synthetic `google_health` step records. These source labels do
+not establish that a real wearable was read. The answer is an evidence-based coverage summary,
+not a clinical assessment of wellbeing. This recording does not demonstrate missing-data handling.
 
 ## Runtime and data boundary
 
@@ -38,16 +39,18 @@ It adds one observed interaction, not a new accuracy or latency benchmark. RAG, 
 HealthKit ingestion, OAuth sync, app restart recovery and network failure recovery are not
 established by this recording.
 
-## Editing disclosure
+## Video and audio
 
-The MP4 is 45 seconds, 900 x 1920, without audio. Operation pauses were trimmed, one model-wait
-segment is accelerated **6.3x** and labeled, and the final five seconds hold an actual screenshot
-of the returned evidence cards, also labeled. Answers, values and UI elements were not replaced.
-The GIF is a reduced-resolution 4 fps preview of the edited video.
+The developer recorded and edited this 36.93-second walkthrough, including the scrolling and
+original audio. The published MP4 preserves that supplied edit and its timing. It is H.264,
+1080 x 2264, 30 fps, approximately 4.6 MB, with AAC stereo audio. The original AAC stream was
+copied without re-encoding; its packet checksum matches the supplied recording. The source
+sound is quiet. Turn on the player's sound and adjust playback volume as needed.
 
-The main original capture is approximately 81 seconds. Raw captures and local credentials stay
-under the ignored `src/api-service/.local/simulator-demo/` directory and are not published.
-Do not use edited timing to infer response latency.
+The centered homepage GIF is a silent 320-pixel-wide, 10 fps preview. Open the MP4 for sound.
+Publishing added no further cuts, speed changes or replacement answer frames. Video compression
+and removal of container metadata reduce download size; the original export remains local.
+Do not use an edited demonstration to infer response latency.
 
 ## Reproduce and accept on a phone
 
@@ -61,6 +64,6 @@ For physical-iPhone acceptance, use a reachable API with a dedicated synthetic a
 asking; do not enable personal HealthKit upload for this synthetic acceptance.
 
 Check: ambiguous question -> visible choices and free text -> confirmed scope -> verified answer
--> both metric cards and missing-data handling. Also test keyboard dismissal, scrolling,
+-> all requested metric cards. Separately check missing-data handling. Also test keyboard dismissal, scrolling,
 clarification after app relaunch, and an intentional disconnected-network error. Record those
 results separately; they remain pending for this build.
