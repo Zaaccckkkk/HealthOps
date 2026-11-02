@@ -1,8 +1,8 @@
 # Native iOS Simulator demo
 
-[Download the 37-second video with original audio](simulator-demo.mp4)
+[Download the 37-second video with original audio](app-demo.mp4)
 
-![Recorded native app interaction](simulator-preview.gif)
+![Recorded native app interaction](app-demo-preview.gif)
 
 Captured on 2026-11-02 UTC from the real SwiftUI application, using a dedicated synthetic
 account and live Qwen3-8B inference. This is not the scripted HTML prototype and is not a
