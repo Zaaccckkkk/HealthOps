@@ -43,22 +43,7 @@ This is an illustrative interaction, not a transcript or a claim about a specifi
   retrieved-content injection screening and quote limits constrain the workflow. Screening is
   heuristic; these checks do not establish universal prompt-injection resistance.
 
-```mermaid
-flowchart LR
-    U[SwiftUI client] --> API[FastAPI / Cloud Run]
-    API --> R[LangGraph intake / Router]
-    R -->|Missing context| C[Persist clarification / ask user]
-    C -->|User reply and version| R
-    R -->|Unsupported| X[Explain limitation]
-    R -->|Ready request spec| M[Qwen3-8B via Ollama]
-    M -->|Tool call| T[Scope check / Python tools / reference lookup]
-    T -->|Evidence cards| M
-    T <--> DB[(PostgreSQL / Cloud SQL + pgvector)]
-    C <--> DB
-    M -->|state_findings| V[Verify claims and completeness]
-    V -->|One bounded correction| M
-    V -->|Verified or explicit failure| A[Server-rendered response]
-```
+![HealthOps assistant: intake, clarification, scoped tools and evidence verification](docs/diagrams/assistant-workflow.svg)
 
 Cloud Run hosts the API and orchestration. Model inference runs on a separate GPU VM.
 See [architecture and limitations](docs/architecture.md).
@@ -113,14 +98,17 @@ manifest-listed third-party sources under their recorded usage terms.
 | Cloud Run / Cloud SQL / model VM | [deployment guide](src/deployment/cloud-run/README.md) |
 | Local verification of this migration | [verification record](docs/evidence/portfolio-migration.md) |
 
-## Ownership and scope
+## Authorship and scope
 
-This repository preserves the earlier standalone HealthOps history and integrates selected
-application work from the [AC215 team project](https://github.com/HuihanCui/ac215_Megatron).
-Zhentian Wu's work focuses on the assistant, ingestion/tools, RAG, client, application deployment
-and evaluation. The team's synthetic-data generation and cross-device discrepancy training
-remain upstream; the assistant does not yet consume their trained reconciliation predictions.
-See [source snapshot, team attribution and publication scope](docs/provenance.md).
+**Developed by Zhentian Wu.** This repository contains my HealthOps application and assistant
+work: ingestion and authentication, deterministic analytics, LangGraph orchestration, reference
+retrieval, the iOS client, application deployment and evaluation.
+
+HealthOps was also developed within the [AC215 team project](https://github.com/HuihanCui/ac215_Megatron).
+The team's synthetic-data generation and cross-device discrepancy training are maintained
+separately and are not included here. Their trained reconciliation predictions are not yet
+connected to this assistant. Shared project conventions and source history are documented in
+[provenance and acknowledgments](docs/provenance.md).
 
 Model fine-tuning is a future experiment, not the source of the reported scores.
 Credentials, health records, downloaded corpora and raw run artifacts are excluded from Git.
