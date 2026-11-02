@@ -2,7 +2,7 @@
 
 [Download the 37-second video with original audio](app-demo.mp4)
 
-![Recorded native app interaction](app-demo-preview.gif)
+https://github.com/user-attachments/assets/b48fbd5a-e1a3-4203-9662-f1ace9257a62
 
 Captured on 2026-11-02 UTC from the real SwiftUI application, using a dedicated synthetic
 account and live Qwen3-8B inference. This is not the scripted HTML prototype and is not a
