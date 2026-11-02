@@ -16,7 +16,7 @@ from healthops.schemas import Metric, ObservationBatch
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "examples/ios-upload.synthetic.json"
-PACKAGE = ROOT / "ios/HealthOpsUploader"
+PACKAGE = ROOT.parent / "frontend-app/HealthOpsUploader"
 
 
 def test_committed_fixture_is_a_valid_batch():

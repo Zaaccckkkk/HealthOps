@@ -1,19 +1,27 @@
-"""Download the third-party reference sources listed in knowledge/sources.yaml.
+"""Download the third-party reference sources listed in knowledge/sources.yaml (repository root).
 
-Files land in .local/knowledge/raw/ (ignored by Git and Docker) and are verified against the
-sha256 recorded in the manifest, so everyone works from the same text that was licence-checked.
+Files land in src/api-service/.local/knowledge/raw/ (ignored by Git and Docker) and are
+verified against the sha256 recorded in the manifest, so everyone works from the same text that
+was licence-checked.
 Nothing is parsed or embedded here; this is collection only.
 """
 
 import argparse
 import hashlib
+import os
 import sys
 import urllib.request
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-MANIFEST = ROOT / "knowledge/sources.yaml"
-RAW = ROOT / ".local/knowledge/raw"
+# This file lives in src/api-service/scripts/knowledge/. The corpus description (manifest and
+# the project's own notes) is at the repository root next to data/ and configs/; containers
+# receive both locations through the environment (see docker-compose.yml, service rag-ingest).
+SERVICE = Path(__file__).resolve().parents[2]
+KNOWLEDGE_DIR = Path(
+    os.environ.get("HEALTHOPS_KNOWLEDGE_DIR") or SERVICE.parent.parent / "knowledge"
+)
+MANIFEST = KNOWLEDGE_DIR / "sources.yaml"
+RAW = Path(os.environ.get("HEALTHOPS_KNOWLEDGE_RAW_DIR") or SERVICE / ".local/knowledge/raw")
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) "
     "Version/17.6 Safari/605.1.15"

@@ -46,7 +46,7 @@ def test_source_ids_and_files_are_unique():
 
 
 def test_own_documents_exist_and_are_english_markdown():
-    own = sorted((ROOT / "knowledge/own").glob("*.md"))
+    own = sorted((ROOT.parents[1] / "knowledge/own").glob("*.md"))
     assert {p.name for p in own} >= {
         "statistical-definitions.md",
         "warnings-glossary.md",

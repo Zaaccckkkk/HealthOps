@@ -25,7 +25,7 @@ from healthops.assistant.contracts import AskResponse
 from healthops.assistant.model import ModelTurn
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURES = ROOT / "ios/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant"
+FIXTURES = ROOT.parent / "frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant"
 
 DAILY = call(
     "daily_summary", metric="resting_heart_rate", start_date="2026-09-26", end_date="2026-09-28"

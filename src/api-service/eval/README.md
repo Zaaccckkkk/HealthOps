@@ -44,6 +44,6 @@ hand with `rubric.md`; the script writes a grading sheet with one row per questi
 
 ## Reporting
 
-`uv run python ml/eval/summarize_runs.py` prints one Markdown row per run directory under
+`uv run python eval/summarize_runs.py` prints one Markdown row per run directory under
 `.local/eval/` from its `summary.json`. Tables in `RESULTS.md` are copied from that output, not
 typed by hand, so the counts can be re-derived from the raw summaries at any time.

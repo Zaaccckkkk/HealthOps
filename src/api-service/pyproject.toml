@@ -27,11 +27,11 @@ dev = ["pytest>=8.3,<9", "ruff>=0.11,<1"]
 healthops = "healthops.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["services/ingestion-api/src/healthops"]
+packages = ["healthops"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["services/ingestion-api/src"]
+pythonpath = ["."]
 markers = ["integration: requires a dedicated PostgreSQL test database"]
 
 [tool.ruff]

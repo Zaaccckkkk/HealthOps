@@ -89,7 +89,7 @@ fallback while the cards still show the data.
 
 ## Development set (25 questions; tuned on)
 
-Counts below are copied from `summary.json` of each run via `ml/eval/summarize_runs.py`
+Counts below are copied from `summary.json` of each run via `eval/summarize_runs.py`
 (run directories `20261002T212414Z`, `212954Z`, `213553Z`). An earlier version of this table
 reported Run A as "answered 7" and "2 / 7 / 16"; those figures were typed from memory and were
 wrong. The corrected row is the raw summary.

@@ -1,0 +1,113 @@
+name: healthops-portfolio
+
+x-app: &app
+  build: ./src/api-service
+  environment:
+    HEALTHOPS_DATABASE_URL: postgresql+psycopg://healthops:local-only-password@db:5432/healthops
+    HEALTHOPS_ENVIRONMENT: local
+
+services:
+  db:
+    image: pgvector/pgvector:pg17  # PostgreSQL 17 with the pgvector extension (vector database)
+    environment:
+      POSTGRES_USER: healthops
+      POSTGRES_PASSWORD: local-only-password
+      POSTGRES_DB: healthops
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthops -d healthops"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    environment:  # replaces the anchor's environment, so the first two lines repeat it
+      HEALTHOPS_DATABASE_URL: postgresql+psycopg://healthops:local-only-password@db:5432/healthops
+      HEALTHOPS_ENVIRONMENT: local
+      # Assistant and RAG lookups: qwen3:8b and nomic-embed-text on an Ollama running on the host
+      # (ollama pull qwen3:8b). Without Ollama the API still runs; /v1/assistant/ask reports a
+      # model error.
+      HEALTHOPS_ASSISTANT_MODEL_BASE_URL: ${ASSISTANT_MODEL_BASE_URL:-http://host.docker.internal:11434}
+      HEALTHOPS_ASSISTANT_THINKING: "false"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Separate ephemeral database: integration tests cannot erase the demo database.
+  test-db:
+    image: pgvector/pgvector:pg17  # PostgreSQL 17 with the pgvector extension (vector database)
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: healthops
+      POSTGRES_PASSWORD: test-only-password
+      POSTGRES_DB: healthops_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthops -d healthops_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  test:
+    <<: *app
+    profiles: ["test"]
+    environment:
+      HEALTHOPS_TEST_DATABASE_URL: postgresql+psycopg://healthops:test-only-password@test-db:5432/healthops_test
+      HEALTHOPS_KNOWLEDGE_DIR: /knowledge
+    command: ["pytest", "-q", "-p", "no:cacheprovider", "tests"]
+    # Contract tests compare against the iOS fixtures of the frontend-app service; knowledge
+    # tests read the corpus manifest and the project's own notes from the repository root.
+    volumes:
+      - ./src/frontend-app:/frontend-app:ro
+      - ./knowledge:/knowledge:ro
+    depends_on:
+      test-db:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------------------
+  # RAG pipeline (one-shot): collect sources -> chunk -> embed -> pgvector. Same image as the API,
+  # so the chunker and the store are exactly what the assistant's lookup_reference tool uses.
+  rag-ingest:
+    <<: *app
+    profiles: ["rag"]
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"  # downloaded texts stay editable on the host
+    environment:
+      HEALTHOPS_DATABASE_URL: postgresql+psycopg://healthops:local-only-password@db:5432/healthops
+      HEALTHOPS_ENVIRONMENT: local
+      HEALTHOPS_KNOWLEDGE_DIR: /knowledge
+      HEALTHOPS_KNOWLEDGE_RAW_DIR: /knowledge-raw/raw
+      # Embeddings: nomic-embed-text on an Ollama running on the host (ollama pull nomic-embed-text).
+      HEALTHOPS_ASSISTANT_MODEL_BASE_URL: ${KNOWLEDGE_EMBEDDING_BASE_URL:-http://host.docker.internal:11434}
+    volumes:
+      - ./knowledge:/knowledge:ro                       # manifest + the project's own notes (Git)
+      - ./src/api-service/.local/knowledge:/knowledge-raw  # third-party texts (never committed)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["sh", "-c", "python scripts/knowledge/fetch_sources.py && python scripts/knowledge/ingest.py"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:

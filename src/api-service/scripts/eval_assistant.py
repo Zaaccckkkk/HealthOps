@@ -3,7 +3,7 @@
 Steps: ensure the synthetic evaluation user and its deterministic history exist in the LOCAL
 database, run every question of the chosen set through the orchestrator in-process, write raw
 outputs to .local/eval/<timestamp>/ (never committed), print metrics, and write a grading sheet
-for the manual rubric in ml/eval/rubric.md.
+for the manual rubric in eval/rubric.md.
 
 Engineering tests use a scripted model; this script measures the real model. A poor result is
 reported as such, never hidden.
@@ -23,8 +23,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "services/ingestion-api/src"))
-sys.path.insert(0, str(ROOT / "ml/eval"))
+sys.path.insert(0, str(ROOT / "."))
+sys.path.insert(0, str(ROOT / "eval"))
 
 from synthetic_history import observations  # noqa: E402
 
@@ -102,7 +102,7 @@ async def run(args):
         await model.describe()  # digest / context window recorded with the run
     questions = [
         json.loads(line)
-        for line in (ROOT / f"ml/eval/assistant_{args.set}.synthetic.jsonl")
+        for line in (ROOT / f"eval/assistant_{args.set}.synthetic.jsonl")
         .read_text()
         .splitlines()
         if line

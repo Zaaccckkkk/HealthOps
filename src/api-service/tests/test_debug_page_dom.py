@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGE = ROOT / "services/ingestion-api/src/healthops/assistant/debug_page.html"
+PAGE = ROOT / "healthops/assistant/debug_page.html"
 HARNESS = ROOT / "tests/debug_page_dom.js"
 
 pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="Node is not installed")

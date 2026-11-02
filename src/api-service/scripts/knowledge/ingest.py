@@ -5,21 +5,23 @@ fetch_sources.py) and knowledge/own/*.md, chunks them, embeds them and replaces 
 chunks atomically. Requires HEALTHOPS_DATABASE_URL and HEALTHOPS_ASSISTANT_MODEL_BASE_URL (or
 HEALTHOPS_KNOWLEDGE_EMBEDDING_BASE_URL) in the environment, like the API.
 
-    uv run python scripts/knowledge/ingest.py             # everything
+    uv run python scripts/knowledge/ingest.py             # everything (from src/api-service/)
     uv run python scripts/knowledge/ingest.py --only own   # project documents only
+    make rag                                              # the same two steps in Compose
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts/knowledge"))
-sys.path.insert(0, str(ROOT / "services/ingestion-api/src"))
+SERVICE = Path(__file__).resolve().parents[2]  # src/api-service
+sys.path.insert(0, str(SERVICE / "scripts/knowledge"))
+sys.path.insert(0, str(SERVICE))
 
-from fetch_sources import RAW, load_manifest  # noqa: E402
+from fetch_sources import KNOWLEDGE_DIR, RAW, load_manifest  # noqa: E402
 
 from healthops.config import Settings  # noqa: E402
 from healthops.db import build_engine  # noqa: E402
@@ -27,7 +29,10 @@ from healthops.knowledge.embeddings import OllamaEmbedder  # noqa: E402
 from healthops.knowledge.ingest import SourceSpec, ingest_source, own_document_specs  # noqa: E402
 from healthops.knowledge.store import count_by_source  # noqa: E402
 
-REPO_URL = "https://github.com/Zaaccckkkk/HealthOps/blob/main"
+# Link shown on reference cards for the project's own notes.
+REPO_URL = os.environ.get(
+    "HEALTHOPS_KNOWLEDGE_REPO_URL", "https://github.com/HuihanCui/ac215_Megatron/blob/milestone2"
+)
 
 
 def manifest_specs() -> list[SourceSpec]:
@@ -66,7 +71,7 @@ def main() -> int:
     )
     specs: list[SourceSpec] = []
     if args.only != "manifest":
-        specs += own_document_specs(ROOT / "knowledge/own", REPO_URL)
+        specs += own_document_specs(KNOWLEDGE_DIR / "own", REPO_URL)
     if args.only != "own":
         specs += manifest_specs()
     engine = build_engine(settings.database_url.get_secret_value())

@@ -15,7 +15,17 @@ dist/
 *.egg-info/
 .DS_Store
 # Xcode and SwiftPM build products for the iOS adapter
-ios/**/.build/
-ios/**/DerivedData/
-ios/**/xcuserdata/
-ios/**/*.xcworkspace/xcshareddata/swiftpm/
+src/frontend-app/**/.build/
+src/frontend-app/**/DerivedData/
+src/frontend-app/**/xcuserdata/
+src/frontend-app/**/*.xcworkspace/xcshareddata/swiftpm/
+# Dataset contents are versioned with DVC; Git keeps manifests, configs and .dvc pointers.
+# (version-prefixed patterns: DVC's matcher would treat /data/raw/*/ as data/raw/ itself)
+/data/raw/raw-v*/
+/data/processed/canonical/canonical-v*/
+/data/synthetic/synthetic-v*/
+
+# Preserve ignored build artifacts from the earlier standalone layout.
+.build/
+DerivedData/
+xcuserdata/

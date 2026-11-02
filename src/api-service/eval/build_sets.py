@@ -11,9 +11,9 @@ import sys
 from datetime import date
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "services/ingestion-api/src"))
-sys.path.insert(0, str(ROOT / "ml/eval"))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "."))
+sys.path.insert(0, str(ROOT / "eval"))
 
 from synthetic_history import TODAY, observations  # noqa: E402
 
@@ -539,9 +539,9 @@ def write(path: Path, rows) -> None:
 
 
 if __name__ == "__main__":
-    write(ROOT / "ml/eval/assistant_dev.synthetic.jsonl", DEV)
-    write(ROOT / "ml/eval/assistant_test.synthetic.jsonl", TEST)
-    write(ROOT / "ml/eval/assistant_heldout2.synthetic.jsonl", HELDOUT2)
-    write(ROOT / "ml/eval/assistant_protocol.synthetic.jsonl", PROTOCOL)
-    write(ROOT / "ml/eval/assistant_reference.synthetic.jsonl", REFERENCE)
+    write(ROOT / "eval/assistant_dev.synthetic.jsonl", DEV)
+    write(ROOT / "eval/assistant_test.synthetic.jsonl", TEST)
+    write(ROOT / "eval/assistant_heldout2.synthetic.jsonl", HELDOUT2)
+    write(ROOT / "eval/assistant_protocol.synthetic.jsonl", PROTOCOL)
+    write(ROOT / "eval/assistant_reference.synthetic.jsonl", REFERENCE)
     print(len(DEV), len(TEST), len(HELDOUT2), len(PROTOCOL), len(REFERENCE))

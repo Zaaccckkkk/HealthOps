@@ -11,7 +11,7 @@ from healthops.assistant.time_semantics import resolve
 from healthops.assistant.toolbox import build_registry
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "ml/eval"))
+sys.path.insert(0, str(ROOT / "eval"))
 
 import build_sets  # noqa: E402
 
@@ -32,7 +32,7 @@ ROWS = {
 
 
 def load(name):
-    return [json.loads(line) for line in (ROOT / "ml/eval" / name).read_text().splitlines() if line]
+    return [json.loads(line) for line in (ROOT / "eval" / name).read_text().splitlines() if line]
 
 
 @pytest.mark.parametrize("name", SETS)
@@ -49,7 +49,7 @@ def test_committed_sets_match_the_generator(name):
         }
         for i, q, e, n in rows
     ]
-    assert load(name) == regenerated, "run python ml/eval/build_sets.py"
+    assert load(name) == regenerated, "run python eval/build_sets.py"
 
 
 @pytest.mark.parametrize("name", SETS)

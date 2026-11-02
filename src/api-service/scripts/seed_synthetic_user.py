@@ -2,7 +2,7 @@
 
 Used to give the synthetic phone-tester account something to ask about on a deployment where
 no HealthKit data is uploaded. Reads a credential file written by `healthops create-user`
-(never printed), posts `ml/eval/synthetic_history.observations()` in batches of at most 500,
+(never printed), posts `eval/synthetic_history.observations()` in batches of at most 500,
 and reports inserted/duplicate counts. Re-running is replay-safe: the server answers with
 duplicates. Synthetic data only; never point this at real health records.
 
@@ -19,7 +19,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "ml/eval"))
+sys.path.insert(0, str(ROOT / "eval"))
 
 from synthetic_history import observations  # noqa: E402
 

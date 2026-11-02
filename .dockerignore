@@ -8,6 +8,6 @@ __pycache__
 .pytest_cache
 .ruff_cache
 tmp
-ios/**/.build
-ios/**/DerivedData
-ios/**/xcuserdata
+src/frontend-app/**/.build
+src/frontend-app/**/DerivedData
+src/frontend-app/**/xcuserdata

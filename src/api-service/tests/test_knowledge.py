@@ -91,7 +91,7 @@ def test_quote_limit_follows_the_allowed_use():
     assert (
         short.quote_limit_chars == SHORT_QUOTE_CHARS and full.quote_limit_chars > SHORT_QUOTE_CHARS
     )
-    own = own_document_specs(ROOT / "knowledge/own", "https://example.test")
+    own = own_document_specs(ROOT.parents[1] / "knowledge/own", "https://example.test")
     assert {s.id for s in own} >= {"own-statistical-definitions", "own-warnings-glossary"}
     assert all(s.kind == "markdown" for s in own)
 
