@@ -27,8 +27,13 @@ This is an illustrative interaction, not a transcript or a claim about a specifi
 - **UI preview:** [interactive HTML prototype](src/frontend-app/prototype/README.md).
   Run `python3 -m http.server 8765 --bind 127.0.0.1 --directory src/frontend-app/prototype`.
   It uses scripted synthetic examples and does not call the API or model.
-- A real-device recording is not included yet. A future demo should use a synthetic account
-  and show clarification, continuation, evidence and missing-data behavior.
+- **Recorded native demo:** [watch the 45-second Simulator video](docs/demo/simulator-demo.mp4).
+  Live Qwen3-8B, synthetic account, local backend; edited waits are labeled.
+  [Runtime, editing disclosure and phone acceptance checklist](docs/demo/README.md).
+
+[![Native Simulator demo: clarification, verified answer and evidence](docs/demo/simulator-preview.gif)](docs/demo/simulator-demo.mp4)
+
+Physical-iPhone acceptance of this build is pending.
 
 ## Design that matters
 
