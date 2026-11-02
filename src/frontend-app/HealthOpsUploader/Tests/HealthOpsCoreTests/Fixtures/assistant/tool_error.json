@@ -2,6 +2,12 @@
   "answer": "The model repeated an invalid tool call: invalid fields: metric",
   "cards": [],
   "claims": [],
+  "clarification": null,
+  "completion_status": "not_checked",
+  "conversation_expires_at": null,
+  "conversation_id": null,
+  "conversation_version": null,
+  "coverage": [],
   "disclaimer": "This assistant summarizes the user's own recorded data using deterministic tools. It is not medical advice, not a diagnosis and not a clinically validated assessment.",
   "evidence": [],
   "explanation_status": "not_applicable",
@@ -31,6 +37,8 @@
     "status": "not_applicable",
     "unmatched": []
   },
+  "request_spec": null,
+  "routing_status": null,
   "status": "tool_error",
   "time_semantics": {
     "definitions": {
@@ -92,5 +100,6 @@
       "status": "invalid_arguments",
       "warnings": []
     }
-  ]
+  ],
+  "verification_attempts": []
 }

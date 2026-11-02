@@ -34,7 +34,7 @@ public final class APIClient: Uploader, @unchecked Sendable {
         return try ContractEncoding.decoder().decode(BatchResult.self, from: data)
     }
 
-    /// Single-turn question. The server deadline is 120 s, so the client waits a little longer
+    /// Question or clarification reply. The server deadline is 120 s, so the client waits a little longer
     /// and reports anything else as a failure category the screen can show.
     public func ask(_ ask: AskRequest) async throws -> AskResponse {
         let body = try ContractEncoding.encoder().encode(ask)
@@ -52,6 +52,7 @@ public final class APIClient: Uploader, @unchecked Sendable {
             do { return try JSONDecoder().decode(AskResponse.self, from: data) }
             catch { throw ServiceFailure.decoding(String(describing: error).prefix(200).description) }
         case 401: throw ServiceFailure.unauthorized
+        case 409: throw ServiceFailure.invalidRequest("Conversation expired or already resumed. Start a new question.")
         case 422:
             if case let .invalid(locations) = Self.error(for: status, data: data) {
                 throw ServiceFailure.invalidRequest(locations)

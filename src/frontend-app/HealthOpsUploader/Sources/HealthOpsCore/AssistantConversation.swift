@@ -24,10 +24,7 @@ public enum ServiceFailure: Error, Equatable, Sendable {
     }
 }
 
-/// In-memory question history. Each question is an independent single-turn request to the
-/// server (no conversation is sent); the history exists only on the screen and is dropped on
-/// `reset()`, which also makes every in-flight response stale so a late answer for a previous
-/// server, token or account can never be shown.
+/// Screen history plus a server-issued clarification continuation. Reset on scope changes.
 public struct AssistantConversation: Equatable, Sendable {
     public enum Outcome: Equatable, Sendable {
         case response(AskResponse)
@@ -46,6 +43,9 @@ public struct AssistantConversation: Equatable, Sendable {
         public let generation: Int
         public let turnID: UUID
     }
+
+    public private(set) var conversationID: String?
+    public private(set) var conversationVersion: Int?
 
     public private(set) var turns: [Turn] = []
     public private(set) var generation = 0
@@ -66,7 +66,16 @@ public struct AssistantConversation: Equatable, Sendable {
     @discardableResult
     public mutating func complete(_ ticket: Ticket, with outcome: Outcome) -> Bool {
         guard ticket.generation == generation,
-              let index = turns.firstIndex(where: { $0.id == ticket.turnID }) else { return false }
+              let index = turns.firstIndex(where: { $0.id == ticket.turnID }),
+              turns[index].outcome == nil else { return false }
+        if inFlight == ticket, case let .response(response) = outcome {
+            conversationID = response.conversationID
+            conversationVersion = response.conversationVersion
+        } else if inFlight == ticket {
+            // A lost HTTP response may already have consumed the continuation. Start fresh.
+            conversationID = nil
+            conversationVersion = nil
+        }
         turns[index].outcome = outcome
         if inFlight == ticket { inFlight = nil }
         return true
@@ -75,6 +84,8 @@ public struct AssistantConversation: Equatable, Sendable {
     /// Clears the history and invalidates every outstanding ticket. Call on server, token or
     /// account change; the caller cancels the running task as well.
     public mutating func reset() {
+        conversationID = nil
+        conversationVersion = nil
         generation += 1
         turns.removeAll()
         inFlight = nil

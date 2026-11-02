@@ -1,0 +1,164 @@
+{
+  "answer": "Which metrics should I include: steps, sleep duration, or resting heart rate? Which time range do you mean: past 7, 15 or 30 days, or explicit ISO dates?",
+  "cards": [],
+  "claims": [],
+  "clarification": {
+    "fields": [
+      {
+        "allows_custom": true,
+        "id": "metrics",
+        "label": "Which metrics should I include: steps, sleep duration, or resting heart rate?",
+        "options": [
+          {
+            "id": "heart_rate",
+            "label": "Heart Rate",
+            "reply_text": "heart_rate"
+          },
+          {
+            "id": "resting_heart_rate",
+            "label": "Resting Heart Rate",
+            "reply_text": "resting_heart_rate"
+          },
+          {
+            "id": "steps",
+            "label": "Steps",
+            "reply_text": "steps"
+          },
+          {
+            "id": "hrv_sdnn",
+            "label": "Hrv Sdnn",
+            "reply_text": "hrv_sdnn"
+          },
+          {
+            "id": "hrv_rmssd",
+            "label": "Hrv Rmssd",
+            "reply_text": "hrv_rmssd"
+          },
+          {
+            "id": "sleep_duration",
+            "label": "Sleep Duration",
+            "reply_text": "sleep_duration"
+          },
+          {
+            "id": "active_energy",
+            "label": "Active Energy",
+            "reply_text": "active_energy"
+          },
+          {
+            "id": "exercise_duration",
+            "label": "Exercise Duration",
+            "reply_text": "exercise_duration"
+          }
+        ],
+        "selection": "multiple"
+      },
+      {
+        "allows_custom": true,
+        "id": "time_range",
+        "label": "Which time range do you mean: past 7, 15 or 30 days, or explicit ISO dates?",
+        "options": [
+          {
+            "id": "past_7_days",
+            "label": "Past 7 days",
+            "reply_text": "past 7 days"
+          },
+          {
+            "id": "past_15_days",
+            "label": "Past 15 days",
+            "reply_text": "past 15 days"
+          },
+          {
+            "id": "past_30_days",
+            "label": "Past 30 days",
+            "reply_text": "past 30 days"
+          }
+        ],
+        "selection": "single"
+      }
+    ],
+    "version": 1
+  },
+  "completion_status": "not_checked",
+  "conversation_expires_at": "2026-11-01T20:00:00Z",
+  "conversation_id": "11111111-1111-4111-8111-111111111199",
+  "conversation_version": 1,
+  "coverage": [],
+  "disclaimer": "This assistant summarizes the user's own recorded data using deterministic tools. It is not medical advice, not a diagnosis and not a clinically validated assessment.",
+  "evidence": [],
+  "explanation_status": "not_applicable",
+  "limits": {
+    "deadline_seconds": 120.0,
+    "evidence_budget_bytes": 262144,
+    "max_model_turns": 6,
+    "max_tool_calls": 4,
+    "model_context_budget_chars": 24000
+  },
+  "model": {
+    "digest": null,
+    "endpoint_host": null,
+    "loaded_context": null,
+    "max_output_tokens": 0,
+    "model_max_context": null,
+    "name": "scripted",
+    "prompt_version": "test",
+    "quantization": null,
+    "temperature": 0.0,
+    "thinking": null
+  },
+  "model_text": null,
+  "numeric_consistency": {
+    "note": "Numeric consistency diagnostic: numbers in the answer were looked up in the tool results. It does not verify direction, unit, window, provider or interpretation.",
+    "numbers_in_answer": [],
+    "status": "not_applicable",
+    "unmatched": []
+  },
+  "request_spec": {
+    "baseline": null,
+    "intent": "summary",
+    "language": "en",
+    "metrics": [],
+    "router_version": "2026-11-01.1",
+    "unresolved_fields": [
+      "metrics",
+      "time_range"
+    ],
+    "window": null
+  },
+  "routing_status": "needs_clarification",
+  "status": "needs_clarification",
+  "time_semantics": {
+    "definitions": {
+      "explicit_dates": "Dates written in the question are used as written. Any other relative phrase is unsupported and must be declined rather than guessed.",
+      "last_night": "For sleep: the local day before today, because sleep intervals are assigned to the day they start (the evening before counts as that day's sleep).",
+      "last_week": "The previous calendar week, Monday through Sunday, inclusive.",
+      "past_30_days": "The thirty local days ending today, inclusive of today.",
+      "past_7_days": "The seven local days ending today, inclusive of today.",
+      "previous_30_days": "The thirty local days immediately before the past 30 days.",
+      "previous_7_days": "The seven local days immediately before the past 7 days.",
+      "this_week": "Monday of the current week through today, inclusive.",
+      "three_weeks_ago": "The calendar week three weeks before the current week, Monday to Sunday.",
+      "timezone": "All dates use the request timezone; the server injects it into every tool call.",
+      "today": "The current local date in the request timezone (or the evaluation override).",
+      "week_before_last": "The calendar week before last week (two weeks ago), Monday to Sunday.",
+      "yesterday": "The local day before today."
+    },
+    "last_week_end": "2026-08-09",
+    "last_week_start": "2026-08-03",
+    "past_30_days_start": "2026-07-12",
+    "past_7_days_start": "2026-08-04",
+    "previous_30_days_end": "2026-07-11",
+    "previous_30_days_start": "2026-06-12",
+    "previous_7_days_end": "2026-08-03",
+    "previous_7_days_start": "2026-07-28",
+    "this_week_start": "2026-08-10",
+    "three_weeks_ago_end": "2026-07-26",
+    "three_weeks_ago_start": "2026-07-20",
+    "timezone": "UTC",
+    "today": "2026-08-10",
+    "week_before_last_end": "2026-08-02",
+    "week_before_last_start": "2026-07-27",
+    "yesterday": "2026-08-09"
+  },
+  "tool_calls": [],
+  "verification_attempts": []
+}

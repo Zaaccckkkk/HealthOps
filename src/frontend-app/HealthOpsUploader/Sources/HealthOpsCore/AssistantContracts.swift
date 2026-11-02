@@ -8,13 +8,17 @@ import Foundation
 // a new server value must never crash decoding, and `unknown` is never shown as success.
 
 public struct AskRequest: Encodable, Equatable, Sendable {
+    public var conversation_id: String?
+    public var conversation_version: Int?
     public var question: String
     public var timezone: String
     /// Data channel chosen in the interface; nil means all channels. The server injects it into
     /// every tool call. `today` is never sent by the client.
     public var provider: String?
 
-    public init(question: String, timezone: String, provider: String?) {
+    public init(question: String, timezone: String, provider: String?, conversationID: String? = nil, conversationVersion: Int? = nil) {
+        self.conversation_id = conversationID
+        self.conversation_version = conversationVersion
         self.question = question
         self.timezone = timezone
         self.provider = provider
@@ -182,6 +186,10 @@ public struct VerifiedClaim: Decodable, Equatable, Sendable {
 }
 
 public struct AskResponse: Decodable, Equatable, Sendable {
+    public var clarification: ClarificationForm?
+    public var conversationExpiresAt: String?
+    public var conversationID: String?
+    public var conversationVersion: Int?
     public var status: DataStatus
     public var explanationStatus: ExplanationStatus
     public var answer: String
@@ -191,10 +199,16 @@ public struct AskResponse: Decodable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case status, explanationStatus = "explanation_status", answer, claims, cards, disclaimer
+        case clarification, conversationExpiresAt = "conversation_expires_at"
+        case conversationID = "conversation_id", conversationVersion = "conversation_version"
     }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        clarification = try c.decodeIfPresent(ClarificationForm.self, forKey: .clarification)
+        conversationExpiresAt = try c.decodeIfPresent(String.self, forKey: .conversationExpiresAt)
+        conversationID = try c.decodeIfPresent(String.self, forKey: .conversationID)
+        conversationVersion = try c.decodeIfPresent(Int.self, forKey: .conversationVersion)
         status = try c.decode(DataStatus.self, forKey: .status)
         explanationStatus = try c.decode(ExplanationStatus.self, forKey: .explanationStatus)
         answer = try c.decode(String.self, forKey: .answer)

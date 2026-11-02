@@ -100,3 +100,17 @@ final class AssistantContractsTests: XCTestCase {
         XCTAssertEqual(Set(object.keys), ["question", "timezone"])  // nil provider is omitted, no `today`
     }
 }
+
+
+extension AssistantContractsTests {
+    func testStructuredClarificationDecodesRealPythonPayload() throws {
+        let response = try load("structured_clarification")
+        XCTAssertEqual(response.status, .needsClarification)
+        let form = try XCTUnwrap(response.clarification)
+        XCTAssertEqual(form.fields.map(\.id), ["metrics", "time_range"])
+        XCTAssertEqual(form.fields.last?.options.map(\.reply_text), ["past 7 days", "past 15 days", "past 30 days"])
+        XCTAssertNotNil(response.conversationExpiresAt)
+        XCTAssertTrue(response.cards.isEmpty)
+        XCTAssertEqual(ClarificationDraft().reply(for: form), "")
+    }
+}

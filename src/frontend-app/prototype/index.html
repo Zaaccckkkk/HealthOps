@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HealthOps · Ask prototype</title>
+<style>
+:root { font-family:system-ui,sans-serif; color:#202024; background:#f8f5f1; font-size:16px; }
+* { box-sizing:border-box; } body { margin:0; } button,input,textarea { font:inherit; }
+button { cursor:pointer; border:1.5px solid #29282b; background:#fffdfa; color:inherit;
+  border-radius:7px; padding:12px 16px; min-height:44px; }
+button:hover { background:#eae6e0; }
+button:focus-visible,input:focus-visible,textarea:focus-visible { outline:3px solid #68656b; outline-offset:3px; }
+button[aria-pressed=true] { background:#252428; color:#fffdfa; }
+button[aria-pressed=true]::before { content:'✓ '; }
+button:disabled { opacity:.45; cursor:default; }
+.primary { background:#252428; color:#fffdfa; }
+.primary:hover { background:#46434a; color:#fffdfa; }
+.shell { max-width:1220px; margin:auto; display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+aside { padding:36px 25px; border-right:1px solid #c9c4be; }
+.brand { font-weight:800; font-size:25px; letter-spacing:-1px; }
+.brand span { color:inherit; }
+nav { display:grid; gap:10px; margin-top:60px; }
+nav strong { background:#252428; color:#fffdfa; padding:16px; border-radius:7px; }
+nav p { padding:0 16px; color:#666269; }
+small,.muted { color:#615d62; }
+main { padding:36px 52px; max-width:900px; width:100%; display:flex; flex-direction:column; }
+.top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.pill { border:1.5px solid #29282b; border-radius:5px; padding:8px 11px;
+  font:600 11px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.4px; }
+.eyebrow { font:650 12px ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:1.2px; text-transform:uppercase; color:#615d62; }
+h1 { font-size:44px; letter-spacing:-1.8px; font-weight:800; line-height:1.1; margin:38px 0 16px; }
+h2 { font-size:22px; letter-spacing:-.6px; margin:10px 0; }
+p { line-height:1.6; } .intro { max-width:540px; }
+.examples,.options { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
+.card { background:#fffdfa; border:2px solid #29282b; border-radius:14px; padding:26px;
+  margin:18px 0; box-shadow:0 5px 0 #d9d4ce; }
+.card > .eyebrow { display:block; border-bottom:1.5px solid #29282b; padding-bottom:14px;
+  margin:-6px 0 20px; color:#29282b; }
+.user { margin:24px 0 18px 55px; background:#eae6e0; border:1px solid #b6b0aa;
+  padding:17px 22px; border-radius:12px 12px 3px 12px; }
+.label { display:block; font-size:14px; font-weight:700; margin-top:20px; }
+.options button { font-size:14px; }
+.actions { display:flex; gap:10px; align-items:center; margin-top:18px; flex-wrap:wrap; }
+textarea { width:100%; resize:vertical; min-height:70px; border:1.5px solid #79747a;
+  background:#fffdfa; color:#202024; border-radius:7px; padding:14px; margin-top:10px; }
+textarea::placeholder { color:#716c72; }
+details { border-top:1px solid #c9c4be; margin-top:18px; padding-top:18px; }
+summary { cursor:pointer; font-weight:600; }
+.source { display:flex; justify-content:space-between; gap:10px; border-bottom:1px solid #dcd6d0; padding:15px 0; }
+.caption { font-size:13px; line-height:1.5; }
+.lab { margin-top:30px; border-top:1px solid #c9c4be; padding-top:18px; }
+.lab button { font-size:12px; padding:8px 10px; }
+#thread { flex:1; }
+.composer { margin-top:24px; }
+#clarification-slot { margin-top:auto; padding-top:24px; }
+#clarification-slot:empty { display:none; }
+.clarification { border:1px solid #79747a; background:#fffdfa; border-radius:12px; padding:14px 16px; }
+.clarification h2 { font-size:15px; letter-spacing:0; margin:0 0 10px; }
+.clarification .choice-row { display:flex; align-items:center; gap:12px; }
+.clarification .label { margin:0; font-size:12px; min-width:48px; }
+.clarification .options { flex-wrap:nowrap; overflow-x:auto; margin:4px 0; gap:6px; }
+.clarification button { font-size:13px; padding:8px 10px; white-space:nowrap; }
+.clarification textarea { min-height:44px; height:44px; padding:10px; margin-top:8px; }
+.clarification .actions { margin-top:8px; }
+.clarification #summary { margin:6px 0 0; font-size:11px; line-height:1.3; }
+.clarification .custom-label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+.status,#summary { font:13px ui-monospace,SFMono-Regular,Menlo,monospace; color:#615d62; }
+#summary { margin-top:14px; line-height:1.6; }
+.hidden { display:none!important; }
+footer { font-size:12px; color:#615d62; margin-top:28px; }
+@media(max-width:720px) {
+  .shell { display:block; } aside { padding:18px 22px; border-bottom:1px solid #c9c4be; border-right:0; }
+  aside .caption,nav { display:none; } main { padding:24px; }
+  h1 { font-size:36px; margin-top:28px; } .card { padding:20px; }
+  .user { margin-left:24px; } .top { align-items:flex-start; }
+}
+</style>
+<div class="shell"><aside><div class="brand">health<span>ops</span> ↗</div><nav><p>Overview</p><strong>◌ &nbsp; Ask your assistant</strong><p>Connections</p></nav><p class="caption">Your records.<br>Your sources.<br>A clearer picture.</p></aside>
+<main><header class="top"><span class="eyebrow">Cross-device assistant</span><span class="pill">SYNTHETIC PROTOTYPE</span></header><h1>Understand your everyday.</h1><p class="intro muted">Explore your recorded activity and sleep. Choose a scope, compare sources, and see the evidence behind an answer.</p>
+<div id="empty"><div class="examples"><button data-question="How have I been doing recently?">How have I been doing recently? ↗</button><button data-question="Show my steps yesterday.">Show my steps yesterday ↗</button></div><p class="caption">Illustrative Apple Health + Google Health sources. No live account is connected.</p></div>
+<section id="thread" aria-live="polite"></section>
+<section id="clarification-slot" aria-label="Clarification" aria-live="polite"></section>
+<form id="composer" class="composer"><label for="question" class="label">Ask or add a detail</label><textarea id="question" placeholder="For example, sleep duration over the past 7 days…" required></textarea><div class="actions"><button class="primary" id="send">Send question</button><button type="button" id="reset">New question</button></div></form>
+<div id="preview-controls" class="lab hidden"><span class="eyebrow">Explore a state</span><div class="options"><button data-mode="missing">No records</button><button data-mode="failure">Service unavailable</button><button data-mode="reference">No reference found</button><button data-mode="devices">Device comparison</button></div><small>Scripted UI demonstration. Buttons do not call a model, query records, or train anything.</small></div><footer>Not medical advice. Evidence stays associated with its original source.</footer></main></div>
+<script>
+const $=id=>document.getElementById(id);
+// Preview tools are opt-in and never part of the native app.
+if(new URLSearchParams(location.search).get('preview')==='1') $('preview-controls').classList.remove('hidden');
+let pending=false,selectedTime='',selectedMetrics=new Set(),timer=null,generation=0;
+function el(tag,text,cls){const e=document.createElement(tag);e.textContent=text;if(cls)e.className=cls;return e}
+function reset(){generation++;clearTimeout(timer);pending=false;selectedTime='';selectedMetrics.clear();$('thread').replaceChildren();$('clarification-slot').replaceChildren();$('composer').classList.remove('hidden');$('empty').classList.remove('hidden');$('question').value='';$('send').disabled=false}
+function user(text){$('empty').classList.add('hidden');$('thread').append(el('div',text,'user'))}
+function result(mode){pending=false;$('composer').classList.remove('hidden');const card=el('div','','card');const map={missing:['No steps recorded in this example','No records is different from zero steps. Choose another date range or check available measurements.'],failure:['We could not reach the service','Your request may already have been processed. Start a new question; this demo does not automatically retry.'],reference:['No matching reference was found','There is no reference evidence to quote. Try a more specific term; no citation is invented.'],devices:['Two sources, kept separate','Illustrative same-day records differ. No discrepancy prediction or device reliability ranking is available.'],answer:['Your selected records, with their sources','This is a scripted answer preview, not a calculation or a model response.']};const [title,body]=map[mode]||map.answer;card.append(el('span','ILLUSTRATIVE RESULT','eyebrow'),el('h2',title),el('p',body));if(mode==='answer'||mode==='devices'){const details=el('details');details.append(el('summary','View source evidence'));for(const [name,value] of [['Apple Health · steps','6,200 steps'],['Google Health · steps','6,450 steps']]){const row=el('div','','source');row.append(el('span',name),el('strong',value));details.append(row)}details.append(el('p','Synthetic example · 2026-09-01 · UTC. These values are not outputs for your submitted scope.','caption'));card.append(details)}$('thread').append(card);$('send').disabled=false}
+function clarify(){pending=true;selectedTime='';selectedMetrics.clear();$('composer').classList.add('hidden');const card=el('div','','clarification');card.id='clarify';card.append(el('h2','Let’s make it specific'));
+for(const [key,title,values] of [['time','Time',['Past 7 days','Past 15 days','Past 30 days']],['metric','Metrics',['Steps','Sleep duration','Resting heart rate']]]){const row=el('div','','choice-row');row.append(el('div',title,'label'));const group=el('div','','options');group.setAttribute('role','group');group.setAttribute('aria-label',title+(key==='time'?' · choose one':' · choose one or more'));for(const value of values){const b=el('button',value);b.type='button';b.setAttribute('aria-pressed','false');b.onclick=()=>{if(key==='time'){selectedTime=selectedTime===value?'':value;for(const other of group.children)other.setAttribute('aria-pressed',String(other.textContent===selectedTime))}else{selectedMetrics.has(value)?selectedMetrics.delete(value):selectedMetrics.add(value);b.setAttribute('aria-pressed',String(selectedMetrics.has(value)))}update()};group.append(b)}row.append(group);card.append(row)}
+const label=el('label','Your own dates, metric, or correction','custom-label');label.htmlFor='custom';const input=el('textarea');input.id='custom';input.rows=1;input.placeholder='Or type your own dates, metric, or correction…';input.oninput=update;card.append(label,input,el('p','Choose options or type a reply.','muted'));card.lastChild.id='summary';const actions=el('div','','actions');const confirm=el('button','Confirm scope','primary');confirm.id='confirm';confirm.disabled=true;confirm.onclick=()=>{const text=[selectedTime,[...selectedMetrics].join(', '),input.value.trim()].filter(Boolean).join('; ');card.remove();$('composer').classList.remove('hidden');user(text);loading('answer')};const cancel=el('button','Cancel');cancel.onclick=reset;actions.append(confirm,cancel);card.append(actions);$('clarification-slot').append(card);$('send').disabled=false;card.querySelector('button').focus()}
+function update(){const text=[selectedTime,[...selectedMetrics].join(', '),$('custom').value.trim()].filter(Boolean).join(' · ');$('summary').textContent=text||'Nothing selected yet.';$('confirm').disabled=!text}
+function loading(mode){const g=generation;const progress=el('p','Preparing the scripted preview…','status');$('thread').append(progress);$('send').disabled=true;timer=setTimeout(()=>{if(g!==generation)return;progress.remove();mode==='clarify'?clarify():result(mode)},450)}
+function send(text){const old=$('clarify');if(old)old.remove();user(text);$('question').value='';loading(pending?'answer':/recent|lately|doing/i.test(text)?'clarify':'answer')}
+$('composer').onsubmit=e=>{e.preventDefault();if(!$('send').disabled&&$('question').value.trim())send($('question').value.trim())};$('reset').onclick=reset;
+for(const b of document.querySelectorAll('[data-question]'))b.onclick=()=>{reset();send(b.dataset.question)};
+for(const b of document.querySelectorAll('[data-mode]'))b.onclick=()=>{reset();$('empty').classList.add('hidden');result(b.dataset.mode)};
+</script></html>

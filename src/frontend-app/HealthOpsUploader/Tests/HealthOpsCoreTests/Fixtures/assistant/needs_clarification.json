@@ -2,6 +2,12 @@
   "answer": "Choose the data source in the interface; names of devices or channels written in the question are not applied as filters. Note that a channel such as healthkit is not the same as one device.",
   "cards": [],
   "claims": [],
+  "clarification": null,
+  "completion_status": "not_checked",
+  "conversation_expires_at": null,
+  "conversation_id": null,
+  "conversation_version": null,
+  "coverage": [],
   "disclaimer": "This assistant summarizes the user's own recorded data using deterministic tools. It is not medical advice, not a diagnosis and not a clinically validated assessment.",
   "evidence": [],
   "explanation_status": "not_applicable",
@@ -31,6 +37,8 @@
     "status": "not_applicable",
     "unmatched": []
   },
+  "request_spec": null,
+  "routing_status": null,
   "status": "needs_clarification",
   "time_semantics": {
     "definitions": {
@@ -65,5 +73,6 @@
     "week_before_last_start": "2026-09-14",
     "yesterday": "2026-10-01"
   },
-  "tool_calls": []
+  "tool_calls": [],
+  "verification_attempts": []
 }

@@ -20,9 +20,14 @@ struct ChatView: View {
                 } else {
                     ScrollViewReader { proxy in
                         List(assistant.turns) { turn in
-                            TurnView(turn: turn).id(turn.id)
+                            VStack(alignment: .leading, spacing: 12) {
+                                TurnView(turn: turn)
+                            }.id(turn.id)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                         }
                         .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
                         .scrollDismissesKeyboard(.interactively)
                         .onTapGesture { composing = false }
                         .onChange(of: assistant.turns.count) { _, _ in
@@ -35,7 +40,15 @@ struct ChatView: View {
                 }
                 composer
             }
+            .background(AskAppearance.canvas)
             .navigationTitle("Ask")
+            .toolbarBackground(AskAppearance.canvas, for: .navigationBar)
+            .tint(.primary)
+            .onAppear {
+                if let url = model.serverURL, let token = model.currentToken() {
+                    assistant.restore(serverURL: url, token: token)
+                }
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -48,7 +61,7 @@ struct ChatView: View {
     private var scopeBanner: some View {
         Group {
             if let user = model.user, let host = model.serverURL?.host {
-                Text("Asking as \(user.displayName) on \(host). History is kept in memory only.")
+                Text("Asking as \(user.displayName) on \(host). Only pending clarification is saved on this device.")
             } else if model.hasToken, let host = model.serverURL?.host {
                 Text("Account not verified yet; questions go to \(host) with the stored token and any failure is shown here.")
             } else {
@@ -67,24 +80,36 @@ struct ChatView: View {
                 }
             }
             .pickerStyle(.segmented)
-            HStack {
-                TextField("Question about your recorded data", text: $assistant.questionDraft, axis: .vertical)
-                    .lineLimit(1...4)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($composing)
-                    .submitLabel(.send)
-                    .onSubmit(send)
-                if assistant.busy {
-                    Button("Cancel", role: .cancel) { assistant.cancel() }
-                } else {
-                    Button("Send", action: send)
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!canSend)
+            if let response = assistant.pendingResponse,
+               let form = response.clarification, form.version == 1, !assistant.busy {
+                ClarificationView(form: form, busy: assistant.busy,
+                                  canSubmit: model.hasToken && model.serverURL != nil,
+                                  submit: { text in assistant.questionDraft = text; send() },
+                                  cancel: { assistant.reset(reason: "clarification cancelled") })
+                    .id("\(response.conversationID ?? "")-\(response.conversationVersion ?? 0)")
+            } else {
+                HStack {
+                    TextField("Question about your recorded data", text: $assistant.questionDraft, axis: .vertical)
+                        .lineLimit(1...4)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($composing)
+                        .submitLabel(.send)
+                        .onSubmit(send)
+                    if assistant.busy {
+                        Button("Cancel", role: .cancel) { assistant.cancel() }
+                    } else {
+                        Button("New question") { assistant.reset(reason: "new question") }
+                            .disabled(assistant.busy)
+                        Button("Send", action: send)
+                            .buttonStyle(AskButtonStyle(filled: true))
+                            .disabled(!canSend)
+                    }
                 }
             }
         }
         .padding()
-        .background(.bar)
+        .background(AskAppearance.canvas)
+        .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.25)).frame(height: 1) }
     }
 
     /// A stored token and a server address are enough to try; an unreachable server or a
@@ -137,7 +162,11 @@ struct AnswerView: View {
                 Chip(text: explanationText, tone: explanationTone)
             }
             Text(response.answer).font(.callout)
-            ForEach(response.cards) { card in CardView(card: card) }
+            if !response.cards.isEmpty {
+                DisclosureGroup("View evidence and sources") {
+                    ForEach(response.cards) { card in CardView(card: card) }
+                }
+            }
             if !response.disclaimer.isEmpty {
                 Text(response.disclaimer).font(.caption2).foregroundStyle(.secondary)
             }
@@ -154,7 +183,10 @@ struct AnswerView: View {
 
     private var explanationText: String {
         switch presentation.explanationBadge {
-        case .verified: return "explanation verified against the cards"
+        case .verified:
+            return response.cards.contains(where: { $0.kind == .reference })
+                ? "source match checked · not a safety review"
+                : "explanation verified against the cards"
         case .unverified: return "explanation not verified; read the cards"
         case .notApplicable: return "no explanation step"
         }
@@ -178,13 +210,14 @@ struct Chip: View {
         Text(text)
             .font(.caption2.bold())
             .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(color.opacity(0.15), in: Capsule())
+            .background(color.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
+            .overlay(RoundedRectangle(cornerRadius: 5).stroke(color.opacity(0.65), lineWidth: 1))
             .foregroundStyle(color)
     }
 
     private var color: Color {
         switch tone {
-        case .good: return .green
+        case .good: return .primary
         case .warning: return .orange
         case .neutral: return .secondary
         }
@@ -221,7 +254,8 @@ struct CardView: View {
             }
         }
         .padding(10)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+        .background(AskAppearance.paper, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.7), lineWidth: 1))
     }
 
     /// A quoted passage from the reference library: the quote is the server's text, cut to the
@@ -297,5 +331,99 @@ struct CardView: View {
                 Text("\(days) day(s) with data").font(.caption2).foregroundStyle(.secondary)
             }
         }
+    }
+}
+
+
+/// Server-provided choices; only explicit selections become the user's next message.
+struct ClarificationView: View {
+    let form: ClarificationForm
+    let busy: Bool
+    let canSubmit: Bool
+    let submit: (String) -> Void
+    let cancel: () -> Void
+    @State private var draft = ClarificationDraft()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Let’s make it specific", systemImage: "slider.horizontal.3")
+                .font(.subheadline.bold())
+            // Keep long option lists scrollable without taking over the conversation.
+            ScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(form.fields) { field in
+                        Text(field.label).font(.caption).foregroundStyle(.secondary)
+                        if ["single", "multiple"].contains(field.selection) {
+                            ScrollView(.horizontal) {
+                                HStack(spacing: 6) {
+                                    ForEach(field.options) { option in
+                                        let selected = draft.selected[field.id, default: []].contains(option.id)
+                                        Button {
+                                            draft.toggle(option, in: field)
+                                        } label: {
+                                            HStack(spacing: 4) {
+                                                if selected { Image(systemName: "checkmark") }
+                                                Text(option.label).fixedSize()
+                                            }
+                                        }
+                                        .buttonStyle(AskButtonStyle(filled: selected))
+                                        .accessibilityAddTraits(selected ? .isSelected : [])
+                                        .accessibilityHint(field.selection == "multiple" ? "Choose one or more" : "Choose one")
+                                        .disabled(busy)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(maxHeight: 140)
+            TextField("Or type your own dates, metric, or correction", text: $draft.custom, axis: .vertical)
+                .textFieldStyle(.roundedBorder).lineLimit(1...2).disabled(busy)
+            HStack {
+                Button("Confirm scope") { submit(draft.reply(for: form)) }
+                    .buttonStyle(AskButtonStyle(filled: true))
+                    .disabled(busy || !canSubmit || draft.reply(for: form).isEmpty)
+                Button("Cancel", role: .cancel, action: cancel).disabled(busy)
+            }
+        }
+        .padding(12)
+        .background(AskAppearance.paper, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary, lineWidth: 1.5))
+    }
+}
+
+
+/// Paper-and-ink palette. Native dark mode keeps readable inverse contrast.
+private enum AskAppearance {
+    static let canvas = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(white: 0.08, alpha: 1)
+            : UIColor(red: 0.973, green: 0.961, blue: 0.945, alpha: 1)
+    })
+    static let paper = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(white: 0.13, alpha: 1)
+            : UIColor(red: 1, green: 0.992, blue: 0.980, alpha: 1)
+    })
+    static let inverseInk = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark ? .black : .white
+    })
+}
+
+private struct AskButtonStyle: ButtonStyle {
+    var filled = false
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .frame(minHeight: 44)
+            .foregroundStyle(filled ? AskAppearance.inverseInk : Color.primary)
+            .background(filled ? Color.primary : AskAppearance.paper,
+                        in: RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.primary, lineWidth: 1))
+            .opacity(!enabled ? 0.4 : configuration.isPressed ? 0.7 : 1)
     }
 }

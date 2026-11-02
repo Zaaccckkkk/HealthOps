@@ -95,6 +95,12 @@
       "valid": true
     }
   ],
+  "clarification": null,
+  "completion_status": "not_checked",
+  "conversation_expires_at": null,
+  "conversation_id": null,
+  "conversation_version": null,
+  "coverage": [],
   "disclaimer": "This assistant summarizes the user's own recorded data using deterministic tools. It is not medical advice, not a diagnosis and not a clinically validated assessment.",
   "evidence": [
     {
@@ -186,6 +192,8 @@
     "status": "consistent",
     "unmatched": []
   },
+  "request_spec": null,
+  "routing_status": null,
   "status": "future_status",
   "time_semantics": {
     "definitions": {
@@ -260,6 +268,13 @@
       "name": "state_findings",
       "status": "ok",
       "warnings": []
+    }
+  ],
+  "verification_attempts": [
+    {
+      "invalid_reasons": [],
+      "missing_targets": [],
+      "valid_claims": 3
     }
   ]
 }
