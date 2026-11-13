@@ -3,13 +3,13 @@
 **A multi-device health-data assistant that asks for missing context and answers from verified evidence.**
 
 <p align="center">
-  <a href="https://github.com/user-attachments/assets/b48fbd5a-e1a3-4203-9662-f1ace9257a62">
-    <img src="docs/demo/app-demo-preview.gif" width="300" alt="HealthOps native app: clarify a question, receive a verified answer, and inspect evidence cards">
+  <a href="docs/demo/app-demo.mp4">
+    <img src="docs/demo/app-demo-preview.gif" width="300" alt="HealthOps app: select sleep duration and active energy, specify the past seven days, and inspect the answer and evidence">
   </a>
 </p>
 <p align="center">
-  <a href="https://github.com/user-attachments/assets/b48fbd5a-e1a3-4203-9662-f1ace9257a62"><strong>Watch the full demo with audio</strong></a><br>
-  <sub>iOS Simulator · Synthetic account · Live Qwen3-8B</sub>
+  <a href="docs/demo/app-demo.mp4"><strong>Watch the full 25-second demo</strong></a><br>
+  <sub>November 12, 2026 · iOS app · Clarification, answers and evidence</sub>
 </p>
 
 HealthOps combines Apple HealthKit and Google Health / Fitbit records with a Qwen3-8B assistant.
@@ -37,9 +37,9 @@ This is an illustrative interaction, not a transcript or a claim about a specifi
 - **UI preview:** [interactive HTML prototype](src/frontend-app/prototype/README.md).
   Run `python3 -m http.server 8765 --bind 127.0.0.1 --directory src/frontend-app/prototype`.
   It uses scripted synthetic examples and does not call the API or model.
-- **Recorded native demo:** [watch the 37-second Simulator video](https://github.com/user-attachments/assets/b48fbd5a-e1a3-4203-9662-f1ace9257a62).
-  Live Qwen3-8B, synthetic account, local backend; original audio preserved.
-  [Runtime, editing disclosure and phone acceptance checklist](docs/demo/README.md).
+- **Recorded native demo:** [watch the 25-second app video](docs/demo/app-demo.mp4).
+  Select sleep duration and active energy, specify the past seven days, then inspect the answer
+  and evidence. [Recording details and export settings](docs/demo/README.md).
 
 ## Design that matters
 
