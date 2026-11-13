@@ -18,7 +18,7 @@ The [reference trust boundary](../design/reference-safety.md) documents the chan
 Cloud Build `9e2550cb-6290-43d2-9741-4d860aa07f22` succeeded using tracked API files only.
 The build-source files were compared byte-for-byte with the committed implementation.
 
-Image: `us-east4-docker.pkg.dev/example-healthops-project/healthops/api@sha256:4d1c5084dc32d9b8e50f82aa71ab8a281789825b8cd49040dee2ecbf1e619081`.
+Image: `us-east4-docker.pkg.dev/ac215-project-509705/healthops/api@sha256:4d1c5084dc32d9b8e50f82aa71ab8a281789825b8cd49040dee2ecbf1e619081`.
 
 The IAM-protected revision `healthops-ms3-api-security-eval-1101` was deployed with zero normal
 traffic and frozen-date overrides for evaluation. Real HTTP checks verified all three synthetic

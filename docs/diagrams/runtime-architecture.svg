@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 740" width="1200" height="740" role="img" aria-label="HealthOps runtime application: iOS app, api-service, database, Ollama models, Google Health API">
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+  </marker>
+  <marker id="arrow-s" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+    <path d="M10,0 L0,5 L10,10 z" fill="#555"/>
+  </marker>
+</defs>
+<rect width="1200" height="740" fill="#ffffff"/>
+<text x="24" y="38" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="start" fill="#222">HealthOps · Runtime application (local)</text>
+<text x="26" y="78" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="start" fill="#666">User</text>
+<rect x="24" y="86" width="560" height="124" rx="10" fill="#f7d9d9" stroke="none" stroke-width="1" opacity="1"/>
+<rect x="46" y="108" width="40" height="80" rx="8" fill="#fff" stroke="#444" stroke-width="1.5" opacity="1"/>
+<rect x="50" y="116" width="32" height="62" rx="3" fill="#e8eef2" stroke="none" stroke-width="1" opacity="1"/>
+<circle cx="66.0" cy="182" r="2.5" fill="#444"/>
+<rect x="108" y="102" width="340" height="92" rx="8" fill="#fff" stroke="#666" stroke-width="1.2" opacity="1"/>
+<text x="278" y="124" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#222">HealthOps iOS app</text>
+<rect x="124" y="136" width="96" height="42" rx="8" fill="#eef3f8" stroke="#7a9aa6" stroke-width="1.2" opacity="1"/>
+<text x="172.0" y="161.0" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#222">Setup</text>
+<rect x="230" y="136" width="96" height="42" rx="8" fill="#eef3f8" stroke="#7a9aa6" stroke-width="1.2" opacity="1"/>
+<text x="278.0" y="161.0" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#222">Overview</text>
+<rect x="336" y="136" width="96" height="42" rx="8" fill="#eef3f8" stroke="#7a9aa6" stroke-width="1.2" opacity="1"/>
+<text x="384.0" y="161.0" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#222">Ask</text>
+<rect x="464" y="102" width="106" height="42" rx="8" fill="#ffffff" stroke="#8a9aa0" stroke-width="1.2" opacity="1"/>
+<text x="517.0" y="123" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="#222">HealthKit</text>
+<text x="517.0" y="140" font-family="Helvetica, Arial, sans-serif" font-size="9" font-weight="normal" text-anchor="middle" fill="#444">samples on the phone</text>
+<rect x="464" y="152" width="106" height="42" rx="8" fill="#ffffff" stroke="#8a9aa0" stroke-width="1.2" opacity="1"/>
+<text x="517.0" y="173" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="#222">Browser</text>
+<text x="517.0" y="190" font-family="Helvetica, Arial, sans-serif" font-size="9" font-weight="normal" text-anchor="middle" fill="#444">Google sign-in</text>
+<line x1="462" y1="123" x2="450" y2="123" stroke="#777" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="982" y="92" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="start" fill="#666">External</text>
+<rect x="980" y="100" width="196" height="84" rx="8" fill="#fff3d6" stroke="#d2a94a" stroke-width="1.4" opacity="1"/>
+<text x="1078.0" y="121" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#222">Google Health API</text>
+<text x="1078.0" y="138" font-family="Helvetica, Arial, sans-serif" font-size="9.5" font-weight="normal" text-anchor="middle" fill="#444">Fitbit data via OAuth</text>
+<text x="1078.0" y="152" font-family="Helvetica, Arial, sans-serif" font-size="9.5" font-weight="normal" text-anchor="middle" fill="#444">steps · resting HR · HRV · sleep</text>
+<rect x="24" y="262" width="736" height="456" rx="10" fill="#f3f6f8" stroke="#8aa0a8" stroke-width="1" stroke-dasharray="6,4" opacity="1"/>
+<text x="38" y="706" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" text-anchor="start" fill="#666">Mac · Docker Compose  (docker compose up api)</text>
+<rect x="48" y="290" width="688" height="262" rx="10" fill="#dcebd9" stroke="#5b8a5b" stroke-width="1.5" opacity="1"/>
+<text x="392.0" y="314" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#222">api-service  :8000   ·   FastAPI</text>
+<text x="392.0" y="330" font-family="Helvetica, Arial, sans-serif" font-size="9.5" font-weight="normal" text-anchor="middle" fill="#3b5a3b">every route needs a bearer token; identity is never taken from the request body</text>
+<rect x="68" y="342" width="200" height="60" rx="8" fill="#ffffff" stroke="#8a9aa0" stroke-width="1.2" opacity="1"/>
+<text x="168.0" y="363" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#222">Ingestion</text>
+<text x="168.0" y="380" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" text-anchor="middle" fill="#444">upload samples</text>
+<text x="168.0" y="394" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" text-anchor="middle" fill="#444">dedupe, reject conflicts</text>
+<rect x="292" y="342" width="200" height="60" rx="8" fill="#ffffff" stroke="#8a9aa0" stroke-width="1.2" opacity="1"/>
+<text x="392.0" y="363" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#222">Deterministic tools</text>
+<text x="392.0" y="380" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" text-anchor="middle" fill="#444">daily stats per metric</text>
+<text x="392.0" y="394" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" text-anchor="middle" fill="#444">missing stays missing</text>
+<rect x="516" y="342" width="200" height="60" rx="8" fill="#ffffff" stroke="#8a9aa0" stroke-width="1.2" opacity="1"/>
+<text x="616.0" y="363" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#222">Google Health connector</text>
+<text x="616.0" y="380" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" text-anchor="middle" fill="#444">connect once, sync on demand</text>
+<rect x="68" y="418" width="648" height="110" rx="8" fill="#ece6f6" stroke="#8a76b8" stroke-width="1.2" opacity="1"/>
+<text x="80" y="438" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="start" fill="#222">Assistant  ·  one question, one answer</text>
+<rect x="80" y="448" width="196" height="66" rx="8" fill="#ffffff" stroke="#8a9aa0" stroke-width="1.2" opacity="1"/>
+<text x="178.0" y="469" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#222">1 · LLM picks a tool</text>
+<text x="178.0" y="486" font-family="Helvetica, Arial, sans-serif" font-size="9.5" font-weight="normal" text-anchor="middle" fill="#444">from the tools above</text>
+<text x="178.0" y="500" font-family="Helvetica, Arial, sans-serif" font-size="9.5" font-weight="normal" text-anchor="middle" fill="#444">or the reference library</text>
+<rect x="294" y="448" width="196" height="66" rx="8" fill="#ffffff" stroke="#8a9aa0" stroke-width="1.2" opacity="1"/>
+<text x="392.0" y="469" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#222">2 · Server runs it</text>
+<text x="392.0" y="486" font-family="Helvetica, Arial, sans-serif" font-size="9.5" font-weight="normal" text-anchor="middle" fill="#444">adds identity and dates,</text>
+<text x="392.0" y="500" font-family="Helvetica, Arial, sans-serif" font-size="9.5" font-weight="normal" text-anchor="middle" fill="#444">builds data cards</text>
+<rect x="508" y="448" width="196" height="66" rx="8" fill="#ffffff" stroke="#8a9aa0" stroke-width="1.2" opacity="1"/>
+<text x="606.0" y="469" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" text-anchor="middle" fill="#222">3 · Server verifies</text>
+<text x="606.0" y="486" font-family="Helvetica, Arial, sans-serif" font-size="9.5" font-weight="normal" text-anchor="middle" fill="#444">checks every claim,</text>
+<text x="606.0" y="500" font-family="Helvetica, Arial, sans-serif" font-size="9.5" font-weight="normal" text-anchor="middle" fill="#444">writes the answer</text>
+<line x1="276" y1="481" x2="292" y2="481" stroke="#4a4a4a" stroke-width="1.6" marker-end="url(#arrow)"/>
+<line x1="490" y1="481" x2="506" y2="481" stroke="#4a4a4a" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="48" y="596" width="420" height="100" rx="10" fill="#dcebd9" stroke="#5b8a5b" stroke-width="1.5" opacity="1"/>
+<text x="258.0" y="620" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#222">db  :5432   ·   PostgreSQL 17 + pgvector</text>
+<text x="258.0" y="644" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-weight="normal" text-anchor="middle" fill="#333">health observations · users and tokens</text>
+<text x="258.0" y="660" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-weight="normal" text-anchor="middle" fill="#333">Google connections · reference_chunks (RAG)</text>
+<rect x="508" y="616" width="228" height="60" rx="8" fill="#e6edf0" stroke="#8aa0a8" stroke-width="1.2" opacity="1"/>
+<text x="622.0" y="637" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#222">migrate  (one-shot)</text>
+<text x="622.0" y="654" font-family="Helvetica, Arial, sans-serif" font-size="9.5" font-weight="normal" text-anchor="middle" fill="#444">creates the schema, then exits</text>
+<text x="982" y="424" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="start" fill="#666">Mac · on the host</text>
+<rect x="980" y="432" width="196" height="110" rx="10" fill="#e2efe0" stroke="#5b8a5b" stroke-width="1.5" opacity="1"/>
+<text x="1078.0" y="456" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#222">Ollama  :11434</text>
+<text x="1078.0" y="480" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-weight="normal" text-anchor="middle" fill="#333">qwen3:8b  ·  chat</text>
+<text x="1078.0" y="496" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-weight="normal" text-anchor="middle" fill="#333">nomic-embed-text  ·  embeddings</text>
+<text x="1078.0" y="512" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-weight="normal" text-anchor="middle" fill="#333">local open-weight models</text>
+<line x1="278" y1="210" x2="278" y2="288" stroke="#4a4a4a" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="290" y="240" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-weight="normal" text-anchor="start" fill="#333">HTTP · bearer token</text>
+<text x="290" y="256" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="normal" text-anchor="start" fill="#333">upload samples · load charts · ask questions</text>
+<line x1="584" y1="173" x2="978" y2="173" stroke="#888" stroke-width="1.6" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<text x="782.0" y="165" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-weight="normal" text-anchor="middle" fill="#333">OAuth consent in the browser</text>
+<path d="M736,372 L1078.0,372 L1078.0,186" fill="none" stroke="#4a4a4a" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow-s)"/>
+<text x="878.0" y="364" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-weight="normal" text-anchor="middle" fill="#333">HTTPS · tokens and data sync</text>
+<path d="M736,481 L978,481" fill="none" stroke="#4a4a4a" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow-s)"/>
+<text x="858.0" y="473" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-weight="normal" text-anchor="middle" fill="#333">HTTP · chat + embeddings</text>
+<line x1="278" y1="552" x2="278" y2="594" stroke="#4a4a4a" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="290" y="580" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-weight="normal" text-anchor="start" fill="#333">SQL</text>
+<line x1="508" y1="646" x2="470" y2="646" stroke="#777" stroke-width="1.6" marker-end="url(#arrow)"/>
+</svg>

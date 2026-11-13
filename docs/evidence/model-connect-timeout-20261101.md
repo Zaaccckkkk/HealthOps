@@ -19,7 +19,7 @@ checks passed. No frontend contract or frozen evaluation questions changed.
 ## Real cloud timing
 
 Cloud Build: `934f63a1-b58e-419d-b284-41e96cd438cc`.
-Image: `us-east4-docker.pkg.dev/example-healthops-project/healthops/api@sha256:a0270541d0f8bc4dd74a9ac033a3cb7ebe1e254089f2ea798bf94814dcd36c54`.
+Image: `us-east4-docker.pkg.dev/ac215-project-509705/healthops/api@sha256:a0270541d0f8bc4dd74a9ac033a3cb7ebe1e254089f2ea798bf94814dcd36c54`.
 Build sources were compared byte-for-byte with tracked committed API files. The deployed
 revision's resolved image digest matched this artifact.
 

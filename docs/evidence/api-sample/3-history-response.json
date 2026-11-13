@@ -1,0 +1,33 @@
+{
+    "items": [
+        {
+            "provider": "google_health",
+            "source_record_id": "synthetic-fitbit-heart-001",
+            "source_device": "Synthetic Fitbit",
+            "metric": "heart_rate",
+            "value": "74.000000",
+            "unit": "bpm",
+            "started_at": "2026-10-01T12:00:00Z",
+            "ended_at": "2026-10-01T12:00:00Z",
+            "source_timezone": "America/New_York",
+            "aggregation": "sample",
+            "id": "4be0e0ea-44a5-4233-963b-7d9355f6a647",
+            "ingested_at": "2026-10-20T18:10:10.186700Z"
+        },
+        {
+            "provider": "healthkit",
+            "source_record_id": "synthetic-watch-heart-001",
+            "source_device": "Synthetic Apple Watch",
+            "metric": "heart_rate",
+            "value": "72.000000",
+            "unit": "bpm",
+            "started_at": "2026-10-01T12:00:00Z",
+            "ended_at": "2026-10-01T12:00:00Z",
+            "source_timezone": "America/New_York",
+            "aggregation": "sample",
+            "id": "5cc561a2-2144-4032-83d2-a56779bb998e",
+            "ingested_at": "2026-10-20T18:10:10.186700Z"
+        }
+    ],
+    "next_offset": null
+}

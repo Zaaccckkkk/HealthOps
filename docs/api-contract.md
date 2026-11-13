@@ -25,9 +25,53 @@ list-all endpoint. SQL row-level security is not implemented; isolation is in ap
 | GET `/v1/observations` | User-scoped history, oldest start time first |
 | DELETE `/v1/observations/{id}` | Delete one owned observation; unknown/other user's ID returns 404 |
 | GET `/v1/tools/...` | Deterministic history tools; see below |
+| GET `/v1/tools/reconcile` | Optional pinned CPU Transformer for a single-day cross-device estimate |
 | POST `/v1/assistant/ask` | Single-turn assistant over the tools; see below |
 
 `ready` is an initial schema check, not proof that every migration or external provider works.
+
+## Cross-device model tool
+
+`GET /v1/tools/reconcile` takes `metric` (`sleep_duration`, `steps`, `resting_heart_rate`),
+one ISO `date`, and an IANA `timezone`. Ownership comes from the bearer token. Invalid metric,
+timezone or supported-calendar bounds return 422; a deployment without a configured model
+returns 503. This is an estimate tool, distinct from deterministic recorded-data summaries.
+
+| Result field | Meaning |
+| --- | --- |
+| `date`, `metric`, `unit` | Query day and canonical unit: sleep seconds, step count, or bpm |
+| `q05`, `q50`, `q95`, `interval_level` | Decimal strings or null; median estimate and nominal 90% prediction interval, not a real-world calibration guarantee |
+| `providers[].provider`, `.value`, `.deviation` | Channel reading and signed reading-minus-q50; missing readings remain null |
+| `attribution` | Channel farther from q50; null for a tie, single channel, or no target-day readings. Does not establish device accuracy |
+| `window`, `window_days` | Model history window ending on the query day; length comes from checkpoint metadata |
+| `history_days` | Calendar span from first accessible supported observation to query day, capped at window length; not a count of observed days |
+| `window_days_with_any`, `window_days_with_both` | Days with one or two usable target-metric channels inside the window |
+| `model_version`, `data_version`, `artifact_sha256` | Training run/window/model, training dataset version and pinned checkpoint hash |
+| `warnings`, `definitions` | Sorted codes and server-owned explanatory text, including `warning:<code>` entries |
+
+No target-day reading means all quantiles and attribution are null; history alone cannot
+produce an estimate. `definitions` preserves the existing missing-record semantics: no
+accessible record is not proof of inactivity, device wear or permission state.
+
+| Warning | Required text / meaning |
+| --- | --- |
+| `history_short` | **Data may not be sufficient; the result may not be reliable.** Available history is shorter than the model window |
+| `sparse_window` | Same mandatory sentence; fewer than half the window days have usable target readings (seven for w14) |
+| `single_device` | Same mandatory sentence; only one channel has a target-day reading, so attribution is unavailable |
+| `wide_interval` | Same mandatory sentence; interval width exceeds 5,400 seconds, 5,000 steps or 8 bpm |
+| `no_reading_on_date`, `no_records_in_window` | No usable target reading on the requested date; no estimate or attribution |
+| `context_defaulted` | Uncollected context uses documented generator defaults, not inferred user facts |
+| `synthetic_model` | Synthetic training does not establish clinical validity or real-user calibration |
+| `sleep_alignment_differs` | Training uses latent bedtime; serving uses local start day. This can affect all outputs |
+| `multiple_devices_in_channel` | Several device labels occur in one channel; attribution compares channels, not individual devices |
+
+Existing aggregation warnings also propagate. The authoritative full sentences are in
+[`DEFINITIONS`](../src/api-service/healthops/tools/reconcile.py). The assistant emits a
+`reconciliation` evidence card; successful `state_findings` renders the complete interval,
+readings, attribution limitations and warnings. Failed verification still preserves warning
+text, retains the evidence card and remains explicitly unverified. Missing scope clarifies;
+month reconciliation, HRV reconciliation and health judgments are unsupported.
+See [setup and training/serving limitations](reconciliation.md).
 
 ## Input
 
@@ -297,7 +341,16 @@ to `out_of_scope`; `answer` is the fixed sentence for that category and the mode
 channel but no `provider` was chosen in the interface; names in the question are never applied
 as filters), `no_tool_answer` (the model replied in text with no successful tool result behind
 it, whether it called no tool or only failed ones), `tool_error`, `budget_exceeded`,
-`model_error`. `explanation_status` is `verified`, `unverified` or `not_applicable`.
+`model_error`. `explanation_status` is `verified`, `model_generated`, `unverified` or `not_applicable`.
+
+**Input language refusals.** The routed entry checks current and saved user turns before the
+router. Non-Latin/non-Han letters are refused with `status=refused`,
+`routing_status=unsupported`, no cards, and a fixed request to rephrase in English or Chinese.
+The rejected turn is not persisted and does not consume a pending conversation version.
+The direct assistant entry applies the same script policy. Other languages sharing allowed
+scripts are subject to the router's model-based `unsupported_language` decision, which uses
+the same refusal message without entering tools or the writer. This is not a universal
+language detector; names/quotes containing unsupported scripts are also refused.
 
 **Cards and claims.** `cards` are built deterministically from the evidence: one daily table
 per provider (date, value exactly as the tool returned it, a display form such as
@@ -322,7 +375,58 @@ If the corrected finding is still invalid/incomplete, or the model answers in pr
 `explanation_status` is `unverified` and `answer` is the fixed fallback text while the cards
 still show the data. Model prose is returned only as `model_text` for debugging; clients must
 not display it as an answer or execute JSON embedded in it. `answer` is therefore always
-template text or a fixed message.
+template text or a fixed message when the optional writer below is disabled.
+
+**Optional natural-language writer.** `HEALTHOPS_ASSISTANT_NARRATIVE_ENABLED=true` enables bounded
+tool-free answer generation by the same model after successful claim and coverage verification. Summary,
+comparison and reconciliation cards are supported; reference quotations retain the existing
+path. The writer receives compact cards, the original question/clarification dialogue, and
+per-source descriptive statistics computed in Python. Missing dates are never filled; mixed
+statistical bases are not averaged together. Single-channel experimental quantiles stay in the
+card and are excluded from the writer input, because they cannot answer a device comparison.
+
+The first draft receives a Python checker pass. The checker reports schema/tool-call
+errors, missing or unknown evidence IDs, unexpected markup, unsupported recognized dates, and
+unmatched numbers. Feedback includes missing/unknown IDs, unmatched numeric tokens and nearby
+text spans where applicable. Date/number checks are lexical and can produce false positives;
+they do **not** prove attribution, trend significance, causality or answer relevance.
+
+A passing first draft becomes the final candidate. Any checker finding can trigger one final-editor call with
+the unchanged original question/evidence, the original draft, and structured checker feedback.
+The same model judges the feedback against the evidence and can correct the draft.
+Both the unedited and edited candidates pass a mandatory final gate after deterministic output
+formatting and server-owned qualifications. It checks the JSON shape, tool calls, evidence IDs,
+recognized dates, numeric membership, markup, known unsafe instructions, credential-like text,
+and substantial verbatim system-prompt disclosure. A failed candidate preserves the verified
+template and records the reason; the editor cannot override this gate. There is no second
+editor call. Valid wording outside the lexical checker's coverage may still cause a fallback.
+Both calls share the writer timeout, model-turn, context and request budgets; a malformed,
+unavailable or over-budget editor preserves the checked template instead of looping.
+
+Generated prose has `explanation_status=model_generated`, never `verified`. `claims` and
+`completion_status=complete` describe the earlier structured verification, not final prose.
+`narrative_status` remains `disabled`, `generated`, `fallback`, or `not_eligible`.
+`narrative_reason` records terminal fallback errors; `narrative_check_reason` retains the initial
+checker finding even after successful editing; `narrative_edit_attempted` reports whether the
+editor was called. `narrative_prompt_version` identifies the policy. Generated responses set
+`numeric_consistency.status=not_applicable` with an explanatory note: the template numeric
+scanner does not handle localized prose, which has already passed the writer-specific final
+gate. Numeric membership does not prove correct attribution, causality or answer relevance.
+Evaluation can independently score saved outputs offline. Retry traces still require separate preference review.
+The iOS client decodes these status fields and labels a failed writer as a data-summary fallback,
+even when the underlying deterministic claims are verified. Generation uses the same model-turn,
+context, concurrency and total-time budgets, plus a separate maximum 30-second writer timeout
+by default. Failure preserves the verified template and records the fallback reason.
+This experimental stage does not relax Router refusals or permit new tool/database actions.
+
+Writer policy `grounded-answer-v3-single-check` receives Python-computed absolute distances and tied/closest
+channels for reconciliation, rather than the potentially confusing `attribution` field (which
+means farther from the estimate). These calculations do not establish device accuracy or prove
+the prose reproduces them faithfully. Daily summaries include signed change, magnitude and
+direction, allowing phrases such as "decreased by 1200" without accepting arbitrary sign flips.
+For a daily-table window containing today, the server appends an incomplete-day qualification
+even if the model omits it. It can repeat the model's qualification and cannot repair a
+contradictory sentence. The feature remains disabled by default pending semantic quality work.
 
 **Scope and coverage.** Routed requests enforce the confirmed metrics, tool family, exact
 windows and source context before any data query. `coverage` reports query/result/answer state

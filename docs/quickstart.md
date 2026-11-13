@@ -80,9 +80,9 @@ matching passage. Source quotation limits are enforced by the application.
 
 ```bash
 make test
-uv sync --frozen --extra synthetic --directory src/api-service
-uv run --frozen --extra synthetic --directory src/api-service python -m pytest -q
-uv run --frozen --extra synthetic --directory src/api-service python -m pytest -q ../../scripts/tests
+uv sync --frozen --all-extras --directory src/api-service
+uv run --frozen --all-extras --directory src/api-service python -m pytest -q
+uv run --frozen --all-extras --directory src/api-service python -m pytest -q ../../scripts/tests
 swift test --package-path src/frontend-app/HealthOpsUploader --scratch-path /tmp/healthops-swift
 python3 scripts/check_public_content.py
 ```
@@ -90,7 +90,8 @@ python3 scripts/check_public_content.py
 `make test` uses an ephemeral `healthops_test` database, isolated from the application DB.
 Host-only tests skip database-dependent cases when no dedicated test URL is configured;
 Swift requires the Apple toolchain. Scripted model responses test contracts, not Qwen accuracy.
-See [verification](evidence/portfolio-migration.md) for what was actually run.
+See the [Milestone 3 synchronization checks](evidence/milestone3-sync-20261112.md) for this import,
+and the [earlier migration record](evidence/portfolio-migration.md) for historical checks.
 
 The exact three-account model evaluation is an advanced path requiring the upstream versioned
 synthetic cohort. See [synthetic import](synthetic-import.md) and [evaluation](assistant-routed-evaluation.md).

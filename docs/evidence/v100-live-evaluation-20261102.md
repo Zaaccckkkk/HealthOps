@@ -29,7 +29,7 @@ algorithm, prompt, evaluation rubric, corpus, health observations or database mi
 - First GPU warmup took 80.5 seconds including cold model loading. This is not steady-state
   answer latency or a performance comparison with L4.
 - API implementation: `89c2d36`; image
-  `us-east4-docker.pkg.dev/example-healthops-project/healthops/api@sha256:a0270541d0f8bc4dd74a9ac033a3cb7ebe1e254089f2ea798bf94814dcd36c54`.
+  `us-east4-docker.pkg.dev/ac215-project-509705/healthops/api@sha256:a0270541d0f8bc4dd74a9ac033a3cb7ebe1e254089f2ea798bf94814dcd36c54`.
 - Evaluation revision: `healthops-ms3-api-v100-eval-1102`, IAM protected, zero normal traffic,
   frozen-date overrides enabled only for the evaluation revision. FastAPI/LangGraph ran on
   Cloud Run; Qwen and embeddings ran on the V100 VM; data remained in synthetic Cloud SQL.

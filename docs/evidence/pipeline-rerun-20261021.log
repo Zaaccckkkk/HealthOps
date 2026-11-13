@@ -1,0 +1,44 @@
+# make run again on the committed versions (2026-10-21, WSL Ubuntu): every container logs its data versions, finds its version already built and exits with code 0.
+# Removed: blank lines, terminal colour codes, progress redraws and Docker image build
+# progress lines. Every container and Compose line is kept as printed.
+docker compose --profile data up --build --attach-dependencies data-synthesizer
+ Image healthops-local-data-synthesizer Building
+ Image healthops-local-synthea-generator Building
+ Image healthops-local-data-collector Building
+ Image healthops-local-data-processor Building
+ Image healthops-local-data-processor Built
+ Image healthops-local-data-synthesizer Built
+ Image healthops-local-synthea-generator Built
+ Image healthops-local-data-collector Built
+ Container healthops-local-synthea-generator-1 Recreate
+ Container healthops-local-synthea-generator-1 Recreated
+ Container healthops-local-data-collector-1 Recreate
+ Container healthops-local-data-collector-1 Recreated
+ Container healthops-local-data-processor-1 Recreate
+ Container healthops-local-data-processor-1 Recreated
+ Container healthops-local-data-synthesizer-1 Recreate
+ Container healthops-local-data-synthesizer-1 Recreated
+Attaching to data-collector-1, data-processor-1, data-synthesizer-1, synthea-generator-1
+ Container healthops-local-synthea-generator-1 Starting
+ Container healthops-local-synthea-generator-1 Started
+ Container healthops-local-synthea-generator-1 Waiting
+synthea-generator-1  | 2026-10-20 20:30:27,643 INFO versioning: [synthea-generator] INPUT_DATA_VERSION=- OUTPUT_DATA_VERSION=raw-v1 GIT_COMMIT=7ca4da8
+synthea-generator-1  | 2026-10-20 20:30:27,756 INFO synthea-generator: raw-v1 already contains this Synthea run; nothing to do
+ Container healthops-local-synthea-generator-1 Exited
+ Container healthops-local-data-collector-1 Starting
+ Container healthops-local-data-collector-1 Started
+ Container healthops-local-data-collector-1 Waiting
+data-collector-1     | 2026-10-20 20:30:28,707 INFO versioning: [data-collector] INPUT_DATA_VERSION=- OUTPUT_DATA_VERSION=raw-v1 GIT_COMMIT=7ca4da8
+data-collector-1     | 2026-10-20 20:30:29,410 INFO versioning: raw-v1 already built with this configuration; nothing to do
+ Container healthops-local-data-collector-1 Exited
+ Container healthops-local-data-processor-1 Starting
+ Container healthops-local-data-processor-1 Started
+ Container healthops-local-data-processor-1 Waiting
+data-processor-1     | 2026-10-20 20:30:32,144 INFO versioning: [data-processor] INPUT_DATA_VERSION=raw-v1 OUTPUT_DATA_VERSION=canonical-v0.1 GIT_COMMIT=7ca4da8
+data-processor-1     | 2026-10-20 20:30:32,267 INFO versioning: canonical-v0.1 already built with this configuration; nothing to do
+ Container healthops-local-data-processor-1 Exited
+ Container healthops-local-data-synthesizer-1 Starting
+ Container healthops-local-data-synthesizer-1 Started
+data-synthesizer-1   | 2026-10-20 20:30:34,392 INFO versioning: [data-synthesizer] INPUT_DATA_VERSION=canonical-v0.1 OUTPUT_DATA_VERSION=synthetic-v0.1 GIT_COMMIT=7ca4da8
+data-synthesizer-1   | 2026-10-20 20:30:35,831 INFO versioning: synthetic-v0.1 already built with this configuration; nothing to do
+data-synthesizer-1 exited with code 0

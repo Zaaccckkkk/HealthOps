@@ -1,0 +1,74 @@
+# api-service + database, from an empty volume. 2026-10-20T18:09Z, Mac M4 Pro, Docker Compose v2.
+# Project name healthops-evidence: a fresh PostgreSQL volume, so the migration log shows every revision.
+
+$ docker compose -p healthops-evidence up -d --build api
+ migrate  Built
+ api  Built
+ Network healthops-evidence_default  Creating
+ Network healthops-evidence_default  Created
+ Volume "healthops-evidence_postgres_data"  Creating
+ Volume "healthops-evidence_postgres_data"  Created
+ Container healthops-evidence-db-1  Creating
+ Container healthops-evidence-db-1  Created
+ Container healthops-evidence-migrate-1  Creating
+ Container healthops-evidence-migrate-1  Created
+ Container healthops-evidence-api-1  Creating
+ Container healthops-evidence-api-1  Created
+ Container healthops-evidence-db-1  Starting
+ Container healthops-evidence-db-1  Started
+ Container healthops-evidence-db-1  Waiting
+ Container healthops-evidence-db-1  Healthy
+ Container healthops-evidence-migrate-1  Starting
+ Container healthops-evidence-migrate-1  Started
+ Container healthops-evidence-migrate-1  Waiting
+ Container healthops-evidence-migrate-1  Exited
+ Container healthops-evidence-api-1  Starting
+ Container healthops-evidence-api-1  Started
+
+$ docker compose -p healthops-evidence ps
+NAME                       IMAGE                    COMMAND                  SERVICE   CREATED         STATUS                            PORTS
+healthops-evidence-api-1   healthops-evidence-api   "uvicorn healthops.m…"   api       7 seconds ago   Up 2 seconds (health: starting)   127.0.0.1:8000->8000/tcp
+healthops-evidence-db-1    pgvector/pgvector:pg17   "docker-entrypoint.s…"   db        7 seconds ago   Up 6 seconds (healthy)            127.0.0.1:55432->5432/tcp
+
+$ docker compose -p healthops-evidence logs --no-color migrate
+
+$ docker compose -p healthops-evidence exec api alembic history   # revisions shipped in the image
+0003 -> 0004 (head), Knowledge base: pgvector extension and the reference_chunks table.
+0002 -> 0003, Server-side connector state: provider connections and one-time OAuth sessions.
+0001 -> 0002, Index observations by (user_id, metric, ended_at) for interval overlap context queries.
+<base> -> 0001, Create users, hashed development tokens, and canonical observations.
+
+$ docker compose -p healthops-evidence exec api alembic current   # revision applied to the fresh database
+0004 (head)
+
+$ docker compose -p healthops-evidence logs --no-color api
+api-1  | INFO:     Started server process [1]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+$ curl -s http://127.0.0.1:8000/health/live; curl -s http://127.0.0.1:8000/health/ready
+{"status":"alive"}
+{"status":"ready"}
+$ docker compose -p healthops-evidence exec db psql -U healthops -d healthops -c '...'   # what the run left behind
+ version_num 
+-------------
+ 0004
+(1 row)
+
+ users 
+-------
+     1
+(1 row)
+
+   provider    |   metric   | count 
+---------------+------------+-------
+ google_health | heart_rate |     2
+ healthkit     | heart_rate |     2
+(2 rows)
+
+ reference_chunks | sources 
+------------------+---------
+              570 |      12
+(1 row)
+

@@ -1,6 +1,6 @@
 # Cloud development deployment (single GPU VM)
 
-Status: **created and exercised once on 2026-10-03** (project `example-healthops-project`,
+Status: **created and exercised once on 2026-10-03** (project `ac215-project-509705`,
 `us-east4-a`, VM `healthops-gpu`, static address, dedicated network with two firewall rules).
 Observed in that session: Let's Encrypt certificate issued through TLS-ALPN on the first start;
 `qwen3:8b` (same digest as the Mac) loaded on the L4 with 9.8 GB of 23 GB GPU memory and the

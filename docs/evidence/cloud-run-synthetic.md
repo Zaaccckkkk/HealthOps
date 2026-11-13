@@ -5,7 +5,7 @@ are synthetic. The old personal-health database was not copied or queried.
 
 ## Deployed configuration
 
-- Project: `example-healthops-project`; API and Cloud SQL region: `us-east4`.
+- Project: `ac215-project-509705`; API and Cloud SQL region: `us-east4`.
 - API service: `healthops-ms3-api`, initial revision `healthops-ms3-api-00001-2cb`.
 - Image digest: `sha256:9d50832fc6b3cf5fc7418f842d17e35a02dbc4bae930e4af55ac16823b654f37`.
 - Successful Cloud Build: `0487066a-ff35-4495-915d-fa4d2cf651ef`.

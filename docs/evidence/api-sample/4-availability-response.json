@@ -1,0 +1,37 @@
+{
+    "window": {
+        "timezone": "America/New_York",
+        "start_date": "2026-09-25",
+        "end_date": "2026-10-05",
+        "start_utc": "2026-09-25T04:00:00Z",
+        "end_utc": "2026-10-06T04:00:00Z"
+    },
+    "series": [
+        {
+            "provider": "google_health",
+            "metric": "heart_rate",
+            "aggregation": "sample",
+            "unit": "bpm",
+            "record_count": 1,
+            "first_started_at": "2026-10-01T12:00:00Z",
+            "last_started_at": "2026-10-01T12:00:00Z",
+            "local_days_with_records": 1
+        },
+        {
+            "provider": "healthkit",
+            "metric": "heart_rate",
+            "aggregation": "sample",
+            "unit": "bpm",
+            "record_count": 1,
+            "first_started_at": "2026-10-01T12:00:00Z",
+            "last_started_at": "2026-10-01T12:00:00Z",
+            "local_days_with_records": 1
+        }
+    ],
+    "notes": [
+        "Each series is one (provider, metric, aggregation) definition held by this system for the authenticated user. Absence of a series or of records means no accessible records here; it does not indicate inactivity, no device wear, or denied authorization.",
+        "local_days_with_records counts distinct local dates (requested timezone) containing at least one record start. It is not a coverage ratio or a completeness guarantee.",
+        "Only records starting inside the requested window (at most 366 local days) are counted; older history is not examined by this call.",
+        "provider is the acquisition channel, not a verified single device."
+    ]
+}

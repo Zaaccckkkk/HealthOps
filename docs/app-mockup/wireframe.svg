@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 780" width="1240" height="780" font-family="Helvetica, Arial, sans-serif">
+  <title>HealthOps iOS app wireframe: Overview, Ask, Setup</title>
+  <style>
+    .frame { fill: #ffffff; stroke: #333; stroke-width: 2; }
+    .box { fill: #f3f4f6; stroke: #666; stroke-width: 1.2; }
+    .chip { fill: #e8f0fe; stroke: #4a6cf7; stroke-width: 1; }
+    .warn { fill: #fff4e5; stroke: #d08700; stroke-width: 1; }
+    .ref { fill: #f1ecfa; stroke: #7b4bbd; stroke-width: 1; }
+    .t { font-size: 12px; fill: #222; }
+    .s { font-size: 10px; fill: #555; }
+    .h { font-size: 14px; font-weight: bold; fill: #111; }
+    .title { font-size: 18px; font-weight: bold; fill: #111; }
+    .line { stroke: #4a6cf7; stroke-width: 2; fill: none; }
+    .line2 { stroke: #2b8a3e; stroke-width: 2; fill: none; stroke-dasharray: 4 3; }
+    .tab { fill: #fafafa; stroke: #999; stroke-width: 1; }
+    .arrow { stroke: #888; stroke-width: 1.5; fill: none; marker-end: url(#m); }
+  </style>
+  <defs><marker id="m" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#888"/></marker></defs>
+  <text x="20" y="30" class="title">HealthOps app wireframe (three tabs; placeholder data)</text>
+  <text x="20" y="50" class="s">Overview = charts from GET /v1/tools/daily-summary · Ask = POST /v1/assistant/ask (cards + verified/unverified) · Setup = token, HealthKit consent, sync, Google Health</text>
+
+  <!-- Overview -->
+  <g transform="translate(40,80)">
+    <rect class="frame" x="0" y="0" width="340" height="640" rx="28"/>
+    <text x="20" y="40" class="h">Overview</text>
+    <rect class="chip" x="200" y="24" width="56" height="22" rx="11"/><text x="212" y="39" class="t">7 d</text>
+    <rect class="chip" x="262" y="24" width="56" height="22" rx="11" style="fill:#4a6cf7"/><text x="272" y="39" class="t" style="fill:#fff">30 d</text>
+    <rect class="box" x="20" y="60" width="300" height="140" rx="8"/>
+    <text x="30" y="80" class="t">Steps · latest 8,412 (Apple Health)</text>
+    <polyline class="line" points="30,170 70,150 110,160 150,120 190,130 230,110 270,125 310,105"/>
+    <polyline class="line2" points="30,175 70,165 110,170 150,140 190,150 230,135 270,145 310,130"/>
+    <text x="30" y="192" class="s">— Apple Health   - - Google Health   gaps stay gaps</text>
+    <rect class="box" x="20" y="212" width="300" height="140" rx="8"/>
+    <text x="30" y="232" class="t">Resting heart rate · latest 57 bpm</text>
+    <polyline class="line" points="30,320 70,300 110,310 150,290 190,305 230,285 270,295 310,280"/>
+    <rect class="warn" x="218" y="222" width="96" height="18" rx="4"/><text x="224" y="235" class="s">1 day no records</text>
+    <rect class="box" x="20" y="364" width="300" height="140" rx="8"/>
+    <text x="30" y="384" class="t">HRV SDNN (Apple) · RMSSD (Google) on its own chart</text>
+    <polyline class="line" points="30,470 70,455 110,468 150,440 190,450 230,432 270,445 310,425"/>
+    <rect class="box" x="20" y="516" width="300" height="60" rx="8"/>
+    <text x="30" y="540" class="t">Sleep · 7.4 h</text><text x="30" y="560" class="s">… one card per metric (8 metrics)</text>
+    <rect class="tab" x="0" y="590" width="340" height="50" rx="0"/>
+    <text x="40" y="620" class="t" style="font-weight:bold">Overview</text><text x="150" y="620" class="t">Ask</text><text x="250" y="620" class="t">Setup</text>
+  </g>
+
+  <!-- Ask -->
+  <g transform="translate(450,80)">
+    <rect class="frame" x="0" y="0" width="340" height="640" rx="28"/>
+    <text x="20" y="40" class="h">Ask</text>
+    <rect class="chip" x="150" y="24" width="170" height="22" rx="11"/><text x="160" y="39" class="s">Channel: All ▾ (Apple / Google)</text>
+    <rect class="box" x="60" y="60" width="260" height="40" rx="12"/>
+    <text x="70" y="84" class="t">How did my resting HR change last week?</text>
+    <rect class="box" x="20" y="112" width="280" height="150" rx="12"/>
+    <rect class="chip" x="30" y="120" width="70" height="18" rx="9"/><text x="38" y="133" class="s">answered</text>
+    <rect class="chip" x="106" y="120" width="64" height="18" rx="9" style="fill:#e6f6ea;stroke:#2b8a3e"/><text x="114" y="133" class="s">verified</text>
+    <text x="30" y="158" class="t">Resting heart rate, 2026-10-13 to 10-19 (Apple Health):</text>
+    <text x="30" y="174" class="t">57 bpm on 10-19 vs 60 bpm on 10-13; mean 58.1 bpm.</text>
+    <text x="30" y="196" class="s">Card e1.healthkit · daily values · 7 rows · 0 warnings</text>
+    <text x="30" y="214" class="s">Numbers come from Python tools; the model only cites cards.</text>
+    <text x="30" y="246" class="s">Not medical advice.</text>
+    <rect class="box" x="60" y="276" width="260" height="40" rx="12"/>
+    <text x="70" y="300" class="t">How much sleep do guidelines recommend?</text>
+    <rect class="ref" x="20" y="328" width="280" height="170" rx="12"/>
+    <rect class="chip" x="30" y="336" width="70" height="18" rx="9"/><text x="38" y="349" class="s">answered</text>
+    <rect class="chip" x="106" y="336" width="64" height="18" rx="9" style="fill:#e6f6ea;stroke:#2b8a3e"/><text x="114" y="349" class="s">verified</text>
+    <text x="30" y="374" class="t" style="font-weight:bold">Reference · MedlinePlus (NIH)</text>
+    <text x="30" y="390" class="s">How much sleep do I need?</text>
+    <text x="30" y="410" class="t">"Adults (18 years and older): 7-9 hours a day …"</text>
+    <text x="30" y="430" class="s">Public domain · similarity 0.69 · link to source</text>
+    <text x="30" y="452" class="s">General reference material, not an assessment of</text>
+    <text x="30" y="466" class="s">your own values.</text>
+    <text x="30" y="488" class="s">(pgvector retrieval, verbatim quote within the licence limit)</text>
+    <rect class="box" x="20" y="530" width="240" height="36" rx="18"/><text x="34" y="553" class="s">Ask about your data…</text>
+    <rect class="chip" x="268" y="530" width="52" height="36" rx="18" style="fill:#4a6cf7"/><text x="282" y="553" class="t" style="fill:#fff">Send</text>
+    <rect class="tab" x="0" y="590" width="340" height="50"/>
+    <text x="40" y="620" class="t">Overview</text><text x="150" y="620" class="t" style="font-weight:bold">Ask</text><text x="250" y="620" class="t">Setup</text>
+  </g>
+
+  <!-- Setup -->
+  <g transform="translate(860,80)">
+    <rect class="frame" x="0" y="0" width="340" height="640" rx="28"/>
+    <text x="20" y="40" class="h">Setup</text>
+    <rect class="box" x="20" y="56" width="300" height="86" rx="8"/>
+    <text x="30" y="74" class="t" style="font-weight:bold">1. Server and account</text>
+    <rect class="box" x="30" y="82" width="280" height="22" rx="4" style="fill:#fff"/><text x="36" y="97" class="s">http://127.0.0.1:8000</text>
+    <rect class="box" x="30" y="108" width="180" height="22" rx="4" style="fill:#fff"/><text x="36" y="123" class="s">•••••••• token (Keychain)</text>
+    <rect class="chip" x="216" y="108" width="94" height="22" rx="4"/><text x="224" y="123" class="s">Connect / verify</text>
+    <rect class="box" x="20" y="152" width="300" height="56" rx="8"/>
+    <text x="30" y="170" class="t" style="font-weight:bold">2. HealthKit read access</text>
+    <rect class="chip" x="30" y="178" width="150" height="22" rx="4"/><text x="38" y="193" class="s">Request authorization</text>
+    <rect class="box" x="20" y="218" width="300" height="120" rx="8"/>
+    <text x="30" y="236" class="t" style="font-weight:bold">3. Upload consent</text>
+    <text x="30" y="256" class="s">☑ steps  ☑ heart rate  ☑ resting HR  ☑ HRV SDNN</text>
+    <text x="30" y="272" class="s">☑ sleep  ☑ exercise  ☐ walking HR avg   since 2026-09-20</text>
+    <rect class="chip" x="30" y="286" width="200" height="22" rx="4"/><text x="38" y="301" class="s">I agree to upload the selected data</text>
+    <text x="30" y="326" class="s">Revoke consent (cancels the next page of sync)</text>
+    <rect class="box" x="20" y="348" width="300" height="80" rx="8"/>
+    <text x="30" y="366" class="t" style="font-weight:bold">4. Sync (replay-safe, per type)</text>
+    <rect class="chip" x="30" y="376" width="90" height="22" rx="4"/><text x="38" y="391" class="s">Sync now</text>
+    <text x="30" y="416" class="s">steps 48 inserted · 0 duplicates · heart rate 480 inserted …</text>
+    <rect class="box" x="20" y="438" width="300" height="76" rx="8"/>
+    <text x="30" y="456" class="t" style="font-weight:bold">5. Google Health (Fitbit) via the server</text>
+    <rect class="chip" x="30" y="466" width="150" height="22" rx="4"/><text x="38" y="481" class="s">Connect Google Health</text>
+    <text x="30" y="504" class="s">OAuth on the server; the phone never holds a Google token</text>
+    <rect class="box" x="20" y="524" width="300" height="50" rx="8"/>
+    <text x="30" y="542" class="t" style="font-weight:bold">Activity log</text><text x="30" y="560" class="s">connected · consent saved · sync finished (10 days)</text>
+    <rect class="tab" x="0" y="590" width="340" height="50"/>
+    <text x="40" y="620" class="t">Overview</text><text x="150" y="620" class="t">Ask</text><text x="250" y="620" class="t" style="font-weight:bold">Setup</text>
+  </g>
+
+  <path class="arrow" d="M1030,735 C900,760 600,760 390,735"/>
+  <text x="560" y="752" class="s">Setup first (token, consent, sync) → Overview and Ask read the same server data</text>
+</svg>

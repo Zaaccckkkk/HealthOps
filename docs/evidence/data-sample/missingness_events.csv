@@ -1,0 +1,9 @@
+user_id,provider,date,day_index,mechanism,local_hour,metric,gap_length_days,window_days
+synthetic-00012,google_health,2026-07-05,0,metric_dropout,,hrv_rmssd,,
+synthetic-00012,google_health,2026-07-07,2,overnight_not_worn,,,,
+synthetic-00012,healthkit,2026-07-08,3,battery_depletion,20.81,,,
+synthetic-00012,google_health,2026-07-09,4,overnight_not_worn,,,,
+synthetic-00012,google_health,2026-07-09,4,metric_dropout,,hrv_rmssd,,
+synthetic-00012,google_health,2026-07-10,5,metric_dropout,,resting_heart_rate,,
+synthetic-00012,healthkit,2026-07-10,5,overnight_not_worn,,,,
+synthetic-00012,healthkit,2026-07-10,5,metric_dropout,,hrv_sdnn,,

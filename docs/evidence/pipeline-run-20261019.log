@@ -1,0 +1,946 @@
+# Data pipeline run that built raw-v1, canonical-v0.1 and synthetic-v0.1: make run on WSL Ubuntu, Ollama with qwen3:4b. Parts are in the order they ran; an interrupted part is followed by the run that resumed it.
+# Removed: blank lines, terminal colour codes, progress redraws and Docker image build
+# progress lines. Every container and Compose line is kept as printed.
+# ---- part 1 of 4: pipeline-run-llm-20261019-043218.log ----
+docker compose --profile data up --build --attach-dependencies data-synthesizer
+ Image healthops-local-data-collector Building
+ Image healthops-local-data-synthesizer Building
+ Image healthops-local-data-processor Building
+ Image healthops-local-synthea-generator Building
+ Image healthops-local-data-synthesizer Built
+ Image healthops-local-synthea-generator Built
+ Image healthops-local-data-collector Built
+ Image healthops-local-data-processor Built
+ Network healthops-local_default Creating
+ Network healthops-local_default Creating
+ Network healthops-local_default Created
+ Network healthops-local_default Created
+ Container healthops-local-synthea-generator-1 Creating
+ Container healthops-local-synthea-generator-1 Created
+ Container healthops-local-data-collector-1 Creating
+ Container healthops-local-data-collector-1 Created
+ Container healthops-local-data-processor-1 Creating
+ Container healthops-local-data-processor-1 Created
+ Container healthops-local-data-synthesizer-1 Creating
+ Container healthops-local-data-synthesizer-1 Created
+Attaching to data-collector-1, data-processor-1, data-synthesizer-1, synthea-generator-1
+ Container healthops-local-synthea-generator-1 Starting
+ Container healthops-local-synthea-generator-1 Started
+ Container healthops-local-synthea-generator-1 Waiting
+synthea-generator-1  | 2026-10-18 20:32:23,807 INFO versioning: [synthea-generator] INPUT_DATA_VERSION=- OUTPUT_DATA_VERSION=raw-v1 GIT_COMMIT=e3bc4ea
+synthea-generator-1  | 2026-10-18 20:32:23,813 INFO synthea-generator: running: java -jar /opt/synthea/synthea-with-dependencies.jar -p 5000 -s 215 -cs 215 -r 20260930 -a 18-80 --exporter.csv.export true --exporter.fhir.export false --exporter.hospital.fhir.export false --exporter.practitioner.fhir.export false --exporter.baseDirectory /tmp/tmpdls33lgn Massachusetts
+synthea-generator-1  | SLF4J: No SLF4J providers were found.
+synthea-generator-1  | SLF4J: Defaulting to no-operation (NOP) logger implementation
+synthea-generator-1  | SLF4J: See http://www.slf4j.org/codes.html#noProviders for further details.
+synthea-generator-1  | 2026-10-18 20:34:43,344 INFO synthea-generator: Synthea wrote patients.csv, conditions.csv, medications.csv
+ Container healthops-local-synthea-generator-1 Exited
+ Container healthops-local-data-collector-1 Starting
+ Container healthops-local-data-collector-1 Started
+ Container healthops-local-data-collector-1 Waiting
+data-collector-1     | 2026-10-18 20:34:44,277 INFO versioning: [data-collector] INPUT_DATA_VERSION=- OUTPUT_DATA_VERSION=raw-v1 GIT_COMMIT=e3bc4ea
+data-collector-1     | 2026-10-18 20:34:52,530 INFO sources: nethealth: 2 files verified (2 downloaded)
+data-collector-1     | 2026-10-18 20:38:08,867 WARNING sources: retry 1 for https://physionet.org/files/bidsleep-dataset/1.0.1/Bidslab35/6/labels.mat (HTTPStatusError)
+data-collector-1     | 2026-10-18 20:41:05,253 WARNING sources: retry 1 for https://physionet.org/files/bidsleep-dataset/1.0.1/Bidslab63/1/labels.mat (HTTPStatusError)
+data-collector-1     | 2026-10-18 20:41:06,079 WARNING sources: retry 1 for https://physionet.org/files/bidsleep-dataset/1.0.1/Bidslab63/2/hr.csv (HTTPStatusError)
+data-collector-1     | 2026-10-18 20:41:06,079 WARNING sources: retry 1 for https://physionet.org/files/bidsleep-dataset/1.0.1/Bidslab63/2/labels.mat (HTTPStatusError)
+data-collector-1     | 2026-10-18 20:41:52,796 INFO sources: bidsleep: 508 files verified (508 downloaded)
+data-collector-1     | 2026-10-18 20:41:53,105 INFO versioning: wrote /data/manifests/raw-v1.yaml (515 files)
+ Container healthops-local-data-collector-1 Exited
+ Container healthops-local-data-processor-1 Starting
+ Container healthops-local-data-processor-1 Started
+ Container healthops-local-data-processor-1 Waiting
+data-processor-1     | 2026-10-18 20:41:55,747 INFO versioning: [data-processor] INPUT_DATA_VERSION=raw-v1 OUTPUT_DATA_VERSION=canonical-v0.1 GIT_COMMIT=e3bc4ea
+data-processor-1     | 2026-10-18 20:41:55,813 INFO data-processor: mapping nethealth
+data-processor-1     | 2026-10-18 20:42:02,829 INFO data-processor: nethealth: 1399623 rows, 623 users
+data-processor-1     | 2026-10-18 20:42:02,829 INFO data-processor: mapping bidsleep
+data-processor-1     | 2026-10-18 20:42:08,401 INFO data-processor: bidsleep: 1603981 rows, 47 users
+data-processor-1     | 2026-10-18 20:42:09,096 INFO versioning: wrote /data/manifests/canonical-v0.1.yaml (3 files)
+ Container healthops-local-data-processor-1 Exited
+ Container healthops-local-data-synthesizer-1 Starting
+ Container healthops-local-data-synthesizer-1 Started
+data-synthesizer-1   | 2026-10-18 20:42:11,510 INFO versioning: [data-synthesizer] INPUT_DATA_VERSION=canonical-v0.1 OUTPUT_DATA_VERSION=synthetic-v0.1 GIT_COMMIT=e3bc4ea
+data-synthesizer-1   | 2026-10-18 20:42:11,634 INFO httpx: HTTP Request: GET http://host.docker.internal:11434/api/tags "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:42:11,634 INFO data-synthesizer: calibrating on canonical-v0.1
+data-synthesizer-1   | 2026-10-18 20:42:18,031 INFO data-synthesizer: 5000 users from 5000 Synthea profiles
+data-synthesizer-1   | 2026-10-18 20:42:34,807 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:42:47,030 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:42:59,410 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:43:11,506 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:43:28,191 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:43:44,943 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:44:01,320 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:44:16,771 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:44:31,955 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:44:48,256 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:45:04,716 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:45:20,191 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:45:35,573 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:45:51,537 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:45:51,537 INFO data-synthesizer: per-user schedules: 10/500
+data-synthesizer-1   | 2026-10-18 20:46:02,420 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:46:18,556 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:46:34,743 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:46:51,027 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:47:07,193 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:47:23,181 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:47:36,210 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:47:50,474 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:48:06,762 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:48:23,084 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:48:23,091 INFO data-synthesizer: per-user schedules: 20/500
+data-synthesizer-1   | 2026-10-18 20:48:38,418 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:48:53,625 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:49:09,890 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:49:26,049 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:49:42,512 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:49:58,773 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:50:15,072 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:51:48,718 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:51:50,789 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 500 Internal Server Error"
+data-synthesizer-1   | 2026-10-18 20:52:10,368 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:52:26,553 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:52:26,554 INFO data-synthesizer: per-user schedules: 30/500
+data-synthesizer-1   | 2026-10-18 20:52:41,958 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:52:58,055 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:53:14,212 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:53:30,375 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:53:46,581 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:54:02,470 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:54:17,825 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:54:33,752 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:54:47,879 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:55:04,020 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:55:04,022 INFO data-synthesizer: per-user schedules: 40/500
+data-synthesizer-1   | 2026-10-18 20:55:20,159 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:55:36,244 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:55:52,511 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:56:08,612 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:56:21,658 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:56:37,703 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:56:53,900 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:57:09,080 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:57:25,329 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:57:40,459 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:57:40,460 INFO data-synthesizer: per-user schedules: 50/500
+data-synthesizer-1   | 2026-10-18 20:57:55,780 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:58:12,048 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:58:28,207 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:58:44,607 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:59:00,006 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:59:16,419 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:59:32,909 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 20:59:46,170 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:00:02,350 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:03:22,586 WARNING data-synthesizer: synthetic-00445: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:03:22,701 INFO data-synthesizer: per-user schedules: 60/500
+data-synthesizer-1   | 2026-10-18 21:03:40,660 WARNING data-synthesizer: synthetic-02398: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:03:57,218 WARNING data-synthesizer: synthetic-02104: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:04:11,399 WARNING data-synthesizer: synthetic-03391: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:04:30,909 WARNING data-synthesizer: synthetic-04818: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:04:49,799 WARNING data-synthesizer: synthetic-03714: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:05:03,779 WARNING data-synthesizer: synthetic-03251: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:05:31,045 WARNING data-synthesizer: synthetic-03182: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:05:54,400 WARNING data-synthesizer: synthetic-02203: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:06:04,723 WARNING data-synthesizer: synthetic-04726: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:06:28,692 WARNING data-synthesizer: synthetic-02860: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:06:28,837 INFO data-synthesizer: per-user schedules: 70/500
+data-synthesizer-1   | 2026-10-18 21:06:43,941 WARNING data-synthesizer: synthetic-04824: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:07:01,172 WARNING data-synthesizer: synthetic-04436: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:07:19,155 WARNING data-synthesizer: synthetic-01380: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 21:07:56,829 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:08:12,669 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:08:28,603 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:08:42,612 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:08:59,068 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:09:14,238 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:09:29,442 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:09:29,445 INFO data-synthesizer: per-user schedules: 80/500
+data-synthesizer-1   | 2026-10-18 21:09:45,443 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:10:00,487 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:10:16,675 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:10:32,839 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:10:48,975 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:11:05,109 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:11:15,936 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:11:31,095 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:11:45,196 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:12:01,436 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:12:01,436 INFO data-synthesizer: per-user schedules: 90/500
+data-synthesizer-1   | 2026-10-18 21:12:16,538 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:12:32,941 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:12:48,025 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:13:04,483 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:13:19,629 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:13:30,689 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:13:45,749 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:14:02,079 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:14:17,290 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:14:32,481 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:14:32,483 INFO data-synthesizer: per-user schedules: 100/500
+data-synthesizer-1   | 2026-10-18 21:14:48,491 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:15:04,923 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:15:21,444 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:15:34,941 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:15:51,968 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:15:52,540 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 500 Internal Server Error"
+data-synthesizer-1   | 2026-10-18 21:16:14,473 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:16:30,751 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:16:45,905 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:16:58,802 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:17:14,896 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:17:14,907 INFO data-synthesizer: per-user schedules: 110/500
+data-synthesizer-1   | 2026-10-18 21:17:27,928 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:17:44,100 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:17:58,019 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:18:14,190 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:18:29,339 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:18:44,416 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:19:00,635 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:19:17,014 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:19:33,364 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:19:49,575 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:19:49,576 INFO data-synthesizer: per-user schedules: 120/500
+data-synthesizer-1   | 2026-10-18 21:20:05,781 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:20:22,215 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:20:38,410 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:20:53,487 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:21:09,772 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:21:25,872 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:21:42,216 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:21:58,488 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:22:10,419 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:22:25,686 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:22:25,687 INFO data-synthesizer: per-user schedules: 130/500
+data-synthesizer-1   | 2026-10-18 21:22:41,123 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:22:57,413 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:23:06,298 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:23:21,423 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:23:37,921 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:23:53,962 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:24:10,577 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:24:11,664 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 500 Internal Server Error"
+data-synthesizer-1   | 2026-10-18 21:24:31,495 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:24:46,536 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:25:02,693 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:25:02,694 INFO data-synthesizer: per-user schedules: 140/500
+data-synthesizer-1   | 2026-10-18 21:25:18,891 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:25:35,229 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:25:51,393 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:26:06,469 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:26:22,591 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:26:38,814 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:26:53,965 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:27:09,114 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:27:25,331 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:27:41,435 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:27:41,438 INFO data-synthesizer: per-user schedules: 150/500
+data-synthesizer-1   | 2026-10-18 21:27:57,724 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:28:14,013 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:28:30,170 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:28:46,818 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:29:03,494 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:29:18,933 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:29:34,209 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:29:49,474 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:30:05,870 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:30:21,934 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:30:21,936 INFO data-synthesizer: per-user schedules: 160/500
+data-synthesizer-1   | 2026-10-18 21:30:38,278 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:30:54,928 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:31:11,522 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:31:22,704 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:31:39,196 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:32:24,747 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:32:41,303 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:32:57,620 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:32:58,249 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 500 Internal Server Error"
+data-synthesizer-1   | 2026-10-18 21:33:19,557 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:33:36,037 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:33:36,048 INFO data-synthesizer: per-user schedules: 170/500
+data-synthesizer-1   | 2026-10-18 21:33:52,424 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:34:07,619 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:34:23,929 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:34:40,205 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:34:56,666 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:35:12,781 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:35:28,964 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:35:42,984 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:35:58,058 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:36:14,149 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:36:14,159 INFO data-synthesizer: per-user schedules: 180/500
+data-synthesizer-1   | 2026-10-18 21:36:29,393 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:36:45,848 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:37:02,227 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:37:18,620 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:37:35,029 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:37:51,400 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:38:07,533 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:38:23,785 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:38:38,970 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:38:55,141 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:38:55,142 INFO data-synthesizer: per-user schedules: 190/500
+data-synthesizer-1   | 2026-10-18 21:39:11,393 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:39:27,604 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:39:42,781 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:39:58,973 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:40:15,109 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:40:27,108 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:40:42,051 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:40:57,531 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:41:14,147 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:41:30,476 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 500 Internal Server Error"
+data-synthesizer-1   | 2026-10-18 21:41:50,320 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:41:50,333 INFO data-synthesizer: per-user schedules: 200/500
+data-synthesizer-1   | 2026-10-18 21:42:05,643 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:42:22,014 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:42:37,246 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:42:53,387 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:43:09,630 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:43:22,612 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:43:38,782 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:43:55,112 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:44:11,258 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:44:27,425 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:44:27,435 INFO data-synthesizer: per-user schedules: 210/500
+data-synthesizer-1   | 2026-10-18 21:44:43,676 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:44:58,729 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:45:11,651 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:45:27,894 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:45:44,118 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:46:00,417 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:46:15,584 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:46:29,716 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:46:45,716 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:47:01,955 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:47:01,957 INFO data-synthesizer: per-user schedules: 220/500
+data-synthesizer-1   | 2026-10-18 21:47:18,148 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:47:34,596 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:47:50,897 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:48:06,991 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:48:20,977 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:48:36,168 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:48:51,141 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:49:06,125 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:49:21,310 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:49:37,588 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 21:49:37,594 INFO data-synthesizer: per-user schedules: 230/500
+# ---- part 2 of 4: pipeline-run-llm-resume-20261019-061518.log ----
+docker compose --profile data up --build --attach-dependencies data-synthesizer
+ Image healthops-local-data-synthesizer Building
+ Image healthops-local-data-processor Building
+ Image healthops-local-data-collector Building
+ Image healthops-local-synthea-generator Building
+ Image healthops-local-data-synthesizer Built
+ Image healthops-local-synthea-generator Built
+ Image healthops-local-data-collector Built
+ Image healthops-local-data-processor Built
+Attaching to data-collector-1, data-processor-1, data-synthesizer-1, synthea-generator-1
+ Container healthops-local-synthea-generator-1 Starting
+ Container healthops-local-synthea-generator-1 Started
+ Container healthops-local-synthea-generator-1 Waiting
+synthea-generator-1  | 2026-10-18 22:15:21,751 INFO versioning: [synthea-generator] INPUT_DATA_VERSION=- OUTPUT_DATA_VERSION=raw-v1 GIT_COMMIT=e3bc4ea
+synthea-generator-1  | 2026-10-18 22:15:21,825 INFO synthea-generator: raw-v1 already contains this Synthea run; nothing to do
+ Container healthops-local-synthea-generator-1 Exited
+ Container healthops-local-data-collector-1 Starting
+ Container healthops-local-data-collector-1 Started
+ Container healthops-local-data-collector-1 Waiting
+data-collector-1     | 2026-10-18 22:15:22,558 INFO versioning: [data-collector] INPUT_DATA_VERSION=- OUTPUT_DATA_VERSION=raw-v1 GIT_COMMIT=e3bc4ea
+data-collector-1     | 2026-10-18 22:15:23,022 INFO versioning: raw-v1 already built with this configuration; nothing to do
+ Container healthops-local-data-collector-1 Exited
+ Container healthops-local-data-processor-1 Starting
+ Container healthops-local-data-processor-1 Started
+ Container healthops-local-data-processor-1 Waiting
+data-processor-1     | 2026-10-18 22:15:25,385 INFO versioning: [data-processor] INPUT_DATA_VERSION=raw-v1 OUTPUT_DATA_VERSION=canonical-v0.1 GIT_COMMIT=e3bc4ea
+data-processor-1     | 2026-10-18 22:15:25,513 INFO versioning: canonical-v0.1 already built with this configuration; nothing to do
+ Container healthops-local-data-processor-1 Exited
+ Container healthops-local-data-synthesizer-1 Starting
+ Container healthops-local-data-synthesizer-1 Started
+data-synthesizer-1   | 2026-10-18 22:15:27,796 INFO versioning: [data-synthesizer] INPUT_DATA_VERSION=canonical-v0.1 OUTPUT_DATA_VERSION=synthetic-v0.1 GIT_COMMIT=e3bc4ea
+data-synthesizer-1   | 2026-10-18 22:15:27,916 INFO httpx: HTTP Request: GET http://host.docker.internal:11434/api/tags "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:15:27,917 INFO data-synthesizer: calibrating on canonical-v0.1
+data-synthesizer-1   | 2026-10-18 22:15:34,926 INFO data-synthesizer: 5000 users from 5000 Synthea profiles
+data-synthesizer-1   | 2026-10-18 22:15:34,932 INFO data-synthesizer: per-user schedules: 10/500
+data-synthesizer-1   | 2026-10-18 22:15:34,933 INFO data-synthesizer: per-user schedules: 20/500
+data-synthesizer-1   | 2026-10-18 22:15:50,960 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:15:50,962 INFO data-synthesizer: per-user schedules: 30/500
+data-synthesizer-1   | 2026-10-18 22:15:50,963 INFO data-synthesizer: per-user schedules: 40/500
+data-synthesizer-1   | 2026-10-18 22:15:50,966 INFO data-synthesizer: per-user schedules: 50/500
+data-synthesizer-1   | 2026-10-18 22:16:06,740 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:16:06,741 INFO data-synthesizer: per-user schedules: 60/500
+data-synthesizer-1   | 2026-10-18 22:16:22,702 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:16:38,574 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:16:54,570 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:17:10,769 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:17:26,904 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:17:42,930 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:17:55,936 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:18:11,827 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:18:28,173 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:18:38,204 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:18:38,215 INFO data-synthesizer: per-user schedules: 70/500
+data-synthesizer-1   | 2026-10-18 22:18:54,579 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:19:05,674 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:19:22,100 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:19:37,290 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:19:37,292 INFO data-synthesizer: per-user schedules: 80/500
+data-synthesizer-1   | 2026-10-18 22:19:37,298 INFO data-synthesizer: per-user schedules: 90/500
+data-synthesizer-1   | 2026-10-18 22:19:37,300 INFO data-synthesizer: per-user schedules: 100/500
+data-synthesizer-1   | 2026-10-18 22:19:52,420 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:19:52,422 INFO data-synthesizer: per-user schedules: 110/500
+data-synthesizer-1   | 2026-10-18 22:19:52,424 INFO data-synthesizer: per-user schedules: 120/500
+data-synthesizer-1   | 2026-10-18 22:19:52,426 INFO data-synthesizer: per-user schedules: 130/500
+data-synthesizer-1   | 2026-10-18 22:20:07,573 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:20:07,574 INFO data-synthesizer: per-user schedules: 140/500
+data-synthesizer-1   | 2026-10-18 22:20:07,576 INFO data-synthesizer: per-user schedules: 150/500
+data-synthesizer-1   | 2026-10-18 22:20:07,579 INFO data-synthesizer: per-user schedules: 160/500
+data-synthesizer-1   | 2026-10-18 22:20:23,902 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:20:40,433 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:20:40,435 INFO data-synthesizer: per-user schedules: 170/500
+data-synthesizer-1   | 2026-10-18 22:20:40,441 INFO data-synthesizer: per-user schedules: 180/500
+data-synthesizer-1   | 2026-10-18 22:20:40,444 INFO data-synthesizer: per-user schedules: 190/500
+data-synthesizer-1   | 2026-10-18 22:20:55,771 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:20:55,776 INFO data-synthesizer: per-user schedules: 200/500
+data-synthesizer-1   | 2026-10-18 22:20:55,785 INFO data-synthesizer: per-user schedules: 210/500
+data-synthesizer-1   | 2026-10-18 22:20:55,789 INFO data-synthesizer: per-user schedules: 220/500
+data-synthesizer-1   | 2026-10-18 22:20:55,794 INFO data-synthesizer: per-user schedules: 230/500
+data-synthesizer-1   | 2026-10-18 22:21:10,188 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:21:24,530 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:21:40,811 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:21:57,422 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:22:14,050 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:22:30,461 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:22:46,870 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:23:03,199 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:23:19,781 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:23:36,625 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:23:36,626 INFO data-synthesizer: per-user schedules: 240/500
+data-synthesizer-1   | 2026-10-18 22:23:52,261 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:24:12,621 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:24:13,588 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 500 Internal Server Error"
+data-synthesizer-1   | 2026-10-18 22:24:35,011 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:24:51,429 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:25:07,704 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:25:22,720 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:25:37,897 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:25:53,994 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:26:10,241 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:26:23,068 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:26:23,069 INFO data-synthesizer: per-user schedules: 250/500
+data-synthesizer-1   | 2026-10-18 22:26:39,055 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:26:55,145 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:27:11,387 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:27:27,566 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:27:41,670 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:27:57,705 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:28:12,856 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:28:26,858 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:28:38,036 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:28:53,506 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:28:53,516 INFO data-synthesizer: per-user schedules: 260/500
+data-synthesizer-1   | 2026-10-18 22:29:08,756 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:29:24,994 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:29:41,310 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:29:57,844 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:30:13,170 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:30:29,474 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:30:45,750 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:30:58,911 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:31:15,286 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:31:31,761 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:31:31,761 INFO data-synthesizer: per-user schedules: 270/500
+data-synthesizer-1   | 2026-10-18 22:31:47,042 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:32:03,478 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:32:20,013 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:32:35,447 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:32:51,474 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:36:06,461 WARNING data-synthesizer: synthetic-01990: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:36:18,574 WARNING data-synthesizer: synthetic-04066: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:36:29,245 WARNING data-synthesizer: synthetic-02888: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:36:40,692 WARNING data-synthesizer: synthetic-00440: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:36:50,159 WARNING data-synthesizer: synthetic-04701: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:36:50,243 INFO data-synthesizer: per-user schedules: 280/500
+data-synthesizer-1   | 2026-10-18 22:37:01,817 WARNING data-synthesizer: synthetic-00499: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:37:14,084 WARNING data-synthesizer: synthetic-00882: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:37:27,353 WARNING data-synthesizer: synthetic-04254: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:37:37,067 WARNING data-synthesizer: synthetic-01327: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:37:50,499 WARNING data-synthesizer: synthetic-04049: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:38:03,471 WARNING data-synthesizer: synthetic-03275: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:38:13,009 WARNING data-synthesizer: synthetic-03453: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:38:25,849 WARNING data-synthesizer: synthetic-03422: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:38:34,850 WARNING data-synthesizer: synthetic-00907: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:38:46,641 WARNING data-synthesizer: synthetic-04558: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:38:46,671 INFO data-synthesizer: per-user schedules: 290/500
+data-synthesizer-1   | 2026-10-18 22:38:56,893 WARNING data-synthesizer: synthetic-03678: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:39:07,746 WARNING data-synthesizer: synthetic-02040: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:39:18,123 WARNING data-synthesizer: synthetic-04465: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:39:28,951 WARNING data-synthesizer: synthetic-02028: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:39:38,673 WARNING data-synthesizer: synthetic-03009: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:39:49,185 WARNING data-synthesizer: synthetic-03479: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:40:00,532 WARNING data-synthesizer: synthetic-04866: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:40:10,029 WARNING data-synthesizer: synthetic-02996: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:40:19,947 WARNING data-synthesizer: synthetic-00505: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:40:29,431 WARNING data-synthesizer: synthetic-00613: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:40:29,453 INFO data-synthesizer: per-user schedules: 300/500
+data-synthesizer-1   | 2026-10-18 22:40:39,528 WARNING data-synthesizer: synthetic-01411: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:40:49,179 WARNING data-synthesizer: synthetic-02572: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:40:59,233 WARNING data-synthesizer: synthetic-04817: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:41:08,737 WARNING data-synthesizer: synthetic-02581: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:41:18,516 WARNING data-synthesizer: synthetic-02849: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:41:28,015 WARNING data-synthesizer: synthetic-02372: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:41:39,351 WARNING data-synthesizer: synthetic-03724: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:41:48,807 WARNING data-synthesizer: synthetic-02588: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:41:59,838 WARNING data-synthesizer: synthetic-02494: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:42:09,404 WARNING data-synthesizer: synthetic-02315: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:42:09,438 INFO data-synthesizer: per-user schedules: 310/500
+data-synthesizer-1   | 2026-10-18 22:42:19,151 WARNING data-synthesizer: synthetic-02022: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:42:28,544 WARNING data-synthesizer: synthetic-02593: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:42:38,124 WARNING data-synthesizer: synthetic-03514: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:42:47,480 WARNING data-synthesizer: synthetic-01872: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:42:57,705 WARNING data-synthesizer: synthetic-04322: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:43:07,788 WARNING data-synthesizer: synthetic-03099: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:43:17,825 WARNING data-synthesizer: synthetic-00731: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:43:27,440 WARNING data-synthesizer: synthetic-03518: no valid schedule after 3 attempts: [Errno 101] Network is unreachable; falling back to the library
+data-synthesizer-1   | 2026-10-18 22:43:53,492 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:44:08,603 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:44:08,605 INFO data-synthesizer: per-user schedules: 320/500
+data-synthesizer-1   | 2026-10-18 22:44:24,118 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:44:40,327 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:44:52,478 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:45:08,834 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:45:24,858 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:45:40,934 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:45:55,997 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:46:12,167 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:46:28,340 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:46:43,721 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:46:43,732 INFO data-synthesizer: per-user schedules: 330/500
+data-synthesizer-1   | 2026-10-18 22:46:58,798 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:47:15,107 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:47:31,178 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:47:47,548 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:48:03,693 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:48:18,753 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:48:34,865 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:48:49,983 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:49:05,266 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:49:21,550 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:49:21,551 INFO data-synthesizer: per-user schedules: 340/500
+data-synthesizer-1   | 2026-10-18 22:49:37,645 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:49:53,999 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:50:10,276 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:50:25,378 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:50:41,550 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:50:58,146 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:51:13,641 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:52:00,199 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:52:15,303 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:52:31,768 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:52:31,769 INFO data-synthesizer: per-user schedules: 350/500
+data-synthesizer-1   | 2026-10-18 22:52:53,826 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:53:26,256 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 500 Internal Server Error"
+data-synthesizer-1   | 2026-10-18 22:53:46,778 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:54:01,940 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:54:17,093 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:54:32,106 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:54:44,037 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:55:00,608 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:55:17,041 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:55:33,088 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:55:49,196 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:55:49,207 INFO data-synthesizer: per-user schedules: 360/500
+data-synthesizer-1   | 2026-10-18 22:56:05,639 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:56:16,640 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:56:31,784 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:56:46,948 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:57:03,052 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:57:19,344 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:57:34,451 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:57:50,690 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:58:05,692 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:58:21,822 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:58:21,823 INFO data-synthesizer: per-user schedules: 370/500
+data-synthesizer-1   | 2026-10-18 22:58:37,330 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:58:54,087 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:59:07,316 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:59:22,729 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:59:38,116 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 22:59:54,511 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:00:11,043 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:00:27,617 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:00:44,076 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:01:00,808 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:01:00,808 INFO data-synthesizer: per-user schedules: 380/500
+data-synthesizer-1   | 2026-10-18 23:01:17,501 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:01:30,710 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:01:46,392 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:02:01,366 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:02:51,217 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 500 Internal Server Error"
+data-synthesizer-1   | 2026-10-18 23:03:12,449 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:03:28,854 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:03:45,221 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:04:01,168 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:04:17,326 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:04:33,598 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:04:33,601 INFO data-synthesizer: per-user schedules: 390/500
+data-synthesizer-1   | 2026-10-18 23:04:49,825 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:05:04,830 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:05:21,070 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:05:37,151 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:05:53,611 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:06:10,050 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:06:24,011 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:06:40,201 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:06:55,203 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:07:11,292 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:07:11,300 INFO data-synthesizer: per-user schedules: 400/500
+data-synthesizer-1   | 2026-10-18 23:07:27,319 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:07:42,436 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:07:58,623 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:08:13,108 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:08:29,377 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:08:45,923 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:09:02,425 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:09:17,981 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:09:33,441 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:09:50,057 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:09:50,059 INFO data-synthesizer: per-user schedules: 410/500
+data-synthesizer-1   | 2026-10-18 23:10:02,726 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:10:19,585 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:10:36,339 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:10:53,694 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:11:10,949 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:11:27,922 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+unexpected EOF
+make: *** [Makefile:18: data] Error 1
+# ---- part 3 of 4: pipeline-run-llm-resume-20261019-071844.log ----
+docker compose --profile data up --build --attach-dependencies data-synthesizer
+ Image healthops-local-data-synthesizer Building
+ Image healthops-local-synthea-generator Building
+ Image healthops-local-data-processor Building
+ Image healthops-local-data-collector Building
+ Image healthops-local-synthea-generator Built
+ Image healthops-local-data-collector Built
+ Image healthops-local-data-processor Built
+ Image healthops-local-data-synthesizer Built
+Attaching to data-collector-1, data-processor-1, data-synthesizer-1, synthea-generator-1
+ Container healthops-local-synthea-generator-1 Starting
+ Container healthops-local-synthea-generator-1 Started
+ Container healthops-local-synthea-generator-1 Waiting
+synthea-generator-1  | 2026-10-18 23:18:48,043 INFO versioning: [synthea-generator] INPUT_DATA_VERSION=- OUTPUT_DATA_VERSION=raw-v1 GIT_COMMIT=e3bc4ea
+synthea-generator-1  | 2026-10-18 23:18:48,124 INFO synthea-generator: raw-v1 already contains this Synthea run; nothing to do
+ Container healthops-local-synthea-generator-1 Exited
+ Container healthops-local-data-collector-1 Starting
+ Container healthops-local-data-collector-1 Started
+ Container healthops-local-data-collector-1 Waiting
+data-collector-1     | 2026-10-18 23:18:48,860 INFO versioning: [data-collector] INPUT_DATA_VERSION=- OUTPUT_DATA_VERSION=raw-v1 GIT_COMMIT=e3bc4ea
+data-collector-1     | 2026-10-18 23:18:50,358 INFO versioning: raw-v1 already built with this configuration; nothing to do
+ Container healthops-local-data-collector-1 Exited
+ Container healthops-local-data-processor-1 Starting
+ Container healthops-local-data-processor-1 Started
+ Container healthops-local-data-processor-1 Waiting
+data-processor-1     | 2026-10-18 23:18:53,482 INFO versioning: [data-processor] INPUT_DATA_VERSION=raw-v1 OUTPUT_DATA_VERSION=canonical-v0.1 GIT_COMMIT=e3bc4ea
+data-processor-1     | 2026-10-18 23:18:53,772 INFO versioning: canonical-v0.1 already built with this configuration; nothing to do
+ Container healthops-local-data-processor-1 Exited
+ Container healthops-local-data-synthesizer-1 Starting
+ Container healthops-local-data-synthesizer-1 Started
+data-synthesizer-1   | 2026-10-18 23:18:56,438 INFO versioning: [data-synthesizer] INPUT_DATA_VERSION=canonical-v0.1 OUTPUT_DATA_VERSION=synthetic-v0.1 GIT_COMMIT=e3bc4ea
+data-synthesizer-1   | 2026-10-18 23:18:56,593 INFO httpx: HTTP Request: GET http://host.docker.internal:11434/api/tags "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:18:56,593 INFO data-synthesizer: calibrating on canonical-v0.1
+data-synthesizer-1   | 2026-10-18 23:19:07,638 INFO data-synthesizer: 5000 users from 5000 Synthea profiles
+data-synthesizer-1   | 2026-10-18 23:19:07,645 INFO data-synthesizer: per-user schedules: 10/500
+data-synthesizer-1   | 2026-10-18 23:19:07,647 INFO data-synthesizer: per-user schedules: 20/500
+data-synthesizer-1   | 2026-10-18 23:19:07,648 INFO data-synthesizer: per-user schedules: 30/500
+data-synthesizer-1   | 2026-10-18 23:19:07,650 INFO data-synthesizer: per-user schedules: 40/500
+data-synthesizer-1   | 2026-10-18 23:19:07,651 INFO data-synthesizer: per-user schedules: 50/500
+data-synthesizer-1   | 2026-10-18 23:19:07,653 INFO data-synthesizer: per-user schedules: 60/500
+data-synthesizer-1   | 2026-10-18 23:19:07,655 INFO data-synthesizer: per-user schedules: 70/500
+data-synthesizer-1   | 2026-10-18 23:19:07,657 INFO data-synthesizer: per-user schedules: 80/500
+data-synthesizer-1   | 2026-10-18 23:19:07,658 INFO data-synthesizer: per-user schedules: 90/500
+data-synthesizer-1   | 2026-10-18 23:19:07,660 INFO data-synthesizer: per-user schedules: 100/500
+data-synthesizer-1   | 2026-10-18 23:19:07,662 INFO data-synthesizer: per-user schedules: 110/500
+data-synthesizer-1   | 2026-10-18 23:19:07,664 INFO data-synthesizer: per-user schedules: 120/500
+data-synthesizer-1   | 2026-10-18 23:19:07,665 INFO data-synthesizer: per-user schedules: 130/500
+data-synthesizer-1   | 2026-10-18 23:19:07,667 INFO data-synthesizer: per-user schedules: 140/500
+data-synthesizer-1   | 2026-10-18 23:19:07,669 INFO data-synthesizer: per-user schedules: 150/500
+data-synthesizer-1   | 2026-10-18 23:19:07,670 INFO data-synthesizer: per-user schedules: 160/500
+data-synthesizer-1   | 2026-10-18 23:19:07,672 INFO data-synthesizer: per-user schedules: 170/500
+data-synthesizer-1   | 2026-10-18 23:19:07,673 INFO data-synthesizer: per-user schedules: 180/500
+data-synthesizer-1   | 2026-10-18 23:19:07,675 INFO data-synthesizer: per-user schedules: 190/500
+data-synthesizer-1   | 2026-10-18 23:19:07,677 INFO data-synthesizer: per-user schedules: 200/500
+data-synthesizer-1   | 2026-10-18 23:19:07,679 INFO data-synthesizer: per-user schedules: 210/500
+data-synthesizer-1   | 2026-10-18 23:19:07,680 INFO data-synthesizer: per-user schedules: 220/500
+data-synthesizer-1   | 2026-10-18 23:19:07,682 INFO data-synthesizer: per-user schedules: 230/500
+data-synthesizer-1   | 2026-10-18 23:19:07,684 INFO data-synthesizer: per-user schedules: 240/500
+data-synthesizer-1   | 2026-10-18 23:19:22,746 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:19:22,750 INFO data-synthesizer: per-user schedules: 250/500
+data-synthesizer-1   | 2026-10-18 23:19:22,754 INFO data-synthesizer: per-user schedules: 260/500
+data-synthesizer-1   | 2026-10-18 23:19:22,755 INFO data-synthesizer: per-user schedules: 270/500
+data-synthesizer-1   | 2026-10-18 23:19:37,925 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:19:50,842 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:20:05,839 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:20:22,704 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:20:39,640 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:20:39,641 INFO data-synthesizer: per-user schedules: 280/500
+data-synthesizer-1   | 2026-10-18 23:20:55,639 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:21:12,923 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:21:29,668 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:21:45,383 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:22:00,987 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:22:16,897 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:22:33,915 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:22:45,254 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:22:56,525 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:23:13,175 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:23:13,179 INFO data-synthesizer: per-user schedules: 290/500
+data-synthesizer-1   | 2026-10-18 23:23:30,354 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:23:46,951 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:24:02,641 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:24:19,445 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:24:36,396 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:24:52,001 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:25:08,630 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:25:25,334 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:25:42,087 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:25:58,700 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:25:58,701 INFO data-synthesizer: per-user schedules: 300/500
+data-synthesizer-1   | 2026-10-18 23:26:15,295 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:26:32,006 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:26:49,115 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:27:06,187 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:27:23,150 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:27:39,578 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:28:09,531 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:28:10,740 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 500 Internal Server Error"
+data-synthesizer-1   | 2026-10-18 23:28:33,011 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:28:49,362 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:29:05,675 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:29:05,676 INFO data-synthesizer: per-user schedules: 310/500
+data-synthesizer-1   | 2026-10-18 23:29:21,930 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:29:35,163 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:29:50,271 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:30:06,405 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:30:21,585 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:30:37,566 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:30:53,701 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:31:06,643 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:31:06,648 INFO data-synthesizer: per-user schedules: 320/500
+data-synthesizer-1   | 2026-10-18 23:31:06,658 INFO data-synthesizer: per-user schedules: 330/500
+data-synthesizer-1   | 2026-10-18 23:31:06,669 INFO data-synthesizer: per-user schedules: 340/500
+data-synthesizer-1   | 2026-10-18 23:31:22,887 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:31:22,902 INFO data-synthesizer: per-user schedules: 350/500
+data-synthesizer-1   | 2026-10-18 23:31:39,017 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:31:39,026 INFO data-synthesizer: per-user schedules: 360/500
+data-synthesizer-1   | 2026-10-18 23:31:39,035 INFO data-synthesizer: per-user schedules: 370/500
+data-synthesizer-1   | 2026-10-18 23:31:39,044 INFO data-synthesizer: per-user schedules: 380/500
+data-synthesizer-1   | 2026-10-18 23:31:55,073 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:31:55,080 INFO data-synthesizer: per-user schedules: 390/500
+data-synthesizer-1   | 2026-10-18 23:31:55,089 INFO data-synthesizer: per-user schedules: 400/500
+data-synthesizer-1   | 2026-10-18 23:31:55,096 INFO data-synthesizer: per-user schedules: 410/500
+data-synthesizer-1   | 2026-10-18 23:32:11,232 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:32:27,399 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:32:42,544 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:32:57,608 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:32:57,615 INFO data-synthesizer: per-user schedules: 420/500
+data-synthesizer-1   | 2026-10-18 23:33:13,620 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:33:28,622 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:33:44,599 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:34:00,606 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:34:16,499 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:34:28,407 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:34:44,383 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:35:00,536 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:35:16,709 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:35:32,868 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:35:32,871 INFO data-synthesizer: per-user schedules: 430/500
+data-synthesizer-1   | 2026-10-18 23:35:47,093 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:36:03,153 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:36:19,516 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:36:31,474 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:36:48,662 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:36:50,424 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 500 Internal Server Error"
+data-synthesizer-1   | 2026-10-18 23:37:13,048 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:37:28,507 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:37:42,766 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:37:56,861 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:38:13,053 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:38:13,054 INFO data-synthesizer: per-user schedules: 440/500
+data-synthesizer-1   | 2026-10-18 23:38:29,455 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:38:43,511 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:38:51,248 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:39:05,358 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:39:21,550 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:39:37,768 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:39:53,903 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:40:08,994 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:40:25,143 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:40:41,184 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:40:41,185 INFO data-synthesizer: per-user schedules: 450/500
+data-synthesizer-1   | 2026-10-18 23:40:50,927 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:41:06,931 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:41:23,073 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:41:38,988 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:41:55,239 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:42:11,381 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:42:27,346 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:42:43,422 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:42:59,518 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:43:11,432 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:43:11,432 INFO data-synthesizer: per-user schedules: 460/500
+data-synthesizer-1   | 2026-10-18 23:43:27,594 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:43:42,661 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:43:57,710 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:44:13,759 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:44:30,067 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:45:17,066 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:45:31,295 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:45:42,139 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+unexpected EOF
+make: *** [Makefile:18: data] Error 1
+# ---- part 4 of 4: pipeline-run-llm-resume-20261019-075152.log ----
+docker compose --profile data up --build --attach-dependencies data-synthesizer
+ Image healthops-local-data-collector Building
+ Image healthops-local-synthea-generator Building
+ Image healthops-local-data-processor Building
+ Image healthops-local-data-synthesizer Building
+ Image healthops-local-synthea-generator Built
+ Image healthops-local-data-collector Built
+ Image healthops-local-data-processor Built
+ Image healthops-local-data-synthesizer Built
+Attaching to data-collector-1, data-processor-1, data-synthesizer-1, synthea-generator-1
+ Container healthops-local-synthea-generator-1 Starting
+ Container healthops-local-synthea-generator-1 Started
+ Container healthops-local-synthea-generator-1 Waiting
+synthea-generator-1  | 2026-10-18 23:51:57,880 INFO versioning: [synthea-generator] INPUT_DATA_VERSION=- OUTPUT_DATA_VERSION=raw-v1 GIT_COMMIT=e3bc4ea
+synthea-generator-1  | 2026-10-18 23:51:58,037 INFO synthea-generator: raw-v1 already contains this Synthea run; nothing to do
+ Container healthops-local-synthea-generator-1 Exited
+ Container healthops-local-data-collector-1 Starting
+ Container healthops-local-data-collector-1 Started
+ Container healthops-local-data-collector-1 Waiting
+data-collector-1     | 2026-10-18 23:51:59,616 INFO versioning: [data-collector] INPUT_DATA_VERSION=- OUTPUT_DATA_VERSION=raw-v1 GIT_COMMIT=e3bc4ea
+data-collector-1     | 2026-10-18 23:52:00,598 INFO versioning: raw-v1 already built with this configuration; nothing to do
+ Container healthops-local-data-collector-1 Exited
+ Container healthops-local-data-processor-1 Starting
+ Container healthops-local-data-processor-1 Started
+ Container healthops-local-data-processor-1 Waiting
+data-processor-1     | 2026-10-18 23:52:04,490 INFO versioning: [data-processor] INPUT_DATA_VERSION=raw-v1 OUTPUT_DATA_VERSION=canonical-v0.1 GIT_COMMIT=e3bc4ea
+data-processor-1     | 2026-10-18 23:52:04,700 INFO versioning: canonical-v0.1 already built with this configuration; nothing to do
+ Container healthops-local-data-processor-1 Exited
+ Container healthops-local-data-synthesizer-1 Starting
+ Container healthops-local-data-synthesizer-1 Started
+data-synthesizer-1   | 2026-10-18 23:52:08,315 INFO versioning: [data-synthesizer] INPUT_DATA_VERSION=canonical-v0.1 OUTPUT_DATA_VERSION=synthetic-v0.1 GIT_COMMIT=e3bc4ea
+data-synthesizer-1   | 2026-10-18 23:52:08,523 INFO httpx: HTTP Request: GET http://host.docker.internal:11434/api/tags "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:52:08,524 INFO data-synthesizer: calibrating on canonical-v0.1
+data-synthesizer-1   | 2026-10-18 23:52:20,259 INFO data-synthesizer: 5000 users from 5000 Synthea profiles
+data-synthesizer-1   | 2026-10-18 23:52:20,268 INFO data-synthesizer: per-user schedules: 10/500
+data-synthesizer-1   | 2026-10-18 23:52:20,270 INFO data-synthesizer: per-user schedules: 20/500
+data-synthesizer-1   | 2026-10-18 23:52:20,272 INFO data-synthesizer: per-user schedules: 30/500
+data-synthesizer-1   | 2026-10-18 23:52:20,274 INFO data-synthesizer: per-user schedules: 40/500
+data-synthesizer-1   | 2026-10-18 23:52:20,276 INFO data-synthesizer: per-user schedules: 50/500
+data-synthesizer-1   | 2026-10-18 23:52:20,278 INFO data-synthesizer: per-user schedules: 60/500
+data-synthesizer-1   | 2026-10-18 23:52:20,280 INFO data-synthesizer: per-user schedules: 70/500
+data-synthesizer-1   | 2026-10-18 23:52:20,283 INFO data-synthesizer: per-user schedules: 80/500
+data-synthesizer-1   | 2026-10-18 23:52:20,286 INFO data-synthesizer: per-user schedules: 90/500
+data-synthesizer-1   | 2026-10-18 23:52:20,289 INFO data-synthesizer: per-user schedules: 100/500
+data-synthesizer-1   | 2026-10-18 23:52:20,292 INFO data-synthesizer: per-user schedules: 110/500
+data-synthesizer-1   | 2026-10-18 23:52:20,294 INFO data-synthesizer: per-user schedules: 120/500
+data-synthesizer-1   | 2026-10-18 23:52:20,296 INFO data-synthesizer: per-user schedules: 130/500
+data-synthesizer-1   | 2026-10-18 23:52:20,298 INFO data-synthesizer: per-user schedules: 140/500
+data-synthesizer-1   | 2026-10-18 23:52:20,300 INFO data-synthesizer: per-user schedules: 150/500
+data-synthesizer-1   | 2026-10-18 23:52:20,303 INFO data-synthesizer: per-user schedules: 160/500
+data-synthesizer-1   | 2026-10-18 23:52:20,306 INFO data-synthesizer: per-user schedules: 170/500
+data-synthesizer-1   | 2026-10-18 23:52:20,309 INFO data-synthesizer: per-user schedules: 180/500
+data-synthesizer-1   | 2026-10-18 23:52:20,311 INFO data-synthesizer: per-user schedules: 190/500
+data-synthesizer-1   | 2026-10-18 23:52:20,313 INFO data-synthesizer: per-user schedules: 200/500
+data-synthesizer-1   | 2026-10-18 23:52:20,315 INFO data-synthesizer: per-user schedules: 210/500
+data-synthesizer-1   | 2026-10-18 23:52:20,317 INFO data-synthesizer: per-user schedules: 220/500
+data-synthesizer-1   | 2026-10-18 23:52:20,319 INFO data-synthesizer: per-user schedules: 230/500
+data-synthesizer-1   | 2026-10-18 23:52:20,321 INFO data-synthesizer: per-user schedules: 240/500
+data-synthesizer-1   | 2026-10-18 23:52:20,323 INFO data-synthesizer: per-user schedules: 250/500
+data-synthesizer-1   | 2026-10-18 23:52:20,325 INFO data-synthesizer: per-user schedules: 260/500
+data-synthesizer-1   | 2026-10-18 23:52:20,328 INFO data-synthesizer: per-user schedules: 270/500
+data-synthesizer-1   | 2026-10-18 23:52:20,331 INFO data-synthesizer: per-user schedules: 280/500
+data-synthesizer-1   | 2026-10-18 23:52:20,334 INFO data-synthesizer: per-user schedules: 290/500
+data-synthesizer-1   | 2026-10-18 23:52:20,336 INFO data-synthesizer: per-user schedules: 300/500
+data-synthesizer-1   | 2026-10-18 23:53:35,713 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:53:35,717 INFO data-synthesizer: per-user schedules: 310/500
+data-synthesizer-1   | 2026-10-18 23:53:35,721 INFO data-synthesizer: per-user schedules: 320/500
+data-synthesizer-1   | 2026-10-18 23:53:35,727 INFO data-synthesizer: per-user schedules: 330/500
+data-synthesizer-1   | 2026-10-18 23:53:35,731 INFO data-synthesizer: per-user schedules: 340/500
+data-synthesizer-1   | 2026-10-18 23:53:35,735 INFO data-synthesizer: per-user schedules: 350/500
+data-synthesizer-1   | 2026-10-18 23:53:35,738 INFO data-synthesizer: per-user schedules: 360/500
+data-synthesizer-1   | 2026-10-18 23:53:35,742 INFO data-synthesizer: per-user schedules: 370/500
+data-synthesizer-1   | 2026-10-18 23:53:35,747 INFO data-synthesizer: per-user schedules: 380/500
+data-synthesizer-1   | 2026-10-18 23:53:35,751 INFO data-synthesizer: per-user schedules: 390/500
+data-synthesizer-1   | 2026-10-18 23:53:35,754 INFO data-synthesizer: per-user schedules: 400/500
+data-synthesizer-1   | 2026-10-18 23:53:35,758 INFO data-synthesizer: per-user schedules: 410/500
+data-synthesizer-1   | 2026-10-18 23:53:35,762 INFO data-synthesizer: per-user schedules: 420/500
+data-synthesizer-1   | 2026-10-18 23:53:35,766 INFO data-synthesizer: per-user schedules: 430/500
+data-synthesizer-1   | 2026-10-18 23:54:43,101 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:54:43,104 INFO data-synthesizer: per-user schedules: 440/500
+data-synthesizer-1   | 2026-10-18 23:54:43,109 INFO data-synthesizer: per-user schedules: 450/500
+data-synthesizer-1   | 2026-10-18 23:54:43,112 INFO data-synthesizer: per-user schedules: 460/500
+data-synthesizer-1   | 2026-10-18 23:55:51,899 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:56:56,253 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:57:43,463 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:57:43,464 INFO data-synthesizer: per-user schedules: 470/500
+data-synthesizer-1   | 2026-10-18 23:58:13,669 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:58:28,889 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:58:45,554 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:59:01,995 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:59:18,178 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:59:34,517 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-18 23:59:49,758 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:00:05,771 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:00:15,683 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:00:31,816 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:00:31,818 INFO data-synthesizer: per-user schedules: 480/500
+data-synthesizer-1   | 2026-10-19 00:00:48,012 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:00:59,312 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:01:15,145 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:01:32,113 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:01:47,745 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:02:03,770 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:02:20,107 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:02:36,538 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:02:51,737 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:03:07,130 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:03:07,132 INFO data-synthesizer: per-user schedules: 490/500
+data-synthesizer-1   | 2026-10-19 00:03:23,206 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:03:39,320 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:03:55,406 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:04:11,891 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:04:28,108 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:04:43,336 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:04:58,619 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:04:59,246 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 500 Internal Server Error"
+data-synthesizer-1   | 2026-10-19 00:05:20,233 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:05:32,272 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:05:47,504 INFO httpx: HTTP Request: POST http://host.docker.internal:11434/api/chat "HTTP/1.1 200 OK"
+data-synthesizer-1   | 2026-10-19 00:05:47,505 INFO data-synthesizer: per-user schedules: 500/500
+data-synthesizer-1   | 2026-10-19 00:05:57,626 INFO data-synthesizer: generated 200/5000 users
+data-synthesizer-1   | 2026-10-19 00:06:04,666 INFO data-synthesizer: generated 400/5000 users
+data-synthesizer-1   | 2026-10-19 00:06:10,514 INFO data-synthesizer: generated 600/5000 users
+data-synthesizer-1   | 2026-10-19 00:06:16,295 INFO data-synthesizer: generated 800/5000 users
+data-synthesizer-1   | 2026-10-19 00:06:22,417 INFO data-synthesizer: generated 1000/5000 users
+data-synthesizer-1   | 2026-10-19 00:06:27,602 INFO data-synthesizer: generated 1200/5000 users
+data-synthesizer-1   | 2026-10-19 00:06:33,293 INFO data-synthesizer: generated 1400/5000 users
+data-synthesizer-1   | 2026-10-19 00:06:38,958 INFO data-synthesizer: generated 1600/5000 users
+data-synthesizer-1   | 2026-10-19 00:06:44,820 INFO data-synthesizer: generated 1800/5000 users
+data-synthesizer-1   | 2026-10-19 00:06:50,785 INFO data-synthesizer: generated 2000/5000 users
+data-synthesizer-1   | 2026-10-19 00:06:56,641 INFO data-synthesizer: generated 2200/5000 users
+data-synthesizer-1   | 2026-10-19 00:07:02,450 INFO data-synthesizer: generated 2400/5000 users
+data-synthesizer-1   | 2026-10-19 00:07:08,429 INFO data-synthesizer: generated 2600/5000 users
+data-synthesizer-1   | 2026-10-19 00:07:13,706 INFO data-synthesizer: generated 2800/5000 users
+data-synthesizer-1   | 2026-10-19 00:07:19,868 INFO data-synthesizer: generated 3000/5000 users
+data-synthesizer-1   | 2026-10-19 00:07:25,730 INFO data-synthesizer: generated 3200/5000 users
+data-synthesizer-1   | 2026-10-19 00:07:31,029 INFO data-synthesizer: generated 3400/5000 users
+data-synthesizer-1   | 2026-10-19 00:07:37,029 INFO data-synthesizer: generated 3600/5000 users
+data-synthesizer-1   | 2026-10-19 00:07:42,662 INFO data-synthesizer: generated 3800/5000 users
+data-synthesizer-1   | 2026-10-19 00:07:49,095 INFO data-synthesizer: generated 4000/5000 users
+data-synthesizer-1   | 2026-10-19 00:07:55,485 INFO data-synthesizer: generated 4200/5000 users
+data-synthesizer-1   | 2026-10-19 00:08:01,209 INFO data-synthesizer: generated 4400/5000 users
+data-synthesizer-1   | 2026-10-19 00:08:06,828 INFO data-synthesizer: generated 4600/5000 users
+data-synthesizer-1   | 2026-10-19 00:08:12,101 INFO data-synthesizer: generated 4800/5000 users
+data-synthesizer-1   | 2026-10-19 00:08:17,502 INFO data-synthesizer: generated 5000/5000 users
+data-synthesizer-1   | 2026-10-19 00:08:19,443 INFO versioning: wrote /data/manifests/synthetic-v0.1.yaml (9 files)
+data-synthesizer-1 exited with code 0
