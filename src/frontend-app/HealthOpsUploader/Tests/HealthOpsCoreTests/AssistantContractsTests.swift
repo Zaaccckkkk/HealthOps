@@ -6,6 +6,14 @@ import XCTest
 /// If the server contract changes, tests/test_assistant_fixtures.py regenerates the files and
 /// this suite shows what the phone would make of them.
 final class AssistantContractsTests: XCTestCase {
+    func testGeneratedAnswerNeverGetsVerifiedBadge() throws {
+        let data = Data(#"{"status":"answered","explanation_status":"model_generated","answer":"Synthetic AI summary","cards":[],"claims":[]}"#.utf8)
+        let response = try JSONDecoder().decode(AskResponse.self, from: data)
+        XCTAssertEqual(response.explanationStatus, .modelGenerated)
+        XCTAssertEqual(AnswerPresentation(response).explanationBadge, .generated)
+        XCTAssertNotEqual(AnswerPresentation(response).explanationBadge, .verified)
+    }
+
     func load(_ name: String) throws -> AskResponse {
         let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures/assistant")
         let data = try Data(contentsOf: XCTUnwrap(url, "missing fixture \(name)"))
@@ -112,5 +120,41 @@ extension AssistantContractsTests {
         XCTAssertNotNil(response.conversationExpiresAt)
         XCTAssertTrue(response.cards.isEmpty)
         XCTAssertEqual(ClarificationDraft().reply(for: form), "")
+    }
+}
+
+
+extension AssistantContractsTests {
+    func testWriterFallbackDoesNotMasqueradeAsSuccessfulAIAnswer() throws {
+        for reason in ["unsupported_number", "unsupported_date", "model_turn_budget", "context_budget", "model_unavailable_or_timeout"] {
+            let payload: [String: Any] = ["status": "answered", "explanation_status": "verified",
+                "narrative_status": "fallback", "narrative_reason": reason,
+                "answer": "Checked synthetic data summary.", "cards": [], "claims": []]
+            let data = try JSONSerialization.data(withJSONObject: payload)
+            let response = try JSONDecoder().decode(AskResponse.self, from: data)
+            XCTAssertEqual(response.narrativeReason, reason)
+            let view = AnswerPresentation(response)
+            XCTAssertEqual(view.explanationBadge, .fallback)
+            XCTAssertNotNil(view.writerNotice)
+            XCTAssertEqual(response.answer, "Checked synthetic data summary.")
+        }
+    }
+
+    func testOldServerResponseDoesNotInventWriterFailure() throws {
+        let data = Data(#"{"status":"answered","explanation_status":"verified","answer":"Synthetic checked summary","cards":[],"claims":[]}"#.utf8)
+        let response = try JSONDecoder().decode(AskResponse.self, from: data)
+        XCTAssertNil(response.narrativeStatus)
+        XCTAssertNil(AnswerPresentation(response).writerNotice)
+        XCTAssertEqual(AnswerPresentation(response).explanationBadge, .verified)
+    }
+}
+
+
+extension AssistantContractsTests {
+    func testFallbackWithUnverifiedEvidenceNeverClaimsCheckedSummary() throws {
+        let data = Data(#"{"status":"answered","explanation_status":"unverified","narrative_status":"fallback","answer":"Synthetic failure","cards":[],"claims":[]}"#.utf8)
+        let response = try JSONDecoder().decode(AskResponse.self, from: data)
+        XCTAssertEqual(AnswerPresentation(response).explanationBadge, .unverified)
+        XCTAssertNil(AnswerPresentation(response).writerNotice)
     }
 }

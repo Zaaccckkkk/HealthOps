@@ -1,5 +1,5 @@
 {
-  "answer": "On 2026-09-26, your resting_heart_rate (healthkit) was 60.5 bpm, mean of recorded samples (not an all-day average). On 2026-09-27, your resting_heart_rate (healthkit) was 62 bpm, mean of recorded samples (not an all-day average). No resting_heart_rate records on 2026-09-28 (healthkit).",
+  "answer": "On 2026-09-26, your resting_heart_rate (Apple Health) was 60.5 bpm, mean of recorded samples (not an all-day average). On 2026-09-27, your resting_heart_rate (Apple Health) was 62 bpm, mean of recorded samples (not an all-day average). No resting_heart_rate records on 2026-09-28 (Apple Health).",
   "cards": [
     {
       "baseline": null,
@@ -13,6 +13,7 @@
       "metric": "resting_heart_rate",
       "provider": "healthkit",
       "publisher": null,
+      "reconciliation": null,
       "rows": [
         {
           "date": "2026-09-26",
@@ -53,7 +54,7 @@
       "statistic": "mean of recorded samples (not an all-day average)",
       "text": null,
       "timezone": "America/New_York",
-      "title": "resting_heart_rate per day (healthkit)",
+      "title": "resting_heart_rate per day (Apple Health)",
       "tool": "daily_summary",
       "unit": "bpm",
       "warning_text": [],
@@ -69,7 +70,7 @@
       },
       "raw": null,
       "reason": null,
-      "sentence": "On 2026-09-26, your resting_heart_rate (healthkit) was 60.5 bpm, mean of recorded samples (not an all-day average).",
+      "sentence": "On 2026-09-26, your resting_heart_rate (Apple Health) was 60.5 bpm, mean of recorded samples (not an all-day average).",
       "valid": true
     },
     {
@@ -80,7 +81,7 @@
       },
       "raw": null,
       "reason": null,
-      "sentence": "On 2026-09-27, your resting_heart_rate (healthkit) was 62 bpm, mean of recorded samples (not an all-day average).",
+      "sentence": "On 2026-09-27, your resting_heart_rate (Apple Health) was 62 bpm, mean of recorded samples (not an all-day average).",
       "valid": true
     },
     {
@@ -91,7 +92,7 @@
       },
       "raw": null,
       "reason": null,
-      "sentence": "No resting_heart_rate records on 2026-09-28 (healthkit).",
+      "sentence": "No resting_heart_rate records on 2026-09-28 (Apple Health).",
       "valid": true
     }
   ],
@@ -166,9 +167,9 @@
   "limits": {
     "deadline_seconds": 120.0,
     "evidence_budget_bytes": 262144,
-    "max_model_turns": 6,
-    "max_tool_calls": 4,
-    "model_context_budget_chars": 24000
+    "max_model_turns": 14,
+    "max_tool_calls": 12,
+    "model_context_budget_chars": 48000
   },
   "model": {
     "digest": null,
@@ -183,6 +184,11 @@
     "thinking": null
   },
   "model_text": null,
+  "narrative_check_reason": null,
+  "narrative_edit_attempted": false,
+  "narrative_prompt_version": null,
+  "narrative_reason": null,
+  "narrative_status": "disabled",
   "numeric_consistency": {
     "note": "Numeric consistency diagnostic: numbers in the answer were looked up in the tool results. It does not verify direction, unit, window, provider or interpretation.",
     "numbers_in_answer": [

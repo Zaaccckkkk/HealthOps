@@ -2,7 +2,7 @@ import HealthOpsCore
 import SwiftUI
 
 /// Question-and-answer screen. Shows only what the contract marks as display text: the data
-/// status, the explanation status, the template answer, the cards and their warnings.
+/// status, the explanation status, the answer, the cards and their warnings.
 struct ChatView: View {
     @EnvironmentObject private var model: AppModel
     @ObservedObject var assistant: AssistantModel
@@ -19,15 +19,15 @@ struct ChatView: View {
                         description: Text("Examples: \"How did my resting heart rate compare with the week before?\", \"How much did I sleep last night?\" Answers come from the data cards, not from the model's memory."))
                 } else {
                     ScrollViewReader { proxy in
-                        List(assistant.turns) { turn in
-                            VStack(alignment: .leading, spacing: 12) {
-                                TurnView(turn: turn)
-                            }.id(turn.id)
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 24) {
+                                ForEach(assistant.turns) { turn in
+                                    TurnView(turn: turn).id(turn.id)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 16)
                         }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
                         .scrollDismissesKeyboard(.interactively)
                         .onTapGesture { composing = false }
                         .onChange(of: assistant.turns.count) { _, _ in
@@ -42,6 +42,7 @@ struct ChatView: View {
             }
             .background(AskAppearance.canvas)
             .navigationTitle("Ask")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(AskAppearance.canvas, for: .navigationBar)
             .tint(.primary)
             .onAppear {
@@ -59,17 +60,15 @@ struct ChatView: View {
     }
 
     private var scopeBanner: some View {
-        Group {
-            if let user = model.user, let host = model.serverURL?.host {
-                Text("Asking as \(user.displayName) on \(host). Only pending clarification is saved on this device.")
-            } else if model.hasToken, let host = model.serverURL?.host {
-                Text("Account not verified yet; questions go to \(host) with the stored token and any failure is shown here.")
-            } else {
-                Text("Enter the server address and a token on the Setup tab before asking.")
-            }
+        DisclosureGroup {
+            Text(model.serverURL?.host ?? "Set a server address in Setup.")
+            Text("Only pending clarification is saved on this device. Completed history stays in memory.")
+        } label: {
+            Text(model.user.map { "Account: \($0.displayName)" }
+                 ?? (model.hasToken ? "Account not verified yet" : "Connect an account in Setup"))
         }
-        .font(.footnote).foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal).padding(.top, 4)
+        .font(.caption).foregroundStyle(.secondary)
+        .padding(.horizontal, 16).padding(.vertical, 6)
     }
 
     private var composer: some View {
@@ -130,11 +129,20 @@ struct TurnView: View {
     let turn: AssistantConversation.Turn
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
-                Text(turn.question).font(.body.bold())
-                Spacer()
-                Text(ProviderLabel.display(turn.provider)).font(.caption2).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Spacer(minLength: 44)
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(turn.question)
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .background(AskAppearance.userBubble, in: RoundedRectangle(cornerRadius: 18))
+                        .foregroundStyle(Color.black)
+                        .accessibilityLabel("You: \(turn.question)")
+                    Text(ProviderLabel.display(turn.provider))
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
             }
             switch turn.outcome {
             case nil:
@@ -146,7 +154,7 @@ struct TurnView: View {
                 AnswerView(response: response)
             }
         }
-        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -156,29 +164,33 @@ struct AnswerView: View {
     private var presentation: AnswerPresentation { AnswerPresentation(response) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Chip(text: "data: \(presentation.dataStatusLabel)", tone: dataTone)
-                Chip(text: explanationText, tone: explanationTone)
+        VStack(alignment: .leading, spacing: 10) {
+            if let notice = presentation.writerNotice {
+                Text(notice).font(.caption).foregroundStyle(.secondary)
             }
-            Text(response.answer).font(.callout)
-            if !response.cards.isEmpty {
-                DisclosureGroup("View evidence and sources") {
-                    ForEach(response.cards) { card in CardView(card: card) }
+            Text(response.answer)
+                .font(response.status == .needsClarification ? .subheadline : .body)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+                .accessibilityLabel("HealthOps: \(response.answer)")
+            if response.status != .needsClarification {
+                // Keep provenance visible without leading with internal status chips.
+                Text(explanationText).font(.caption2)
+                    .foregroundStyle(explanationColor)
+                if !response.cards.isEmpty {
+                    DisclosureGroup("Evidence and sources") {
+                        ForEach(response.cards) { card in CardView(card: card) }
+                    }.font(.subheadline)
                 }
-            }
-            if !response.disclaimer.isEmpty {
-                Text(response.disclaimer).font(.caption2).foregroundStyle(.secondary)
+                DisclosureGroup("Answer details") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Data: \(presentation.dataStatusLabel)")
+                        if !response.disclaimer.isEmpty { Text(response.disclaimer) }
+                    }.font(.caption).foregroundStyle(.secondary)
+                }.font(.caption).foregroundStyle(.secondary)
             }
         }
-    }
-
-    private var dataTone: Chip.Tone {
-        switch response.status {
-        case .answered: return .good
-        case .insufficientData, .needsClarification, .refused: return .neutral
-        default: return .warning
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var explanationText: String {
@@ -187,39 +199,17 @@ struct AnswerView: View {
             return response.cards.contains(where: { $0.kind == .reference })
                 ? "source match checked · not a safety review"
                 : "explanation verified against the cards"
+        case .fallback: return "AI answer unavailable · data summary shown"
+        case .generated: return "AI answer · review the evidence"
         case .unverified: return "explanation not verified; read the cards"
         case .notApplicable: return "no explanation step"
         }
     }
 
-    private var explanationTone: Chip.Tone {
+    private var explanationColor: Color {
         switch presentation.explanationBadge {
-        case .verified: return .good
-        case .unverified: return .warning
-        case .notApplicable: return .neutral
-        }
-    }
-}
-
-struct Chip: View {
-    enum Tone { case good, warning, neutral }
-    let text: String
-    let tone: Tone
-
-    var body: some View {
-        Text(text)
-            .font(.caption2.bold())
-            .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(color.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
-            .overlay(RoundedRectangle(cornerRadius: 5).stroke(color.opacity(0.65), lineWidth: 1))
-            .foregroundStyle(color)
-    }
-
-    private var color: Color {
-        switch tone {
-        case .good: return .primary
-        case .warning: return .orange
-        case .neutral: return .secondary
+        case .unverified, .fallback: return .orange
+        default: return .secondary
         }
     }
 }
@@ -239,6 +229,8 @@ struct CardView: View {
             switch card.kind {
             case .dailyTable: dailyTable
             case .comparison: comparison
+            case .reconciliation:
+                if let text = card.text { Text(text).font(.callout) }
             case .availability:
                 Text("Availability summary; see the metrics listed by the server.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -406,6 +398,7 @@ private enum AskAppearance {
             ? UIColor(white: 0.13, alpha: 1)
             : UIColor(red: 1, green: 0.992, blue: 0.980, alpha: 1)
     })
+    static let userBubble = Color(red: 161.0 / 255, green: 204.0 / 255, blue: 166.0 / 255)
     static let inverseInk = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark ? .black : .white
     })

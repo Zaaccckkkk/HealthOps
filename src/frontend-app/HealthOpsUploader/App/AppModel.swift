@@ -19,10 +19,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var states: [SyncedType: SyncState] = [:]
     @Published private(set) var syncing = false
     @Published private(set) var messages: [String] = []
-    @Published var selectedMetrics: Set<Metric> = Set(SyncedType.allCases.map(\.metric))
-    // Default upload window: the last 30 days, matching the longest chart range; the picker
-    // still lets the user narrow or widen it before consenting.
-    @Published var historyStart: Date = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
+    @Published var selectedMetrics: Set<Metric> = [.steps]
+    // First-device acceptance starts with steps from yesterday; widening needs new consent.
+    @Published var historyStart: Date = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
     /// Chat state; reset whenever the server, token or verified account changes.
     let assistant = AssistantModel()
     /// Home charts; cleared on the same scope changes so another account's data never lingers.
@@ -53,15 +52,17 @@ final class AppModel: ObservableObject {
         syncStore = try! FileSyncStore(directory: support.appendingPathComponent("sync"))
         consentStore = try! FileConsentStore(file: support.appendingPathComponent("consent.json"))
         serverURLText = defaults.string(forKey: "serverURL") ?? "http://127.0.0.1:8000"
-        hasToken = KeychainTokenStore.load() != nil
+        hasToken = false
         consent = try? consentStore.load()
         identity.serverChanged(to: serverURL)
+        hasToken = currentToken() != nil
     }
 
     /// The user verified against the current server and credential, or nil.
     var user: UserInfo? { identity.current?.user }
 
     private func serverTextChanged() {
+        hasToken = currentToken() != nil
         if identity.serverChanged(to: serverURL) {
             cancelSync(reason: "server changed")
             assistant.reset(reason: "server changed")
@@ -74,20 +75,37 @@ final class AppModel: ObservableObject {
 
     var serverURL: URL? {
         guard let url = URL(string: serverURLText.trimmingCharacters(in: .whitespaces)),
-              let scheme = url.scheme, ["http", "https"].contains(scheme), url.host != nil
+              let scheme = url.scheme, ["http", "https"].contains(scheme), url.host != nil,
+              url.user == nil, url.password == nil, url.query == nil, url.fragment == nil
         else { return nil }
         return url
     }
 
     var consentCoversCurrentScope: Bool {
         guard let consent, let user, let serverURL else { return false }
-        return consent.covers(serverURL: serverURL, userID: user.id)
+        return uploadRejection == nil && consent.covers(serverURL: serverURL, userID: user.id)
+    }
+
+    static var isSimulator: Bool {
+        #if targetEnvironment(simulator)
+        return true
+        #else
+        return false
+        #endif
+    }
+
+    var uploadRejection: String? {
+        guard let serverURL, let user else { return "Connect and verify this account first." }
+        return UploadDestination.rejection(server: serverURL, mode: user.dataMode, simulator: Self.isSimulator)
     }
 
     var healthDataAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
     /// The stored token for a request; read at send time so a replaced token is never reused.
-    func currentToken() -> String? { KeychainTokenStore.load() }
+    func currentToken() -> String? {
+        guard let serverURL else { return nil }
+        return KeychainTokenStore.load(serverURL: serverURL)
+    }
 
     /// A client for the current server and stored token, or nil when either is missing.
     func currentClient() -> APIClient? {
@@ -110,9 +128,13 @@ final class AppModel: ObservableObject {
 
     func saveToken() {
         cancelSync(reason: "credentials changed")
-        KeychainTokenStore.save(tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard let serverURL,
+              KeychainTokenStore.save(tokenDraft.trimmingCharacters(in: .whitespacesAndNewlines), serverURL: serverURL) else {
+            note("Token could not be saved for this server. Unlock the phone and try again.")
+            return
+        }
         tokenDraft = ""
-        hasToken = KeychainTokenStore.load() != nil
+        hasToken = currentToken() != nil
         // Any in-flight /v1/me response for the previous token is now stale and will be ignored.
         identity.credentialsChanged()
         assistant.reset(reason: "token changed")
@@ -136,7 +158,7 @@ final class AppModel: ObservableObject {
             note("Server URL must be http(s) with a host.")
             return
         }
-        guard let token = KeychainTokenStore.load() else {
+        guard let token = currentToken() else {
             note("Store a development token first.")
             return
         }
@@ -194,6 +216,10 @@ final class AppModel: ObservableObject {
         // Consent requires an identity verified against the current server and credential.
         guard let verified = identity.current, let serverURL, verified.serverURL == serverURL else {
             note("Verify identity for this server and token before granting consent.")
+            return
+        }
+        guard uploadRejection == nil else {
+            note(uploadRejection ?? "Upload destination is not allowed.")
             return
         }
         let user = verified.user
@@ -258,7 +284,7 @@ final class AppModel: ObservableObject {
             return
         }
         guard let verified = identity.current, let serverURL, verified.serverURL == serverURL,
-              let consent, consentCoversCurrentScope, let token = KeychainTokenStore.load() else {
+              let consent, consentCoversCurrentScope, let token = currentToken() else {
             note("Verify identity and grant consent for this server and token before syncing.")
             return
         }
@@ -274,7 +300,8 @@ final class AppModel: ObservableObject {
     }
 
     private func run(_ context: SyncContext) async {
-        let client = APIClient(baseURL: context.serverURL, token: context.token)
+        let client = APIClient(baseURL: context.serverURL, token: context.token,
+                               uploadDataKind: UploadDestination.dataKind(simulator: Self.isSimulator))
         var inserted = 0, duplicates = 0, uploads = 0, unmappable = 0
         for type in SyncedType.allCases where context.consent.enabledMetrics.contains(type.metric) {
             if Task.isCancelled { return }

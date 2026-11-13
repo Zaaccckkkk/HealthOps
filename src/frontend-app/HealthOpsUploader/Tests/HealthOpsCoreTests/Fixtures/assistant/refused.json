@@ -14,9 +14,9 @@
   "limits": {
     "deadline_seconds": 120.0,
     "evidence_budget_bytes": 262144,
-    "max_model_turns": 6,
-    "max_tool_calls": 4,
-    "model_context_budget_chars": 24000
+    "max_model_turns": 14,
+    "max_tool_calls": 12,
+    "model_context_budget_chars": 48000
   },
   "model": {
     "digest": null,
@@ -31,6 +31,11 @@
     "thinking": null
   },
   "model_text": "Your resting heart rate is 999 bpm.",
+  "narrative_check_reason": null,
+  "narrative_edit_attempted": false,
+  "narrative_prompt_version": null,
+  "narrative_reason": null,
+  "narrative_status": "disabled",
   "numeric_consistency": {
     "note": "Numeric consistency diagnostic: numbers in the answer were looked up in the tool results. It does not verify direction, unit, window, provider or interpretation.",
     "numbers_in_answer": [],

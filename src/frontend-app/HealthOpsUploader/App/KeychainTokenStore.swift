@@ -6,10 +6,11 @@ import Security
 enum KeychainTokenStore {
     private static let service = "edu.harvard.ac215.HealthOpsUploader.token"
 
-    static func load() -> String? {
+    static func load(serverURL: URL) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
+            kSecAttrAccount as String: serverURL.absoluteString,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
@@ -19,17 +20,19 @@ enum KeychainTokenStore {
         return String(data: data, encoding: .utf8)
     }
 
-    static func save(_ token: String?) {
+    @discardableResult static func save(_ token: String?, serverURL: URL) -> Bool {
         let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
+            kSecAttrAccount as String: serverURL.absoluteString,
         ]
-        SecItemDelete(base as CFDictionary)
-        guard let token, !token.isEmpty else { return }
+        let deleted = SecItemDelete(base as CFDictionary)
+        guard deleted == errSecSuccess || deleted == errSecItemNotFound else { return false }
+        guard let token, !token.isEmpty else { return true }
         var attributes = base
         attributes[kSecValueData as String] = Data(token.utf8)
         attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        SecItemAdd(attributes as CFDictionary, nil)
+        return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
     }
 }
 

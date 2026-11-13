@@ -37,6 +37,59 @@ final class AssistantConversationTests: XCTestCase {
         XCTAssertTrue(ServiceFailure.unavailable("HTTP 503").message.contains("unavailable"))
         XCTAssertTrue(ServiceFailure.unavailable("Could not connect").message.contains("Could not connect"))
     }
+
+    func testChannelRoundTripPreservesHistoryAndOriginalSourceLabels() throws {
+        let response = try JSONDecoder().decode(AskResponse.self, from: Data(
+            #"{"status":"answered","explanation_status":"verified","answer":"Synthetic answer."}"#.utf8))
+        var conversation = AssistantConversation()
+        let all = conversation.begin(question: "All sources?", provider: nil)
+        conversation.complete(all, with: .response(response))
+        let original = conversation.turns[0]
+        conversation.endContinuation() // All channels -> Apple Health
+        let apple = conversation.begin(question: "Apple only?", provider: "healthkit")
+        conversation.complete(apple, with: .response(response))
+        conversation.endContinuation() // Apple Health -> Google Health
+        let google = conversation.begin(question: "Google only?", provider: "google_health")
+        conversation.complete(google, with: .response(response))
+        conversation.endContinuation() // Google Health -> All channels
+        XCTAssertEqual(conversation.turns.count, 3)
+        XCTAssertEqual(conversation.turns[0], original)
+        XCTAssertEqual(conversation.turns.map(\.provider), [nil, "healthkit", "google_health"])
+        XCTAssertTrue(conversation.turns.allSatisfy { $0.outcome == .response(response) })
+    }
+
+    func testChannelChangeKeepsClarificationTextButDoesNotResumeOldScope() throws {
+        let response = try JSONDecoder().decode(AskResponse.self, from: Data(
+            #"{"status":"needs_clarification","explanation_status":"not_applicable","answer":"Which dates?","conversation_id":"synthetic-scope","conversation_version":2}"#.utf8))
+        var conversation = AssistantConversation()
+        let ticket = conversation.begin(question: "Recently?", provider: nil)
+        conversation.complete(ticket, with: .response(response))
+        let original = conversation.turns
+        conversation.endContinuation()
+        XCTAssertEqual(conversation.turns, original)
+        let request = AskRequest(question: "Steps yesterday", timezone: "UTC", provider: "healthkit",
+                                 conversationID: conversation.conversationID,
+                                 conversationVersion: conversation.conversationVersion)
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as! [String: Any]
+        XCTAssertEqual(encoded["provider"] as? String, "healthkit")
+        XCTAssertNil(encoded["conversation_id"])
+        XCTAssertNil(encoded["conversation_version"])
+    }
+
+    func testChannelChangeCancelsWaitingTurnAndRejectsLateReplyDuringNewRequest() {
+        var conversation = AssistantConversation()
+        let old = conversation.begin(question: "All sources?", provider: nil)
+        conversation.endContinuation()
+        XCTAssertEqual(conversation.turns[0].outcome, .failure(.cancelled))
+        XCTAssertNil(conversation.inFlight)
+        let current = conversation.begin(question: "Google only?", provider: "google_health")
+        XCTAssertFalse(conversation.complete(old, with: .failure(.server(500))))
+        XCTAssertEqual(conversation.inFlight, current)
+        XCTAssertNil(conversation.turns[1].outcome)
+        XCTAssertTrue(conversation.complete(current, with: .failure(.rateLimited)))
+        conversation.reset() // Identity changes must still clear all retained sources.
+        XCTAssertTrue(conversation.turns.isEmpty)
+    }
 }
 
 extension AssistantConversationTests {

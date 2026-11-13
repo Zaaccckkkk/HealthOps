@@ -49,7 +49,7 @@ struct SetupView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .keyboardType(.URL)
-            SecureField("Development token (stored in Keychain)", text: $model.tokenDraft)
+            SecureField("Account token (stored for this server)", text: $model.tokenDraft)
             HStack {
                 Button("Save token") { model.saveToken() }
                     .disabled(model.tokenDraft.isEmpty)
@@ -60,6 +60,7 @@ struct SetupView: View {
                 .disabled(!model.hasToken || model.serverURL == nil)
             if let user = model.user {
                 LabeledContent("Server user", value: "\(user.displayName) · \(user.id.prefix(8))…")
+                LabeledContent("Data environment", value: user.dataMode ?? "Unknown — uploads blocked")
             }
         }
     }
@@ -74,7 +75,7 @@ struct SetupView: View {
                 ? "Sheet completed this session. Change choices in Settings › Health › Data Access & Devices."
                 : (model.healthDataAvailable ? "Not requested in this session" : "HealthKit unavailable on this device"))
                 .font(.footnote)
-            Text("Reading on the phone is separate from uploading. Nothing leaves the phone until step 3.")
+            Text("Reading on the phone is separate from uploading. Grant consent in step 3, then explicitly sync in step 4.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }
@@ -163,9 +164,13 @@ struct ConsentForm: View {
         if model.user == nil {
             Text("Connect first: consent is bound to the verified server user.")
                 .font(.footnote).foregroundStyle(.secondary)
+        } else if let rejection = model.uploadRejection {
+            Text(rejection).font(.footnote).foregroundStyle(.red)
         } else {
             Text("Uploads raw HealthKit samples (value, unit, start/end time, source and device labels, sample UUID) to the server above, under the connected account. No display strings, no other Health data.")
                 .font(.footnote)
+            Text("Start with steps from yesterday. Review the destination and selected fields before widening the history range.")
+                .font(.footnote).foregroundStyle(.secondary)
             DatePicker("Upload history from", selection: $model.historyStart, in: ...Date(), displayedComponents: .date)
             ForEach(Metric.allCases.filter { metric in SyncedType.allCases.contains { $0.metric == metric } }, id: \.self) { metric in
                 Toggle(metric.rawValue, isOn: Binding(

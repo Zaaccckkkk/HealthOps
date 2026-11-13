@@ -1,7 +1,7 @@
 # HealthOps Uploader (iOS adapter)
 
 A SwiftUI app that reads HealthKit samples on the phone, asks for explicit upload consent, and
-uploads canonical observations to the local HealthOps API with replay-safe incremental sync.
+uploads canonical observations to the configured HealthOps API with replay-safe incremental sync.
 It replaces the display-string prototype outside this repository; nothing was copied from it.
 
 Status: **upload and Ask paths exercised on a physical iPhone 15 against the cloud development
@@ -10,6 +10,9 @@ the owner's own HealthKit history (seven metrics, 14 days) into a dedicated acco
 values are in this repository. Fitbit data arrives through the server-side Google Health
 connector (Setup step 5), not through the phone. Do not
 describe this as a live wearable integration.
+
+The new separate Cloud Run personal pilot requires its own acceptance run; the historical device
+result above does not validate this new deployment. See the [personal pilot guide](../../../docs/personal-phone-pilot.md).
 
 ## Layout
 
@@ -25,6 +28,15 @@ describe this as a live wearable integration.
 | `project.yml`, `HealthOpsUploader.xcodeproj` | XcodeGen spec and the generated project (committed so XcodeGen is optional). |
 
 ## Sync rules implemented
+
+- A physical phone requires HTTPS and `data_mode=personal` from authenticated `/v1/me`.
+  Simulator uploads require development or synthetic mode. Unknown modes block uploads.
+- Tokens are bound to the server URL in the device-only Keychain. After updating from an
+  unscoped-token build, save the account token again. The initial upload selection is steps
+  from yesterday; users review consent and explicitly start sync before any upload.
+- Each upload declares its data kind. Non-development servers reject mismatches or a missing
+  declaration before writing observations. This guards accidental environment mixing; it is
+  not proof of payload provenance.
 
 - A page (at most 200 samples, one request) is read with `HKAnchoredObjectQuery`, mapped,
   encoded deterministically and **persisted as pending together with its candidate anchor**
@@ -103,10 +115,21 @@ describe this as a live wearable integration.
   reply sends the server-issued conversation ID and version. PostgreSQL retains clarification
   context for a one-hour continuation window; completed execution is not conversational memory.
   The screen history stays in memory. "New question" drops the local continuation.
-- Changing the server URL, saving a token, selecting another data source or connecting as a different user clears the history,
+- Changing the server URL, saving a token or connecting as a different user clears the history,
   cancels the running request and makes a late response stale (`AssistantConversation`).
-- The data status and the explanation status are shown as two separate chips. The "verified"
-  chip appears only for a known `answered` + `verified` pair; unknown statuses decode as
+- Switching between All channels, Apple Health and Google Health preserves the in-memory
+  transcript, including each turn's original source label. New questions use the selected source.
+  A source change ends the previous clarification, clears its saved checkpoint and cancels any
+  pending request without deleting its turn. Late responses cannot change the retained history.
+  Completed history is not restored after closing the app.
+- Each user question and clarification reply appears in a smaller right-aligned bubble.
+  Assistant text stays on the left; clarification prompts use a smaller font and wrap fully.
+  Account/host details and answer details are expandable. Repeated clarification disclaimers
+  and status chips do not interrupt the dialogue. The original wire text and server-issued
+  continuation are unchanged.
+- Explanation provenance remains visible below completed answers; data status and the disclaimer
+  are inside "Answer details". The "verified" label appears only for a known
+  `answered` + `verified` pair; unknown statuses decode as
   `unknown` and are shown as unverified. Rows are displayed with the server's own text:
   "no data" (no records) is distinct from "no reliable value" (records that could not be
   summarised), and nothing is converted or summed on the phone.

@@ -3,9 +3,11 @@ import Foundation
 public struct UserInfo: Codable, Equatable, Sendable {
     public var id: String
     public var displayName: String
+    public var dataMode: String? = nil
     enum CodingKeys: String, CodingKey {
         case id
         case displayName = "display_name"
+        case dataMode = "data_mode"
     }
 }
 
@@ -15,11 +17,13 @@ public final class APIClient: Uploader, @unchecked Sendable {
     public let baseURL: URL
     private let token: String
     private let session: URLSession
+    private let uploadDataKind: String?
 
-    public init(baseURL: URL, token: String, session: URLSession = .shared) {
+    public init(baseURL: URL, token: String, session: URLSession = .shared, uploadDataKind: String? = nil) {
         self.baseURL = baseURL
         self.token = token
         self.session = session
+        self.uploadDataKind = uploadDataKind
     }
 
     public func me() async throws -> UserInfo {
@@ -158,6 +162,9 @@ public final class APIClient: Uploader, @unchecked Sendable {
         request.timeoutInterval = timeout
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if path == "/v1/observations/batch", let uploadDataKind {
+            request.setValue(uploadDataKind, forHTTPHeaderField: "X-HealthOps-Data-Kind")
+        }
         do {
             let (data, response) = try await session.data(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0

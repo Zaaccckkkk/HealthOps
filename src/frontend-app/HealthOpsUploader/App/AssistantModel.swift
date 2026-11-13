@@ -4,7 +4,8 @@ import HealthOpsCore
 import SwiftUI
 
 /// Phone chat state. Clarification replies carry a server-issued continuation.
-/// Reset on server, token, account or provider changes to discard stale replies.
+/// Reset history on identity changes. Provider changes retain history but invalidate the
+/// old clarification and in-flight work so replies cannot cross data-source scopes.
 @MainActor
 final class AssistantModel: ObservableObject {
     enum ProviderChoice: String, CaseIterable, Identifiable {
@@ -20,13 +21,13 @@ final class AssistantModel: ObservableObject {
     @Published private(set) var conversation = AssistantConversation()
     @Published var questionDraft = ""
     @Published var provider: ProviderChoice = .all {
-        didSet { if oldValue != provider { reset(reason: "data source changed") } }
+        didSet { if oldValue != provider { changeProvider() } }
     }
     @Published private(set) var busy = false
     @Published private(set) var notice: String?
 
     private var task: Task<Void, Never>?
-    private var currentScope: String?
+    private var currentHistoryScope: String?
     private var restorationAttempted = false
 
     var pendingResponse: AskResponse? {
@@ -35,15 +36,19 @@ final class AssistantModel: ObservableObject {
         return response
     }
 
-    private func scope(serverURL: URL, token: String) -> String {
+    private func scope(serverURL: URL, token: String, includeProvider: Bool = true) -> String {
         let credential = SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined()
-        return [serverURL.absoluteString, credential, provider.rawValue, TimeZone.current.identifier].joined(separator: "|")
+        var parts = [serverURL.absoluteString, credential]
+        if includeProvider { parts.append(provider.rawValue) }
+        parts.append(TimeZone.current.identifier)
+        return parts.joined(separator: "|")
     }
 
     func restore(serverURL: URL, token: String) {
         let key = scope(serverURL: serverURL, token: token)
-        if let old = currentScope, old != key { reset(reason: "request scope changed") }
-        currentScope = key
+        let historyKey = scope(serverURL: serverURL, token: token, includeProvider: false)
+        if let old = currentHistoryScope, old != historyKey { reset(reason: "request scope changed") }
+        currentHistoryScope = historyKey
         guard !restorationAttempted, turns.isEmpty, !busy else { return }
         restorationAttempted = true
         guard let data = ClarificationKeychain.load() else { return }
@@ -59,6 +64,23 @@ final class AssistantModel: ObservableObject {
     }
 
     var turns: [AssistantConversation.Turn] { conversation.turns }
+
+    private func changeProvider() {
+        task?.cancel()
+        task = nil
+        let wasClarifying = conversation.conversationID != nil
+        conversation.endContinuation()
+        restorationAttempted = true
+        ClarificationKeychain.save(nil)
+        busy = false
+        // A draft clarification answer such as "seven days" must not become a new
+        // standalone question under a different source. Ordinary drafts remain editable.
+        if wasClarifying { questionDraft = "" }
+        notice = "Data source changed. History kept; new questions use \(provider.label)."
+        if wasClarifying {
+            notice = "Data source changed. History kept; start a new question for \(provider.label) instead of continuing the previous clarification."
+        }
+    }
 
     /// Drops the history and invalidates in-flight work. Called by AppModel on scope changes.
     func reset(reason: String) {

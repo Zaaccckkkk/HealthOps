@@ -1,5 +1,5 @@
 {
-  "answer": "On 2026-10-01, sleep_duration records exist (healthkit) but no reliable value could be derived: Intervals from the same channel overlap; no reliable total for those days.. On 2026-10-03, your sleep_duration (healthkit) was 6 h 30 min (23400 s), sum of recorded intervals (not full-day coverage).",
+  "answer": "On 2026-10-01, sleep_duration records exist (Apple Health) but no reliable value could be derived: Intervals from the same channel overlap; no reliable total for those days.. On 2026-10-03, your sleep_duration (Apple Health) was 6 h 30 min (23400 s), sum of recorded intervals (not full-day coverage).",
   "cards": [
     {
       "baseline": null,
@@ -13,6 +13,7 @@
       "metric": "sleep_duration",
       "provider": "healthkit",
       "publisher": null,
+      "reconciliation": null,
       "rows": [
         {
           "date": "2026-10-01",
@@ -55,7 +56,7 @@
       "statistic": "sum of recorded intervals (not full-day coverage)",
       "text": null,
       "timezone": "America/New_York",
-      "title": "sleep_duration per day (healthkit)",
+      "title": "sleep_duration per day (Apple Health)",
       "tool": "daily_summary",
       "unit": "s",
       "warning_text": [
@@ -75,7 +76,7 @@
       },
       "raw": null,
       "reason": null,
-      "sentence": "On 2026-10-01, sleep_duration records exist (healthkit) but no reliable value could be derived: Intervals from the same channel overlap; no reliable total for those days..",
+      "sentence": "On 2026-10-01, sleep_duration records exist (Apple Health) but no reliable value could be derived: Intervals from the same channel overlap; no reliable total for those days..",
       "valid": true
     },
     {
@@ -86,7 +87,7 @@
       },
       "raw": null,
       "reason": null,
-      "sentence": "On 2026-10-03, your sleep_duration (healthkit) was 6 h 30 min (23400 s), sum of recorded intervals (not full-day coverage).",
+      "sentence": "On 2026-10-03, your sleep_duration (Apple Health) was 6 h 30 min (23400 s), sum of recorded intervals (not full-day coverage).",
       "valid": true
     }
   ],
@@ -154,9 +155,9 @@
   "limits": {
     "deadline_seconds": 120.0,
     "evidence_budget_bytes": 262144,
-    "max_model_turns": 6,
-    "max_tool_calls": 4,
-    "model_context_budget_chars": 24000
+    "max_model_turns": 14,
+    "max_tool_calls": 12,
+    "model_context_budget_chars": 48000
   },
   "model": {
     "digest": null,
@@ -171,6 +172,11 @@
     "thinking": null
   },
   "model_text": null,
+  "narrative_check_reason": null,
+  "narrative_edit_attempted": false,
+  "narrative_prompt_version": null,
+  "narrative_reason": null,
+  "narrative_status": "disabled",
   "numeric_consistency": {
     "note": "Numeric consistency diagnostic: numbers in the answer were looked up in the tool results. It does not verify direction, unit, window, provider or interpretation.",
     "numbers_in_answer": [

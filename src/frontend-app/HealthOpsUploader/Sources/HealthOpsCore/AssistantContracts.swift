@@ -1,10 +1,11 @@
 import Foundation
 
 // Swift mirror of the Assistant v0 response (docs/api-contract.md). Only what the phone shows
-// is decoded: data status, explanation status, the template answer, the verified claims, the
+// is decoded: data status, explanation status, the answer, the verified claims, the
 // deterministic cards and the disclaimer. Debug fields (`model_text`, `tool_calls`, `evidence`,
 // `model`, `limits`, `numeric_consistency`) are deliberately not decoded, so no code path in
-// the app can display model prose or raw tool arguments. Every enum keeps an `unknown` case:
+// the app can display debug prose or raw tool arguments. Model-written answers are explicitly
+// labelled model_generated and never earn a verified badge. Every enum keeps an `unknown` case:
 // a new server value must never crash decoding, and `unknown` is never shown as success.
 
 public struct AskRequest: Encodable, Equatable, Sendable {
@@ -51,8 +52,15 @@ public enum DataStatus: String, TolerantEnum {
 
 public enum ExplanationStatus: String, TolerantEnum {
     case verified
+    case modelGenerated = "model_generated"
     case unverified
     case notApplicable = "not_applicable"
+    case unknown
+}
+
+public enum NarrativeStatus: String, TolerantEnum {
+    case disabled, generated, fallback
+    case notEligible = "not_eligible"
     case unknown
 }
 
@@ -66,6 +74,7 @@ public enum RowQuality: String, TolerantEnum {
 public enum CardKind: String, TolerantEnum {
     case dailyTable = "daily_table"
     case comparison
+    case reconciliation
     case availability
     case reference
     case unknown
@@ -192,6 +201,8 @@ public struct AskResponse: Decodable, Equatable, Sendable {
     public var conversationVersion: Int?
     public var status: DataStatus
     public var explanationStatus: ExplanationStatus
+    public var narrativeStatus: NarrativeStatus?
+    public var narrativeReason: String?
     public var answer: String
     public var claims: [VerifiedClaim]
     public var cards: [Card]
@@ -199,6 +210,7 @@ public struct AskResponse: Decodable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case status, explanationStatus = "explanation_status", answer, claims, cards, disclaimer
+        case narrativeStatus = "narrative_status", narrativeReason = "narrative_reason"
         case clarification, conversationExpiresAt = "conversation_expires_at"
         case conversationID = "conversation_id", conversationVersion = "conversation_version"
     }
@@ -211,6 +223,8 @@ public struct AskResponse: Decodable, Equatable, Sendable {
         conversationVersion = try c.decodeIfPresent(Int.self, forKey: .conversationVersion)
         status = try c.decode(DataStatus.self, forKey: .status)
         explanationStatus = try c.decode(ExplanationStatus.self, forKey: .explanationStatus)
+        narrativeStatus = try c.decodeIfPresent(NarrativeStatus.self, forKey: .narrativeStatus)
+        narrativeReason = try c.decodeIfPresent(String.self, forKey: .narrativeReason)
         answer = try c.decode(String.self, forKey: .answer)
         claims = try c.decodeIfPresent([VerifiedClaim].self, forKey: .claims) ?? []
         cards = try c.decodeIfPresent([Card].self, forKey: .cards) ?? []
@@ -224,6 +238,8 @@ public struct AskResponse: Decodable, Equatable, Sendable {
 public struct AnswerPresentation: Equatable, Sendable {
     public enum ExplanationBadge: Equatable, Sendable {
         case verified  // every finding checked against the cards
+        case fallback  // writer failed; a verified data summary remains available
+        case generated  // AI prose passed basic checks, not semantic verification
         case unverified  // fallback text shown; cards still carry the data
         case notApplicable  // refusal, clarification or error: no explanation step
     }
@@ -231,13 +247,14 @@ public struct AnswerPresentation: Equatable, Sendable {
     public let dataStatusLabel: String
     public let explanationBadge: ExplanationBadge
     public let showsCards: Bool
+    public let writerNotice: String?
 
     public init(_ response: AskResponse) {
         switch response.status {
         case .answered: dataStatusLabel = "data found"
         case .insufficientData: dataStatusLabel = "no usable data in that window"
         case .refused: dataStatusLabel = "declined"
-        case .needsClarification: dataStatusLabel = "choose a data source"
+        case .needsClarification: dataStatusLabel = "clarification needed"
         case .noToolAnswer: dataStatusLabel = "no data query was made"
         case .toolError: dataStatusLabel = "data query failed"
         case .budgetExceeded: dataStatusLabel = "stopped at the request limit"
@@ -246,12 +263,24 @@ public struct AnswerPresentation: Equatable, Sendable {
         }
         // Only a known `answered` + `verified` pair earns the verified badge. An unknown data
         // status with a verified explanation is still shown as unverified.
-        if response.status == .answered, response.explanationStatus == .verified {
+        let answered = [.answered, .insufficientData].contains(response.status)
+        if answered, response.narrativeStatus == .fallback, response.explanationStatus == .verified {
+            explanationBadge = .fallback
+        } else if response.status == .answered, response.explanationStatus == .verified {
             explanationBadge = .verified
+        } else if [.answered, .insufficientData].contains(response.status), response.explanationStatus == .modelGenerated {
+            explanationBadge = .generated
         } else if response.explanationStatus == .notApplicable, response.status != .unknown {
             explanationBadge = .notApplicable
         } else {
             explanationBadge = .unverified
+        }
+        if explanationBadge == .fallback {
+            writerNotice = response.narrativeReason == "model_unavailable_or_timeout"
+                ? "The AI explanation could not finish in time. Showing the checked data summary."
+                : "The AI explanation could not be completed reliably. Showing the checked data summary."
+        } else {
+            writerNotice = nil
         }
         showsCards = !response.cards.isEmpty
     }

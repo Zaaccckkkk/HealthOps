@@ -24,7 +24,8 @@ public enum ServiceFailure: Error, Equatable, Sendable {
     }
 }
 
-/// Screen history plus a server-issued clarification continuation. Reset on scope changes.
+/// Screen history plus a server-issued clarification continuation. Identity changes reset
+/// history; data-source changes end the continuation while preserving displayed turns.
 public struct AssistantConversation: Equatable, Sendable {
     public enum Outcome: Equatable, Sendable {
         case response(AskResponse)
@@ -81,13 +82,22 @@ public struct AssistantConversation: Equatable, Sendable {
         return true
     }
 
-    /// Clears the history and invalidates every outstanding ticket. Call on server, token or
-    /// account change; the caller cancels the running task as well.
-    public mutating func reset() {
+    /// Ends the old request scope without erasing history. Mark any waiting turn cancelled
+    /// and reject late replies, including after a new request starts on another channel.
+    public mutating func endContinuation() {
+        if let ticket = inFlight {
+            complete(ticket, with: .failure(.cancelled))
+        }
         conversationID = nil
         conversationVersion = nil
         generation += 1
-        turns.removeAll()
         inFlight = nil
+    }
+
+    /// Clears the history and invalidates every outstanding ticket. Call on server, token or
+    /// account change; the caller cancels the running task as well.
+    public mutating func reset() {
+        endContinuation()
+        turns.removeAll()
     }
 }
