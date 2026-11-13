@@ -1,0 +1,65 @@
+# Apple Watch observation model (data-synthesizer). Mirrors what the iOS HealthKit adapter
+# uploads: heart_rate / resting_heart_rate / hrv_sdnn as samples, steps / exercise / sleep as
+# interval totals.
+
+provider: healthkit
+source_device: "Apple Watch (synthetic)"
+
+# Statistics estimated from the real Apple Watch data (BIDSleep, canonical healthkit rows).
+calibration:
+  dataset: bidsleep
+  min_nights_per_user: 2
+  rhr_percentile: 10            # nightly HR percentile used as the resting HR proxy
+  hr_gap_seconds: 60            # spacing above this counts as missing HR coverage
+
+metrics:
+  heart_rate:
+    awake_interval_minutes: 10  # prior: background sampling, not BIDSleep's 5 s recording
+    asleep_interval_minutes: 15
+    noise_sd_bpm: calibrated    # SD around a rolling median of real overnight HR
+    asleep_offset_bpm: 2.0      # overnight samples sit this far above resting HR
+    exercise_increase_bpm: {moderate: 35, hard: 55}
+  resting_heart_rate:
+    noise_sd_bpm: 1.0
+    hour: 8                     # local hour the daily value is recorded
+  hrv_sdnn:
+    samples_per_night: 2
+    sdnn_per_rmssd: 1.3         # prior conversion from latent RMSSD to reported SDNN
+    noise_log_sd: 0.15
+  steps:
+    interval_minutes: 60
+    hourly_concentration: 2.0   # Dirichlet concentration of steps across awake hours
+    noise_log_sd: 0.05
+  exercise_duration:
+    noise_sd_minutes: 3
+  sleep_duration:
+    noise_sd_minutes: 15
+
+# Systematic device error (synthetic-v0.2), applied between the latent value and the
+# measurement noise above (observe.py, device_bias.py). Every number here is a prior from the
+# wearable-validation literature, reviewed in docs/device-bias.md; none is calibrated, because
+# no dataset records the same person on both devices with a reference measurement.
+# Three parts per metric: a device-wide constant, a per-user offset (how the watch is worn,
+# drawn once per user), and a context term for the days on which the error is known to grow.
+# Removing this block, or setting every value to 0, reproduces the synthetic-v0.1 outputs.
+# Every applied value is written to device_bias_daily.parquet.
+bias:
+  sleep_duration:
+    source: prior
+    reference: "Schyvens 2025 SLEEP Adv (Series 8: TST +19.6 min, WASO -21 min); Lee 2025 JCSM"
+    mean_minutes: 20                      # device constant, minutes of reported asleep time
+    user_sd_minutes: 15                   # SD of the per-user offset
+    fragmented_night_extra_minutes: 15    # added when the day's context has illness or travel
+  steps:
+    source: prior
+    reference: "Rowe 2025 PLoS One (best in class, slight undercount at slow gait); Feehan 2018"
+    log_mean: -0.02                       # device constant on log steps (about -2 %)
+    user_log_sd: 0.04
+    hard_workout_log_extra: 0.0           # context workout = hard
+    low_activity_log_extra: -0.05         # latent steps below low_activity_steps (slow walking)
+    low_activity_steps: 3000
+  resting_heart_rate:
+    source: prior
+    reference: "Nelson & Allen 2019 JMIR mHealth (24 h ECG, n = 1: Apple Watch -1.8 bpm); weak"
+    mean_bpm: -1.0
+    user_sd_bpm: 1.0

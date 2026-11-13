@@ -1,0 +1,91 @@
+version: synthetic-v0.1
+stage: data-synthesizer
+description: 'Hybrid synthetic cohort: calibrated baselines, longitudinal trajectories, LLM context, Synthea profiles, Apple Watch and Fitbit observation models, realistic missingness.'
+created_at: '2026-10-19T00:08:19+00:00'
+git_commit: e3bc4ea
+input:
+  version: canonical-v0.1
+  manifest_sha256: 10921c310568a291db529190c211e5bbf9a00ba5e8c78dfca4e6148ea69e3c08
+raw_input:
+  version: raw-v1
+  manifest_sha256: 928cf4ccdf05c16d6e989bd1ec0e0bcbfae2c9701cab1182bfb6ae56322cb52e
+configs:
+  baseline.yaml: c9fdb3bbb6cae0c64e2385ac6c796af99269be9006c9b2784c284c2fab4d73ea
+  trajectory.yaml: 9b52b918070d966d421239fe3771b1171960fc7a3fff12fd6e25b15715c2bd6b
+  apple_watch.yaml: 1e70df117292d53083dba5c4990382dcbd4c82983e3438ca44dec2aa3ee2eab8
+  fitbit.yaml: f78f75db450ae3ac1bb98b2749467e06c1906c6f54d4de7387c87cc5b7751e63
+  missingness.yaml: 4232cc86e157b2ba8663ebe1796f9bd9a951b8a72ea0345834bef8307d16c7a2
+  context_generation.yaml: 6d3d7e51c34cc56e39243d0c9420fd20e8525ba143a8931476dcfc08dce96e6e
+parameters:
+  context_llm_enabled: true
+stats:
+  users: 5000
+  users_by_cohort:
+    apple_watch_only: 2000
+    fitbit_only: 2000
+    paired: 1000
+  synthea_profiles_available: 5000
+  context_library:
+    source: llm
+    templates: 38
+  context_source_by_user:
+    llm: 4500
+    llm_per_user: 500
+  rows_by_metric:
+    google_health/exercise_duration/daily_total: 163919
+    google_health/heart_rate/daily_summary: 163919
+    google_health/hrv_rmssd/daily_summary: 105459
+    google_health/resting_heart_rate/daily_summary: 155671
+    google_health/sleep_duration/interval_total: 123568
+    google_health/steps/daily_total: 163919
+    healthkit/exercise_duration/interval_total: 91986
+    healthkit/heart_rate/sample: 17199587
+    healthkit/hrv_sdnn/sample: 240582
+    healthkit/resting_heart_rate/sample: 157244
+    healthkit/sleep_duration/interval_total: 283116
+    healthkit/steps/interval_total: 2790707
+  dropped_by_validation: {}
+  missingness_events:
+    google_health/battery_depletion: 3748
+    google_health/metric_dropout: 24651
+    google_health/multi_day_gap: 10164
+    google_health/not_worn_day: 2186
+    google_health/overnight_not_worn: 41078
+    google_health/sync_failure: 3470
+    healthkit/battery_depletion: 8988
+    healthkit/metric_dropout: 33157
+    healthkit/multi_day_gap: 5163
+    healthkit/not_worn_day: 5437
+    healthkit/overnight_not_worn: 17841
+    healthkit/sync_failure: 3537
+  calibration_users:
+    fitbit: 600
+    apple_watch: 47
+files:
+- path: calibration.json
+  bytes: 2494
+  sha256: 4872fd9fe18a22260c360e57768075b74ebdc7b993d1b545802fe3d711d91929
+- path: context_events.parquet
+  bytes: 283632
+  sha256: b8a268d07172c523e4ff99a0c3c2293d81cbb8b21ba02e0c09083d11e7416da8
+- path: context_library.json
+  bytes: 11146
+  sha256: 322c4d59bddb9bc120c7981416198471ba7d6ac0f5cf6b6093b5d658a56571a7
+- path: latent_daily.parquet
+  bytes: 29170403
+  sha256: e4326299b4a0accb179e69edb0d1b0b9abed6e425061d45843a69884c3fb89a2
+- path: llm_cache.jsonl
+  bytes: 2261516
+  sha256: 25549248c54897a7440a14d43c11aa24df3e996cb3fbcfa66a53547cc4e7453e
+- path: missingness_events.parquet
+  bytes: 478067
+  sha256: 36c5dfb464609a611ce17aa47b890b0a64016253bd43ee9510771cdf6812e0bd
+- path: observations_google_health.parquet
+  bytes: 12754926
+  sha256: 1d4b001b6932d0bd0186cd8fe0e8b7008d15755ba4a128d31b0be2a448856ab7
+- path: observations_healthkit.parquet
+  bytes: 563855124
+  sha256: 7a91556e13e57c8045898136888d875169f806197c12efb49b551743af88258b
+- path: users.parquet
+  bytes: 792730
+  sha256: c9a2a70272eeda82c3f7f301468749d72ef7e3a1c82a58643df17dd885c87723

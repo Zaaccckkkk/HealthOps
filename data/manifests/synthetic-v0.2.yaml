@@ -1,0 +1,101 @@
+version: synthetic-v0.2
+stage: data-synthesizer
+description: 'Hybrid synthetic cohort: calibrated baselines, longitudinal trajectories, LLM context, Synthea profiles, Apple Watch and Fitbit observation models with systematic device bias (priors), realistic missingness.'
+created_at: '2026-10-31T18:57:53+00:00'
+git_commit: '6929361'
+input:
+  version: canonical-v0.1
+  manifest_sha256: 10921c310568a291db529190c211e5bbf9a00ba5e8c78dfca4e6148ea69e3c08
+raw_input:
+  version: raw-v1
+  manifest_sha256: 928cf4ccdf05c16d6e989bd1ec0e0bcbfae2c9701cab1182bfb6ae56322cb52e
+configs:
+  baseline.yaml: c9fdb3bbb6cae0c64e2385ac6c796af99269be9006c9b2784c284c2fab4d73ea
+  trajectory.yaml: 9b52b918070d966d421239fe3771b1171960fc7a3fff12fd6e25b15715c2bd6b
+  apple_watch.yaml: a9ae8d699ca9490642d512d9007d7fa584bc1766ec71250b15336dc4f140b9e9
+  fitbit.yaml: beee5f06dce7fe0740906a6f7673429827a6716c50fc7ed03e635f147957660c
+  missingness.yaml: 4232cc86e157b2ba8663ebe1796f9bd9a951b8a72ea0345834bef8307d16c7a2
+  context_generation.yaml: beb9dd07bdf4be9109e37542ef854d192090609559232a39cf43885b15bb6cee
+parameters:
+  context_llm_enabled: true
+stats:
+  users: 5000
+  users_by_cohort:
+    apple_watch_only: 2000
+    fitbit_only: 2000
+    paired: 1000
+  synthea_profiles_available: 5000
+  context_library:
+    source: llm
+    templates: 38
+  context_source_by_user:
+    llm: 4500
+    llm_per_user: 500
+  rows_by_metric:
+    google_health/exercise_duration/daily_total: 163910
+    google_health/heart_rate/daily_summary: 163910
+    google_health/hrv_rmssd/daily_summary: 105454
+    google_health/resting_heart_rate/daily_summary: 155660
+    google_health/sleep_duration/interval_total: 123561
+    google_health/steps/daily_total: 163910
+    healthkit/exercise_duration/interval_total: 91985
+    healthkit/heart_rate/sample: 17199598
+    healthkit/hrv_sdnn/sample: 240582
+    healthkit/resting_heart_rate/sample: 157244
+    healthkit/sleep_duration/interval_total: 283116
+    healthkit/steps/interval_total: 2790692
+  dropped_by_validation: {}
+  missingness_events:
+    google_health/battery_depletion: 3748
+    google_health/metric_dropout: 24650
+    google_health/multi_day_gap: 10173
+    google_health/not_worn_day: 2186
+    google_health/overnight_not_worn: 41079
+    google_health/sync_failure: 3470
+    healthkit/battery_depletion: 8988
+    healthkit/metric_dropout: 33157
+    healthkit/multi_day_gap: 5163
+    healthkit/not_worn_day: 5437
+    healthkit/overnight_not_worn: 17841
+    healthkit/sync_failure: 3537
+  mean_device_bias:
+    google_health/resting_heart_rate: -1.9376
+    google_health/sleep_duration: 13.0544
+    google_health/steps: 0.0521
+    healthkit/resting_heart_rate: -1.0219
+    healthkit/sleep_duration: 22.692
+    healthkit/steps: -0.0256
+  calibration_users:
+    fitbit: 600
+    apple_watch: 47
+files:
+- path: calibration.json
+  bytes: 2494
+  sha256: 4872fd9fe18a22260c360e57768075b74ebdc7b993d1b545802fe3d711d91929
+- path: context_events.parquet
+  bytes: 283654
+  sha256: 1bbc54e8eb1e9e754925a2ae372c638c9470a495f5ea167dbaff065b84503af9
+- path: context_library.json
+  bytes: 11146
+  sha256: 322c4d59bddb9bc120c7981416198471ba7d6ac0f5cf6b6093b5d658a56571a7
+- path: device_bias_daily.parquet
+  bytes: 1346609
+  sha256: 1eb029351ddfcdaa2013dcc5eb3df76f5abd1e0b718d3f8e4f296442ea64ec1b
+- path: latent_daily.parquet
+  bytes: 29170542
+  sha256: 05eeb6171c6af66059d7c4a3e05e2f9d827c325b152b1f04afb3ef7e65a7c139
+- path: llm_cache.jsonl
+  bytes: 4284
+  sha256: 8a49c8c6ad5f863b0c446456713413e7cebd221839d54ba5c819680162d32663
+- path: missingness_events.parquet
+  bytes: 478171
+  sha256: 282a3e720cf31ec01874fa5edd88a24ccc6c361b91de82589709e221ae4e5c49
+- path: observations_google_health.parquet
+  bytes: 12767124
+  sha256: 9ccdf41525e0de2ac527cba053d69376d16ade5f5737fba608856465a2cc5869
+- path: observations_healthkit.parquet
+  bytes: 563354245
+  sha256: 308bac220a557766f4c86f42d8aac780c814fe83bd633c2b65e4ec9d6e67468b
+- path: users.parquet
+  bytes: 1086005
+  sha256: 6b9f522d1f03bb0725692b2cef413e49fce1a865313b0e0d0f9b692b89ad4ca4

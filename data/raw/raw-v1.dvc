@@ -1,0 +1,7 @@
+outs:
+- md5: 865b53a05c36c704b6c9f5be90d760c5.dir
+  size: 227108274
+  nfiles: 515
+  hash: md5
+  path: raw-v1
+  desc: "Real wearable datasets (NetHealth Fitbit, BIDSleep Apple Watch) and Synthea patients. (manifest data/manifests/raw-v1.yaml sha256 928cf4ccdf05c16d6e989bd1ec0e0bcbfae2c9701cab1182bfb6ae56322cb52e)"

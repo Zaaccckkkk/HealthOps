@@ -1,0 +1,7 @@
+outs:
+- md5: a4f84ba4177b54d8b807317d4b22407d.dir
+  size: 609610038
+  nfiles: 9
+  hash: md5
+  path: synthetic-v0.1
+  desc: "Hybrid synthetic cohort: calibrated baselines, longitudinal trajectories, LLM context, Synthea profiles, Apple Watch and Fitbit observation models, realistic missingness. (manifest data/manifests/synthetic-v0.1.yaml sha256 6091b8194673f0d9a4695f79a1ebf39699600a8bb292c825b982d7cb473233ad)"

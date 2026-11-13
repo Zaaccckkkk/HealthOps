@@ -1,0 +1,7 @@
+outs:
+- md5: 4b52816250db083b6297bc12dac1f82a.dir
+  size: 49305443
+  nfiles: 3
+  hash: md5
+  path: canonical-v0.1
+  desc: "Real Apple Watch (healthkit) and Fitbit (google_health) data in the canonical schema. (manifest data/manifests/canonical-v0.1.yaml sha256 10921c310568a291db529190c211e5bbf9a00ba5e8c78dfca4e6148ea69e3c08)"

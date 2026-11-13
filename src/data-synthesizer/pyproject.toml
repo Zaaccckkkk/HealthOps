@@ -1,0 +1,36 @@
+[project]
+name = "healthops-data-synthesizer"
+version = "0.1.0"
+description = "Calibrates on canonical real data and generates the hybrid synthetic cohort"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "httpx>=0.28,<1",
+  "numpy>=2.0,<2.5",  # pandas 2.3 emits timedelta deprecation warnings with numpy 2.5
+  "pandas>=2.2,<3",
+  "pyarrow>=17,<22",
+  "pyyaml>=6.0,<7",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.3,<9", "ruff>=0.11,<1"]
+
+[project.scripts]
+data-synthesizer = "synthesizer.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["synthesizer"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

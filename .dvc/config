@@ -1,0 +1,15 @@
+[core]
+    remote = gcs
+    autostage = true
+# Default remote: the team's Cloud Storage bucket in the GCP project (region us-east4).
+# Reading and writing needs a Google login with access to the bucket:
+#   gcloud auth application-default login
+# The bucket is also the dataset source for Vertex AI training jobs.
+['remote "gcs"']
+    url = gs://ac215-project-509705-healthops-data/healthops-dvc-store
+# Offline alternative: a folder next to the repository (nothing leaves the machine).
+# Relative paths are resolved from this .dvc/ directory. Select it without editing this file:
+#   dvc remote default --local local
+# or point it elsewhere: dvc remote modify --local local url /path/to/healthops-dvc-store
+['remote "local"']
+    url = ../../healthops-dvc-store

@@ -1,0 +1,57 @@
+version: canonical-v0.1
+stage: data-processor
+description: Real Apple Watch (healthkit) and Fitbit (google_health) data in the canonical schema.
+created_at: '2026-10-18T20:42:09+00:00'
+git_commit: e3bc4ea
+input:
+  version: raw-v1
+  manifest_sha256: 928cf4ccdf05c16d6e989bd1ec0e0bcbfae2c9701cab1182bfb6ae56322cb52e
+configs: {}
+parameters:
+  timezones:
+    nethealth: America/Indiana/Indianapolis
+    bidsleep: America/New_York
+  providers:
+    nethealth: google_health
+    bidsleep: healthkit
+  bidsleep_sleep_label: expert_label
+stats:
+  nethealth:
+    activity_rows: 357827
+    activity_duplicate_days: 2163
+    activity_conflicting_values: 1
+    sleep_rows: 333708
+    sleep_unparseable: 0
+    dropped: {}
+    rows: 1399623
+    users: 623
+    first_observation: '2015-07-23T23:34:16+00:00'
+    last_observation: '2019-05-20T04:00:00+00:00'
+    rows_by_metric:
+      google_health/exercise_duration/daily_total: 355660
+      google_health/heart_rate/daily_summary: 355663
+      google_health/sleep_duration/interval_total: 333708
+      google_health/steps/daily_total: 354592
+  bidsleep:
+    nights: 253
+    subjects: 47
+    nights_without_usable_labels: 0
+    dropped:
+      duplicate_identity: 13
+    rows: 1603981
+    users: 47
+    first_observation: '2021-07-27T02:18:42+00:00'
+    last_observation: '2022-09-18T10:30:55+00:00'
+    rows_by_metric:
+      healthkit/heart_rate/sample: 1603728
+      healthkit/sleep_duration/interval_total: 253
+files:
+- path: bidsleep.parquet
+  bytes: 30262432
+  sha256: 6d2aaaa05ec8e2b017c8fc0047db3bb9cf30458667748a1fa817e7102370f0e1
+- path: nethealth.parquet
+  bytes: 19022615
+  sha256: 104c8e0ab0a37e600781ca96f92571cf44cde665b714437eb8a2212e2d6b6541
+- path: users.parquet
+  bytes: 20396
+  sha256: ef10651d7fd83df17b3c20ead0fdae9972863fb504feb3f7f3e32096b9c2ad73

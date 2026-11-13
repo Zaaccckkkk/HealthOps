@@ -1,0 +1,97 @@
+# LLM-generated context (data-synthesizer). The LLM writes semi-structured life events, never
+# physiological numbers; the statistical generator turns event context into trajectory effects
+# (configs/trajectory.yaml, context_effects).
+#
+# Two uses of the LLM:
+#   library   one-off: a library of reusable event templates, sampled for every user
+#   per_user  personalized event schedules for a subset of users (given their Synthea profile)
+#
+# The endpoint comes from the environment (CONTEXT_LLM_BASE_URL; Compose defaults it to the
+# host's Ollama at http://host.docker.internal:11434). It is probed before use: when it is
+# unreachable, the model is not pulled, or the variable is "off", the run uses `seed_library`
+# below and no per-user schedules, and the manifest records context_llm_enabled: false.
+
+llm:
+  backend: ollama               # ollama (native /api/chat) | openai_compatible
+  model: qwen3:4b              # the API assistant uses qwen3:8b; 4b fits entirely on a 6 GB GPU
+  temperature: 0.7
+  max_output_tokens: 3000       # long enough for max_events; output is schema-constrained JSON
+  timeout_seconds: 180
+  thinking: false               # Ollama backend only
+  max_attempts: 3               # per request, on invalid JSON or schema errors
+  # Reuse LLM responses cached by an earlier synthetic version (e.g. synthetic-v0.1) so a
+  # rebuild is reproducible without calling the model again. null = no reuse.
+  reuse_cache_from: synthetic-v0.1
+
+library:
+  size: 60                      # templates requested
+  batch_size: 10                # templates per LLM call
+
+per_user:
+  cohorts: [paired]
+  max_users: 500
+  max_events: 15                # per schedule; keeps answers short enough to finish
+
+sampling:
+  events_per_week: 2.0          # library events started per user-week (outside per-user schedules)
+
+# Context of a day with no event.
+default_context:
+  stress: low
+  workout: none
+  travel: false
+  illness: false
+  subjective_fatigue: 3
+
+schema:
+  stress: [low, medium, high]
+  workout: [none, rest, moderate, hard]
+  subjective_fatigue: [0, 10]
+  duration_days: [1, 14]
+
+# Few-shot examples for the LLM and the offline fallback library.
+seed_library:
+  - {name: hard_workout, description: "Interval session or long run", duration_days: 1, weight: 3,
+     context: {stress: low, workout: hard, travel: false, illness: false, subjective_fatigue: 6}}
+  - {name: moderate_workout, description: "Gym session or brisk cycling", duration_days: 1, weight: 4,
+     context: {stress: low, workout: moderate, travel: false, illness: false, subjective_fatigue: 4}}
+  - {name: high_stress_workday, description: "Deadline day with long hours", duration_days: 1, weight: 3,
+     context: {stress: high, workout: none, travel: false, illness: false, subjective_fatigue: 6}}
+  - {name: exam_week, description: "Several days of exams or a project crunch", duration_days: 5, weight: 1,
+     context: {stress: high, workout: rest, travel: false, illness: false, subjective_fatigue: 7}}
+  - {name: late_night_travel, description: "Evening flight across time zones", duration_days: 2, weight: 1,
+     context: {stress: medium, workout: rest, travel: true, illness: false, subjective_fatigue: 7}}
+  - {name: poor_sleep_night, description: "Restless night after a late evening", duration_days: 1, weight: 2,
+     context: {stress: medium, workout: none, travel: false, illness: false, subjective_fatigue: 7}}
+  - {name: mild_illness, description: "Cold with sore throat", duration_days: 3, weight: 1,
+     context: {stress: medium, workout: rest, travel: false, illness: true, subjective_fatigue: 8}}
+  - {name: rest_day, description: "Deliberate recovery day", duration_days: 1, weight: 3,
+     context: {stress: low, workout: rest, travel: false, illness: false, subjective_fatigue: 2}}
+
+prompts:
+  library_system: |
+    You generate realistic everyday life events for a synthetic wearable-health dataset.
+    You never output heart rate, steps, sleep minutes or any other measurement.
+    Answer with one JSON object: {"templates": [ ... ]}. Each template has exactly these keys:
+    name (snake_case, unique), description (short), duration_days (integer 1-14),
+    weight (relative frequency, number > 0), context (object with stress: low|medium|high,
+    workout: none|rest|moderate|hard, travel: true|false, illness: true|false,
+    subjective_fatigue: integer 0-10).
+  library_user: |
+    Write {count} new templates that differ from these existing names: {existing}.
+    Cover work, study, family, travel, exercise, illness and recovery situations.
+    Examples of the format: {examples}
+  per_user_system: |
+    You plan a realistic schedule of life events for one synthetic person in a wearable-health
+    dataset. You never output heart rate, steps, sleep minutes or any other measurement.
+    Answer with one JSON object: {"events": [ ... ]}. Each event has exactly these keys:
+    start_day (integer, 0 = first day), name (snake_case), duration_days (integer 1-14),
+    context (object with stress: low|medium|high, workout: none|rest|moderate|hard,
+    travel: true|false, illness: true|false, subjective_fatigue: integer 0-10).
+    Events must not overlap. Leave ordinary days out of the list.
+  per_user_user: |
+    Person: age {age}, sex {sex}, conditions: {conditions}, medications: {medications}.
+    The schedule covers {n_days} days starting on a {start_weekday}.
+    Typical exercise days per week: {exercise_days_per_week}.
+    Plan between {min_events} and {max_events} events. You may reuse these template names:
+    {library_names}.

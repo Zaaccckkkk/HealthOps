@@ -1,0 +1,74 @@
+# Synthetic cohort composition, Synthea settings and individual baselines.
+# Read by: synthea-generator (section `synthea`) and data-synthesizer (all sections).
+#
+# Value sources:
+#   calibrated -> estimated from the canonical real data (see calibration.json in the output)
+#   prior      -> fixed value in this file; NOT estimated from data. Review before reporting.
+
+seed: 215
+
+cohort:
+  n_users: 5000
+  days_min: 30
+  days_max: 90
+  # Each user's window ends on a date drawn uniformly from the last `end_date_spread_days`
+  # days up to `end_date`, so users do not all share the same calendar window.
+  end_date: "2026-09-30"
+  end_date_spread_days: 60
+  timezone: America/New_York
+  # Fractions of users per cohort; must sum to 1.
+  composition:
+    apple_watch_only: 0.4
+    fitbit_only: 0.4
+    paired: 0.2
+
+synthea:
+  population: 5000          # living patients Synthea generates (-p)
+  seed: 215                 # -s and -cs
+  min_age: 18               # -a min-max
+  max_age: 80
+  reference_date: "2026-09-30"   # -r; ages and active conditions are evaluated at this date
+  state: Massachusetts
+
+baselines:
+  resting_hr:
+    source: calibrated      # Apple Watch overnight HR 10th percentile (proxy, see README)
+  sleep_minutes:
+    source: calibrated      # NetHealth (Fitbit) total sleep per night
+    clip: [240, 660]
+  steps:
+    source: calibrated      # NetHealth (Fitbit) daily steps, log-normal across users
+  exercise:
+    source: calibrated      # NetHealth active minutes: exercise-day frequency and minutes
+  daily_mean_hr_offset:
+    source: calibrated      # NetHealth daily mean HR minus the Apple Watch RHR proxy
+  bedtime_hour:
+    source: calibrated      # NetHealth main sleep episode start (hours; 24.5 = 00:30)
+  hrv_rmssd_ms:
+    source: prior           # neither primary dataset records HRV
+    log_mean: 3.7           # exp(3.7) ~ 40 ms at the reference age
+    log_sd: 0.45
+    age_slope_per_year: -0.012
+
+# Synthea profile -> baseline adjustments (priors). Conditions and medications are matched
+# case-insensitively against Synthea DESCRIPTION values that are active at reference_date.
+clinical_effects:
+  reference_age: 30
+  steps_multiplier_per_decade: 0.93       # applied per decade above reference_age
+  obesity:
+    condition_match: ["obesity", "body mass index 30+"]
+    steps_multiplier: 0.8
+    resting_hr_delta: 3
+    hrv_multiplier: 0.9
+  hypertension:
+    condition_match: ["hypertension"]
+    resting_hr_delta: 2
+    hrv_multiplier: 0.9
+  diabetes:
+    condition_match: ["diabetes mellitus"]   # "prediabetes" is not matched
+    steps_multiplier: 0.9
+    hrv_multiplier: 0.85
+  beta_blocker:
+    medication_match: ["metoprolol", "atenolol", "propranolol", "carvedilol", "bisoprolol"]
+    resting_hr_delta: -8
+    hrv_multiplier: 1.05

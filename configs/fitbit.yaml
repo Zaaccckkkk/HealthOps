@@ -1,0 +1,57 @@
+# Fitbit observation model (data-synthesizer). Provider label matches the real Fitbit
+# source (NetHealth canonical rows, labelled google_health): daily totals and summaries.
+
+provider: google_health
+source_device: "Fitbit (synthetic)"
+
+# Statistics estimated from the real Fitbit data (NetHealth, canonical google_health rows).
+calibration:
+  dataset: nethealth
+  min_days_per_user: 30
+  min_daily_steps: 500          # days below this are treated as barely worn
+  sleep_minutes_range: [180, 960]
+  exercise_day_threshold_minutes: 30
+  max_gap_days: 14              # longer gaps are study dropouts, not wear behaviour
+
+metrics:
+  steps:
+    noise_log_sd: 0.05
+  heart_rate:                   # daily mean heart rate, as in the NetHealth export
+    noise_sd_bpm: 1.0
+  resting_heart_rate:
+    noise_sd_bpm: 1.0
+  hrv_rmssd:
+    noise_log_sd: 0.10
+  exercise_duration:
+    noise_sd_minutes: 3
+  sleep_duration:
+    noise_sd_minutes: 15
+
+# Systematic device error (synthetic-v0.2), applied between the latent value and the
+# measurement noise above (observe.py, device_bias.py). Every number here is a prior from the
+# wearable-validation literature, reviewed in docs/device-bias.md; none is calibrated, because
+# no dataset records the same person on both devices with a reference measurement.
+# Three parts per metric: a device-wide constant, a per-user offset (how the tracker is worn,
+# drawn once per user), and a context term for the days on which the error is known to grow.
+# Removing this block, or setting every value to 0, reproduces the synthetic-v0.1 outputs.
+# Every applied value is written to device_bias_daily.parquet.
+bias:
+  sleep_duration:
+    source: prior
+    reference: "Haghayegh 2019 JMIR (TST +7 to +67 min); Schyvens 2025 (Charge 5 +11 min); Lee 2025 JCSM"
+    mean_minutes: 10
+    user_sd_minutes: 15                   # wide: the literature spread is the justification
+    fragmented_night_extra_minutes: 15    # Sensors 2024: bias grows with true WASO
+  steps:
+    source: prior
+    reference: "Feehan 2018 JMIR (over in free living, under in the lab); +7 % younger, +36-39 % older adults vs hip ActiGraph"
+    log_mean: 0.06                        # about +6 % on an ordinary day
+    user_log_sd: 0.08                     # wide: +7 % and +39 % both appear in the literature
+    hard_workout_log_extra: 0.05          # arm motion counted as steps
+    low_activity_log_extra: -0.08         # slow walking undercounted
+    low_activity_steps: 3000
+  resting_heart_rate:
+    source: prior
+    reference: "Nelson & Allen 2019 JMIR mHealth (24 h ECG, n = 1: Charge 2 -3.5 bpm); weak"
+    mean_bpm: -2.0
+    user_sd_bpm: 1.5

@@ -1,0 +1,61 @@
+# Day-to-day latent health dynamics (data-synthesizer).
+# `calibrated` values are replaced by estimates from canonical real data; numbers are priors.
+#
+# Order within one day t:
+#   1. resting HR and HRV react to yesterday's sleep debt and training load
+#   2. activity (steps, exercise) for day t
+#   3. the night that starts on day t (sleep duration, bedtime)
+
+sleep:
+  ar1: calibrated               # lag-1 autocorrelation of nightly sleep deviations
+  noise_sd_minutes: calibrated  # within-user day-to-day SD
+  debt_decay: 0.7               # share of sleep debt (hours) carried to the next day
+
+steps:
+  ar1: calibrated               # on log steps
+  noise_log_sd: calibrated
+  day_of_week: calibrated       # multipliers Monday..Sunday
+
+exercise:
+  intensity: {moderate: 1.0, hard: 2.0}
+  load_decay: 0.6               # training load carry-over per day
+  minutes_noise_log_sd: 0.3
+  start_hour_range: [6, 20]     # local hour an exercise session starts
+
+resting_hr:
+  ar1: 0.5
+  noise_sd_bpm: calibrated      # within-user SD of the nightly RHR proxy
+  per_hour_sleep_debt: 1.0      # bpm per hour of sleep debt
+  per_unit_training_load: 1.5   # bpm per unit of yesterday's training load
+
+hrv:
+  ar1: 0.5
+  noise_log_sd: 0.12
+  per_hour_sleep_debt: -0.04    # log-scale change per hour of sleep debt
+  per_unit_training_load: -0.05
+
+daily_mean_hr:
+  noise_sd_bpm: calibrated      # within-user SD of NetHealth daily mean HR
+  per_log_steps: calibrated     # within-user slope of daily mean HR on log steps
+
+bedtime:
+  noise_sd_hours: calibrated
+  sleep_efficiency: calibrated  # asleep / time in bed
+
+# Effects of the structured context (from the LLM / event library) on the event day.
+context_effects:
+  stress:
+    low: {}
+    medium: {resting_hr: 1.0, hrv_log: -0.04, sleep_minutes: -10}
+    high: {resting_hr: 3.0, hrv_log: -0.10, sleep_minutes: -30}
+  workout:
+    none: {}                    # exercise sampled from the user's exercise frequency
+    rest: {steps_log: -0.3}     # no exercise
+    moderate: {steps_log: 0.15}
+    hard: {steps_log: 0.25}
+  travel:
+    "true": {sleep_minutes: -60, steps_log: 0.1, bedtime_hours: 1.5}
+  illness:
+    "true": {resting_hr: 6.0, hrv_log: -0.25, steps_log: -0.7, sleep_minutes: 40}
+  subjective_fatigue:
+    per_point_above_5: {steps_log: -0.03}

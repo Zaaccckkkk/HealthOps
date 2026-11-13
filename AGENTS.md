@@ -22,8 +22,11 @@
 - The application is in `src/api-service/healthops/` (API, tools, assistant); the iOS adapter is
   in `src/frontend-app/HealthOpsUploader/` (Swift sources English, no tokens, Team IDs or health
   exports). Keep ingestion database migrations in `src/api-service/migrations/`.
-- Team-owned data generation and discrepancy training remain in the upstream repository.
-  Keep their attribution in `docs/provenance.md`; do not imply they are implemented here.
+- Data pipeline: `src/synthea-generator/`, `src/data-collector/`, `src/data-processor/`,
+  `src/data-synthesizer/`; model training: `src/model-training/` (reads a synthetic version, writes under its `.local/`);
+  ML workflow: `src/ml-workflow/` (Vertex AI Pipeline over the training image; no data of its own); generator configuration in `configs/`; manifests and `.dvc` pointers
+  in `data/`. Dataset contents (real or synthetic) never enter Git; they are versioned with DVC.
+  `versioning.py` and `schema.py` are kept identical across the data services.
 - Do not create empty runnable services or claim planned work exists.
 - Keep service-owned schemas beside their consumers until a shared versioned contract is needed.
 - Do not change API behavior or migration revisions solely to reorganize files.
@@ -31,7 +34,10 @@
 ## Verification
 
 - Unit tests (in `src/api-service/`): `uv run pytest -q tests/test_schema.py tests/test_tools.py tests/test_period_comparison.py tests/test_assistant.py tests/test_assistant_model.py tests/test_assistant_toolbox.py tests/test_assistant_cards.py tests/test_assistant_limits.py tests/test_assistant_fixtures.py tests/test_knowledge.py tests/test_knowledge_manifest.py tests/test_eval_sets.py tests/test_ios_contract.py`;
-  repository policy: `uv run --directory src/api-service python -m pytest -q ../../scripts/tests`.
+  repository policy: `uv run --directory src/api-service pytest -q ../../scripts/tests`;
+  data services: `uv run pytest -q` in `src/data-processor/` and `src/data-synthesizer/`;
+  model training: `uv run pytest -q` in `src/model-training/` (W&B disabled by the tests);
+  ML workflow: `uv run pytest -q` in `src/ml-workflow/` (compiles the pipeline; never contacts the cloud).
 - Knowledge base (RAG): third-party texts stay in `src/api-service/.local/knowledge/raw/` (fetched by manifest);
   only `knowledge/sources.yaml` and `knowledge/own/` are committed. Quotation limits per source are enforced in
   code, never relaxed for a demo. `make rag` fetches and ingests the corpus into pgvector in Compose.

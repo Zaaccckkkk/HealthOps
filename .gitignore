@@ -25,13 +25,11 @@ src/frontend-app/**/*.xcworkspace/xcshareddata/swiftpm/
 /data/processed/canonical/canonical-v*/
 /data/synthetic/synthetic-v*/
 
-# Preserve ignored build artifacts from the earlier standalone layout.
+# Model build staging: checksum-pinned weights are fetched from GCS, never committed.
+/src/api-service/models/
+
+# Local artifacts from the pre-src layout; archived locally during the portfolio sync.
 .build/
 DerivedData/
 xcuserdata/
-
-# Optional external cohort inputs are local to this portfolio.
-/data/
-
-# Legacy local Xcode workspace may be recreated by an open IDE; current client is in src/.
 /ios/
