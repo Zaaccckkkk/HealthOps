@@ -1,0 +1,15 @@
+# Build from a verified NeMo release image built at writer_dpo/config.json's revision.
+# The reconciliation Dockerfile and CPU uv environment remain separate.
+ARG NEMO_IMAGE
+FROM ${NEMO_IMAGE}
+ARG NEMO_IMAGE
+RUN python -c "import re; assert re.fullmatch(r'.+@sha256:[0-9a-f]{64}', '${NEMO_IMAGE}'), 'Use an immutable NeMo image digest'"
+COPY writer_dpo /opt/healthops/writer_dpo
+ENV PYTHONPATH=/opt/healthops PYTHONUNBUFFERED=1
+WORKDIR /opt/nemo-rl
+RUN uv --no-config venv --python 3.13 /opt/healthops-io && \
+    uv --no-config pip install --python /opt/healthops-io/bin/python --require-hashes \
+      -r /opt/healthops/writer_dpo/cloud-requirements.txt
+RUN git config --global --add safe.directory /opt/nemo-rl && \
+    python -c "import json; from pathlib import Path; from writer_dpo.launch import verify_nemo; verify_nemo(Path('/opt/nemo-rl'), json.loads(Path('/opt/healthops/writer_dpo/config.json').read_text()))"
+ENTRYPOINT ["uv", "run", "--frozen", "python", "-m", "writer_dpo.launch"]

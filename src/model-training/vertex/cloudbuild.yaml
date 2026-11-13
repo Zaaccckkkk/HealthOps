@@ -1,0 +1,12 @@
+# Cloud Build config used by submit.sh and the pipeline: build the training image and push it
+# to Artifact Registry. _TORCH_VARIANT=cpu (default) or a CUDA index name such as cu132 for the
+# GPU image. Logs go to Cloud Logging only, which a dedicated build service account requires.
+substitutions:
+  _TORCH_VARIANT: cpu
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: [build, --build-arg, 'TORCH_VARIANT=${_TORCH_VARIANT}', -t, '${_IMAGE}', .]
+images: ['${_IMAGE}']
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 2400s

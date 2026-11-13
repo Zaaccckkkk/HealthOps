@@ -1,0 +1,42 @@
+# Vertex AI custom job for healthops-train. Filled in by submit.sh (envsubst), never edited by hand.
+# Data: Vertex mounts every bucket the job's service account can read at /gcs/<bucket>, so the
+# container reads DATA_ROOT=/gcs/${BUCKET}/data (plain copies of the versioned folders) and
+# writes its outputs to /gcs/${BUCKET}/training/runs/${JOB_NAME}.
+serviceAccount: ${SERVICE_ACCOUNT}
+workerPoolSpecs:
+  - machineSpec:
+      machineType: ${MACHINE_TYPE}
+${ACCELERATOR_BLOCK}
+    replicaCount: 1
+    diskSpec:
+      bootDiskType: pd-ssd
+      bootDiskSizeGb: 100
+    containerSpec:
+      imageUri: ${IMAGE}
+      env:
+        - name: DATA_ROOT
+          value: /gcs/${BUCKET}/data
+        - name: TRAIN_DATA_VERSION
+          value: ${DATA_VERSION}
+        - name: TRAIN_MODELS
+          value: ${MODELS}
+        - name: TRAIN_USERS
+          value: "${USERS}"
+        - name: TRAIN_SMOKE
+          value: "${SMOKE}"
+        - name: TRAIN_OUT
+          value: /gcs/${BUCKET}/training/runs/${JOB_NAME}
+        - name: GIT_COMMIT
+          value: ${GIT_COMMIT}
+        - name: WANDB_PROJECT
+          value: ${WANDB_PROJECT}
+        - name: WANDB_ENTITY
+          value: ${WANDB_ENTITY}
+        - name: WANDB_API_KEY
+          value: ${WANDB_API_KEY}
+        - name: WANDB_DIR
+          value: ${WANDB_DIR}
+        - name: WANDB_RUN_GROUP
+          value: ${JOB_NAME}
+        - name: HOME
+          value: /tmp

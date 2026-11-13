@@ -1,0 +1,51 @@
+[project]
+name = "healthops-model-training"
+version = "0.1.0"
+description = "Cross-device reconciliation models trained on the synthetic cohort (LightGBM, Transformer, Diffusion)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "lightgbm>=4.5,<5",
+  "numpy>=2.0,<2.5",
+  "pandas>=2.2,<3",
+  "pyarrow>=17,<22",
+  "pyyaml>=6.0,<7",
+  "torch>=2.5,<3",
+  "wandb>=0.19,<1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.3,<9", "ruff>=0.11,<1"]
+
+[project.scripts]
+healthops-train = "training.train:main"
+healthops-compare = "training.compare:main"
+healthops-writer-data = "writer_dpo.data:main"
+healthops-writer-train = "writer_dpo.launch:main"
+
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["training", "writer_dpo"]
+
+# CPU wheels keep the image small and the lock reproducible; the GPU image replaces torch with
+# the CUDA wheel of the same version at build time (Dockerfile TORCH_VARIANT=cu132, see README).
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

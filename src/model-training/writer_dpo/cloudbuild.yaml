@@ -1,0 +1,44 @@
+# Copy compressed registry layers without unpacking and recompressing the base.
+# Submit only Dockerfile.writer and writer_dpo/; stage reviewed data separately.
+steps:
+  - name: gcr.io/google.com/cloudsdktool/google-cloud-cli@sha256:18d8c484aaef27d7ef7b54dfb018f73712503d254a16f0a76b2626b4f6003af2
+    entrypoint: bash
+    env:
+      - SOURCE_IMAGE=${_NEMO_IMAGE}
+      - DEST_IMAGE=${_RUNTIME_MIRROR}
+    args:
+      - -ceu
+      - |
+        sdk_root=$$(gcloud info --format='value(installation.sdk_root)')
+        sdk_python=$$(gcloud info --format='value(basic.python_location)')
+        export SSL_CERT_FILE="$$sdk_root/lib/third_party/certifi/cacert.pem"
+        test -f "$$SSL_CERT_FILE"
+        "$$sdk_python" - <<'PYTHON'
+        import hashlib, io, pathlib, tarfile, urllib.request
+        url = "https://github.com/google/go-containerregistry/releases/download/v0.22.1/go-containerregistry_Linux_x86_64.tar.gz"
+        archive = urllib.request.urlopen(url, timeout=120).read()
+        expected = "0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0"
+        if hashlib.sha256(archive).hexdigest() != expected:
+            raise ValueError("Crane release checksum mismatch")
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as bundle:
+            target = pathlib.Path("/tmp/crane")
+            target.write_bytes(bundle.extractfile("crane").read())
+            target.chmod(0o755)
+        PYTHON
+        gcloud auth print-access-token | /tmp/crane auth login "$${DEST_IMAGE%%/*}" -u oauth2accesstoken --password-stdin
+        /tmp/crane copy --platform linux/amd64 --jobs 4 "$$SOURCE_IMAGE" "$$DEST_IMAGE"
+        digest=$$(/tmp/crane digest "$$DEST_IMAGE")
+        test "$$digest" = "$${SOURCE_IMAGE##*@}"
+        printf '%s@%s\n' "$$DEST_IMAGE" "$$digest" > /workspace/runtime-image.txt
+  - name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        docker build --build-arg NEMO_IMAGE="$$(cat /workspace/runtime-image.txt)" -f Dockerfile.writer -t '${_IMAGE}' .
+images: ['${_IMAGE}']
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+  diskSizeGb: 500
+timeout: 3600s

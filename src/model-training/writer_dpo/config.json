@@ -1,0 +1,66 @@
+{
+  "model_id": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "nemo_revision": "a09162e1e66b292af6e0b188a685af69a6fe408e",
+  "nemo_files": {
+    "examples/configs/dpo.yaml": "03bdbff8ba626a6c65bbdae7877132f09abdac7db07e00489030fbb6281f27f4",
+    "examples/run_dpo.py": "a34c9616590d6647af7d5391c0ab9ecbd14cdf9f96ad0db871d5fe58c3ecd9ed",
+    "nemo_rl/algorithms/dpo.py": "56a48a7be7bb721f2971a6d9164dec8922e6d16ab74ba1eec1b4f4d615ef0b49",
+    "nemo_rl/data/datasets/preference_datasets/binary_preference_dataset.py": "f943612508248047acbd3b714b05e67c55253b225d61c0e65e784da87d0a4586",
+    "nemo_rl/data/utils.py": "b1f77893c98b5b5c902eb4b40d6cedb6b0655b8d8863e68530b366a48c588cd8",
+    "nemo_rl/data/processors.py": "06666bc3982862c236d81a43850e679cc5c284c937c0dc01b27ed51488e77f1c",
+    "nemo_rl/utils/config.py": "6ea2f21904b5e8bf794e7009e3f27e8b649f7dba2048d3a9994ce7b5ebf2ca05",
+    "nemo_rl/utils/logger.py": "90cd979dff347680adb2474d7c53991993afa0fe319cf4ea7bfbdaa9fe23c45e",
+    "nemo_rl/utils/checkpoint.py": "e60658745c9bcf26c6ac65fed3574fd2ccf8ecf8f9de6d89df3ce89a4ebaa93e"
+  },
+  "precision": "bfloat16",
+  "quantization": null,
+  "tensor_parallel": 2,
+  "pipeline_parallel": 1,
+  "context_parallel": 1,
+  "data_parallel": 2,
+  "gpus": 4,
+  "max_sequence_length": 8192,
+  "global_batch_size": 4,
+  "micro_batch_size": 1,
+  "max_epochs": 10,
+  "max_steps": 60,
+  "smoke_steps": 3,
+  "timeout_seconds": 7200,
+  "lora_rank": 16,
+  "lora_alpha": 32,
+  "learning_rate": 5e-06,
+  "beta": 0.1,
+  "seed": 42,
+  "writer_system_sha256": "f23563cf2970e6b342f2b7875356a7afd9d9357a793ec85f497036fa23da2fd9",
+  "writer_system_sha256_note": "v1 pin of the archived 2026-11-10 bundle (grounded-answer-v3-single-check); v2 bundles use writer_prompts/writer_system_current",
+  "writer_prompts": {
+    "grounded-answer-v3-single-check": {
+      "fingerprint": "f23563cf2970e6b342f2b7875356a7afd9d9357a793ec85f497036fa23da2fd9",
+      "raw_sha256": "a067572f1f88243d16d0bb5d2748ad073f47e3a0f4be1b1fe888888c27fd0fd1",
+      "status": "superseded",
+      "deployment": "archived v1 training bundle 2026-11-10; replaced in narrative.py on 2026-11-11"
+    },
+    "grounded-answer-v4-presentation-rules": {
+      "fingerprint": "3e448c9aa3ab7eea8c22c7fe0b3594f7b193b9bd33365545fc6afabed1692feb",
+      "raw_sha256": "e4c65713505adf941c812dc34596b6cc564a6729afc27c6c6dbe828f43db1e12",
+      "status": "current",
+      "deployment": "Retained approved training prompt and step-93 checkpoint provenance; local inference now selects v5; no running service deployment claimed."
+    },
+    "grounded-answer-v5-precomputed-presentation": {
+      "fingerprint": "fc768d366785890f43c5c42a79f9baed58d2938cd44ba8b2626df0b3514924c1",
+      "raw_sha256": "12c7aa17b66670ce512fccc9f2e93486d97f1af1c0837b8f7dd0e9ca94348b2c",
+      "status": "candidate",
+      "deployment": "Local inference presentation experiment; v4 remains the approved training prompt; no training or deployment implied."
+    },
+    "grounded-answer-v6-computed-evidence": {
+      "fingerprint": "57a97d9346b439420d489462017269662415ad1868c62797e2d5a9467f446017",
+      "raw_sha256": "ab1706859e32c960af0e0b10adbc3ce27cbe686cff10eb4d210bf1e7ea16bb21",
+      "status": "candidate",
+      "deployment": "Local deterministic evidence evaluation. No training migration or service deployment implied."
+    }
+  },
+  "writer_system_current": "grounded-answer-v4-presentation-rules",
+  "nemo_image": "nvcr.io/nvidia/nemo-rl@sha256:b129624365f4f04e146104ad9465c5b34602aeadc8b0eb5dcdc2b6be4889ff43",
+  "writer_system_serving": "grounded-answer-v6-computed-evidence"
+}
