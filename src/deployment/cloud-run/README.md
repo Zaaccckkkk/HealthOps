@@ -1,19 +1,22 @@
 # Cloud Run API with a separate synthetic Cloud SQL database
 
-This runbook records the upstream development deployment in GCP `us-east4`; it is not a
-live public demo. Project IDs and service URLs below are placeholders. Configure your own
-project, credentials and resource names before running any command. That environment contained only
-three synthetic accounts; the previous VM's personal-history database was not copied or queried.
-See [deployment evidence](../../../docs/evidence/cloud-run-synthetic.md) for observed checks and limits.
+The API and database are deployed in GCP `us-east4`; the current model VM is in `us-central1`.
+This environment contains only synthetic accounts: three retained v0.1 accounts and three v0.2 accounts. The previous VM's personal-history database was not copied or queried.
+See the [current rollout](../../../docs/evidence/reconciliation-cloud-2026-11-08.md) and
+[initial deployment evidence](../../../docs/evidence/cloud-run-synthetic.md) for observed checks and limits.
 
 ## Architecture
+
+Both deployment renderers accept `"narrative_enabled": true` in the private JSON config to
+enable the optional Writer. The default remains disabled. Preserve this setting when
+redeploying the current synthetic or personal service; it is not baked into the API image.
 
 ```text
 Authorized operator / client
   -> HTTPS + Cloud Run IAM identity + application account token
   -> Cloud Run CPU API (healthops-ms3-api)
        -> private TLS -> Cloud SQL PostgreSQL 17 + pgvector
-       -> private HTTP -> Ollama on a dedicated L4 GPU VM
+       -> private HTTP -> Ollama on a dedicated V100 GPU VM
 ```
 
 Cloud Run executes the existing FastAPI application, including tools and the assistant loop.
@@ -26,32 +29,35 @@ Provisioned resources:
 
 | Resource | Configuration |
 | --- | --- |
-| Project | `your-gcp-project-id` |
+| Project | `ac215-project-509705` |
 | API | `healthops-ms3-api`, `us-east4`, 1 CPU / 1 GiB, min 0 / max 1, concurrency 4 |
 | Database instance | `healthops-ms3-synthetic`, PostgreSQL 17 Enterprise, `db-g1-small`, single zone, 10 GB SSD |
 | Database | `healthops_synthetic`, private IP only, TLS required by client URL |
-| Model VM | `healthops-ms3-model`, `us-east4-c`, `g2-standard-4`, one NVIDIA L4, 100 GB boot disk |
-| Model endpoint | `10.150.0.3:11434`, bound only to the VM private interface |
+| Model VM | `healthops-reconcile-v100-1107`, `us-central1-a`, `n1-standard-4`, one NVIDIA V100, 100 GB boot disk |
+| Model endpoint | `10.128.0.16:11434`, bound only to the VM private interface |
 | VPC | `healthops-net`; Cloud Run subnet `healthops-run` (`10.20.0.0/26`) |
 | Private service access | `healthops-sql-range`, Service Networking peering |
-| Registry | `us-east4-docker.pkg.dev/your-gcp-project-id/healthops` |
+| Registry | `us-east4-docker.pkg.dev/ac215-project-509705/healthops` |
 | Runtime identity | `healthops-run`; secret access on its database secret only |
 | Build identity | `healthops-build`; registry writer, build-source reader, log writer |
 | Secret | `healthops-ms3-database-url`, pinned version `1` |
 
-The old `healthops-gpu` in `us-east4-a` could not start because that zone lacked L4 capacity.
-It remains stopped. The new VM uses a clean Deep Learning VM image, not a copy of the old disk.
+The personal-history `healthops-gpu` and the synthetic L4 `healthops-ms3-model` remain stopped.
+The November 8 rollout used V100 after L4 allocation failed in `us-east4-c` and `us-east4-a`.
+The new VM uses a clean Deep Learning VM image, not a copy of either old disk.
 Both the new and old disks remain billable while their VMs are stopped. The new VM has a two-hour
 maximum run duration with termination action STOP. Starting it again can still fail due to capacity.
 Cloud SQL continues running and billing independently; API scale-to-zero is not a total cost cap.
 
 ### Temporary V100 evaluation fallback
 
-V100 is an additional evaluation candidate, not a replacement for the persistent L4 VM.
+V100 was initially a temporary evaluation candidate. For the November 8 reconciliation rollout,
+the owner chose to retain the new V100 VM and model disk with the same two-hour automatic STOP.
 Check both regional `NVIDIA_V100_GPUS` and global `GPUS_ALL_REGIONS` quotas, then list
 `nvidia-tesla-v100` accelerator types to find supported zones. A supported zone and positive
 quota do not guarantee allocation. Use one GPU, a 7,200-second automatic STOP, and delete the
-temporary VM and its auto-delete boot disk after testing. STOP alone does not remove disk costs.
+temporary VM and its auto-delete boot disk after testing unless retention is authorized.
+STOP alone does not remove disk costs.
 
 On 2026-11-02 UTC, `n1-standard-4` with one V100 allocated in `us-central1-a` after two
 configuration-availability failures in `us-east1`. The clean DLVM image
@@ -80,6 +86,9 @@ sudo env MODEL_PRIVATE_IP=YOUR_PRIVATE_IP docker compose \
   -f compose.model.yml -f compose.v100.yml up -d
 ```
 
+On the November 8 host, first startup still discovered CPU only. Recreating the container restored
+CUDA discovery; verify offload after startup instead of assuming host GPU detection is sufficient.
+
 Keep Ollama 0.35.1, compare both model digests to the frozen baseline, and confirm GPU offload
 and effective context size before grading answers. A 16 GB V100 has less memory than a 24 GB L4;
 do not silently change quantization or context to obtain a passing result.
@@ -92,14 +101,18 @@ personal-history VM or copy its disk. Record hardware differences when interpret
 
 `cloudbuild.yaml` builds from the API service directory, publishes the image and writes Cloud Logging
 logs. `.gcloudignore` excludes `.local`, `.env`, virtual environments and caches from the source upload.
-The runtime image is unchanged; deployment scripts do not change assistant behavior.
+For the optional trained reconciliation tool, use `cloudbuild-reconcile.yaml` and the
+[reconciliation setup](../../../docs/reconciliation.md). That image adds CPU inference and pinned weights.
+The build uses explicit `python:3.12-slim` steps for manifest parsing and checksum verification;
+the slim Cloud SDK step only downloads the artifacts. Grant the build identity object-read access
+to the pinned artifact prefix, using a bucket IAM condition, rather than the entire data bucket.
 
 ```bash
 gcloud builds submit src/api-service \
   --config=src/deployment/cloud-run/cloudbuild.yaml \
-  --substitutions=_IMAGE=us-east4-docker.pkg.dev/your-gcp-project-id/healthops/api:YOUR_VERSION \
-  --service-account=projects/your-gcp-project-id/serviceAccounts/healthops-build@your-gcp-project-id.iam.gserviceaccount.com \
-  --project=your-gcp-project-id
+  --substitutions=_IMAGE=us-east4-docker.pkg.dev/ac215-project-509705/healthops/api:YOUR_VERSION \
+  --service-account=projects/ac215-project-509705/serviceAccounts/healthops-build@ac215-project-509705.iam.gserviceaccount.com \
+  --project=ac215-project-509705
 ```
 
 Copy `config.example.json` to ignored `.local/cloud/run.json` and configure the actual resource
@@ -129,7 +142,8 @@ The original local importer remains local-only. `seed_synthetic.py` is an explic
 path: checksum/provenance validation -> account creation -> authenticated HTTP ingestion in batches
 of at most 500. It reuses `prepare()` and `provision()` from `healthops.synthetic_import`.
 It refuses a DB name other than `healthops_synthetic`, a different tunnel address/port, non-TLS
-connections, untrusted API URLs, and databases containing identities outside the selected cohort.
+connections, untrusted API URLs, and databases containing identities outside the selected cohort
+or a separately validated retained import.
 Credentials and reports belong in ignored `.local/`, never Git.
 
 Prerequisites: the API service Python environment with the `synthetic` extra; restored DVC dataset;
@@ -137,8 +151,8 @@ Google identity with Cloud Run invocation rights; a mode-0600 migration URL file
 following tunnel. Keep this command running in a separate terminal:
 
 ```bash
-gcloud compute ssh healthops-ms3-model --zone=us-east4-c \
-  --project=your-gcp-project-id --tunnel-through-iap -- \
+gcloud compute ssh healthops-reconcile-v100-1107 --zone=us-central1-a \
+  --project=ac215-project-509705 --tunnel-through-iap -- \
   -N -L 127.0.0.1:15433:10.51.0.3:5432 -o ExitOnForwardFailure=yes
 ```
 
@@ -149,16 +163,21 @@ retaining TLS. Run from the repo root; omit `--apply` for source validation with
 ```bash
 PGGSSENCMODE=disable PYTHONPATH=src/api-service \
   src/api-service/.venv/bin/python src/deployment/cloud-run/seed_synthetic.py \
-  --dataset data/synthetic/synthetic-v0.1 \
-  --manifest data/manifests/synthetic-v0.1.yaml \
+  --dataset data/synthetic/synthetic-v0.2 \
+  --manifest data/manifests/synthetic-v0.2.yaml \
   --database-url-file .local/cloud/ms3/migrator-url \
-  --api-url https://YOUR_SERVICE_URL.run.app \
-  --output-dir .local/cloud/ms3/synthetic --apply
+  --api-url https://healthops-ms3-api-799925593771.us-east4.run.app \
+  --retain-import-report .local/cloud/ms3/synthetic/report.json \
+  --output-dir .local/cloud/ms3/reconcile-1107/synthetic-v02 --apply
 ```
+
+For a clean database, omit `--retain-import-report`. For the existing cloud cohort, that report
+explicitly permits the three old v0.1 identities after validation; use the new v0.2 credentials
+for reconciliation evaluation. Do not substitute an arbitrary database or account list.
 
 Partial failures preserve completed batches. Fix the cause and rerun with the same source and
 credentials directory: source-record uniqueness produces duplicates instead of extra observations.
-Conflicting payloads fail instead of overwriting. Application tokens expire after seven days;
+Conflicting payloads fail instead of overwriting. Application tokens expire after seven days by default (`healthops issue-token --days 30` for a reviewer token, at most 90);
 renew them with the operator CLI when needed. Reports are not a credential backup.
 
 The licensed reference corpus was separately ingested with the existing knowledge ingestion script
@@ -166,28 +185,72 @@ and the cloud `nomic-embed-text` endpoint. This is reference material, not addit
 
 ## Access, logs and lifecycle
 
-Service URL: `https://YOUR_SERVICE_URL.run.app`.
-Unauthenticated visitors receive 403. Authorized requests need two separate headers:
+### Reviewer quick start
 
-- `X-Serverless-Authorization: Bearer <Google identity token>` for Cloud Run IAM.
-- `Authorization: Bearer <synthetic account token>` for HealthOps user identity.
+Everything a reviewer needs is here, except the synthetic account token, which is shared privately.
 
-Reviewer identities have not been granted access because their emails are not specified. Grant
-`roles/run.invoker` on this service to the intended reviewer, and share a synthetic account credential
-privately. The existing iOS client does not implement Cloud Run IAM login; changing its base URL
-alone is insufficient. Production user login and token lifecycle remain separate implementation work.
+1. The reviewer's Google account must hold `roles/run.invoker` on the service (the course TF's
+   account was granted it on 2026-11-11). Log in to `gcloud` with that account:
+   `gcloud auth login`.
+2. Export the token received privately. It belongs to the synthetic-v0.2 paired account (Apple Watch
+   plus Fitbit, no real data) and expires 45 days after issue (2026-12-26 for the TF token).
+3. Call the service. Every request carries two headers: `X-Serverless-Authorization` with a Google
+   identity token for Cloud Run IAM, and `Authorization` with the synthetic account token for the
+   HealthOps user identity. Unauthenticated visitors receive 403.
+
+```bash
+URL=https://healthops-ms3-api-799925593771.us-east4.run.app
+ID=$(gcloud auth print-identity-token)
+TOKEN=<synthetic account token, shared privately>
+
+# who am I: returns the synthetic account ("data_mode": "synthetic")
+curl -s -H "X-Serverless-Authorization: Bearer $ID" -H "Authorization: Bearer $TOKEN" "$URL/v1/me"
+
+# cross-device reconciliation by the served 14-day Transformer: estimate, 90 % interval, attribution
+curl -s -H "X-Serverless-Authorization: Bearer $ID" -H "Authorization: Bearer $TOKEN" \
+  "$URL/v1/tools/reconcile?metric=sleep_duration&date=2026-08-01&timezone=America/New_York"
+
+# any other tool, same headers (full endpoint list: src/api-service/README.md, "Endpoints and example calls")
+curl -s -H "X-Serverless-Authorization: Bearer $ID" -H "Authorization: Bearer $TOKEN" \
+  "$URL/v1/tools/daily-summary?metric=steps&timezone=America/New_York&start_date=2026-08-01&end_date=2026-08-07"
+
+# the assistant (needs the model VM, see below)
+curl -s -X POST -H "X-Serverless-Authorization: Bearer $ID" -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"question":"How did I sleep on 2026-08-01?","timezone":"America/New_York"}' \
+  "$URL/v1/assistant/ask"
+```
+
+`metric` accepts `sleep_duration`, `steps` and `resting_heart_rate`; August 2026 dates have paired
+readings for this account, and a date before its history returns null estimates with a warning. Both `/v1/me` and `/v1/tools/reconcile` were verified with the TF token on
+2026-11-11 ([screenshot](../../../docs/screenshots/cloud-run-curl.png)); the reconcile response
+names the served model (`model_version 20261107T231608Z/w14/transformer`, `data_version synthetic-v0.2`).
+
+`/v1/assistant/ask` answers only while the model VM `healthops-reconcile-v100-1107` is running; it
+returns 503 otherwise. The VM is kept stopped to save cost and stops itself after two hours. A
+reviewer with Compute Engine access can start it with the `instances start` command below; starting
+can fail on GPU capacity in the zone (an L4 stockout blocked it on 2026-11-11), in which case the tool
+endpoints above still demonstrate the deployed model and the assistant is documented in
+[the frozen cloud evaluation](#frozen-306-cloud-evaluation).
+
+### Operator notes
+
+The TF token was issued with `healthops issue-token --days 45` through a temporary IAP jump VM that
+was deleted afterwards; the database has no public address. Any further reviewer gets the same two
+steps: grant `roles/run.invoker`, issue a token, share it privately. The existing iOS client does
+not implement Cloud Run IAM login; changing its base URL alone is insufficient. Production user
+login and token lifecycle remain separate implementation work.
 
 ```bash
 gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="healthops-ms3-api"' \
-  --project=your-gcp-project-id --limit=20
+  --project=ac215-project-509705 --limit=20
 
-gcloud compute instances stop healthops-ms3-model --zone=us-east4-c --project=your-gcp-project-id
-gcloud compute instances start healthops-ms3-model --zone=us-east4-c --project=your-gcp-project-id
+gcloud compute instances stop healthops-reconcile-v100-1107 --zone=us-central1-a --project=ac215-project-509705
+gcloud compute instances start healthops-reconcile-v100-1107 --zone=us-central1-a --project=ac215-project-509705
 ```
 
 Stopping the VM does not delete the model disk. To stop Cloud SQL compute when the demo is inactive,
 use `gcloud sql instances patch healthops-ms3-synthetic --activation-policy=NEVER
---project=your-gcp-project-id`; this makes API database operations unavailable and storage charges
+--project=ac215-project-509705`; this makes API database operations unavailable and storage charges
 remain. Resume with `--activation-policy=ALWAYS`. Neither shutdown command was run during verification.
 Full deletion is a separate explicit action; the SQL instance has deletion protection.
 
@@ -232,7 +295,6 @@ PYTHONPATH=src/api-service:src/api-service/scripts \
   --credentials .local/cloud/ms3/synthetic \
   --output src/api-service/.local/eval/NEW_RUN_DIRECTORY \
   --url https://YOUR_EVALUATION_TAG_URL.run.app \
-  --project your-gcp-project-id --region us-east4 --service healthops-ms3-api \
   --revision YOUR_EVALUATION_REVISION
 ```
 
@@ -254,7 +316,6 @@ PGGSSENCMODE=disable PYTHONPATH=src/api-service:src/api-service/scripts \
   --database-url-file .local/cloud/ms3/migrator-url \
   --output src/api-service/.local/eval/NEW_ROUTED_RUN \
   --url https://YOUR_EVALUATION_TAG_URL.run.app \
-  --project your-gcp-project-id --region us-east4 --service healthops-ms3-api \
   --revision YOUR_EVALUATION_REVISION
 ```
 

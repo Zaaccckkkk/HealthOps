@@ -1,0 +1,11 @@
+# Optional local reconciliation adapter; download pinned weights first (docs/reconciliation.md).
+services:
+  api:
+    build:
+      context: ./src/api-service
+      args:
+        INSTALL_RECONCILE: "true"
+    environment:
+      HEALTHOPS_RECONCILE_MODEL_DIR: /models/reconcile
+    volumes:
+      - ./src/api-service/.local/reconcile/w14:/models/reconcile:ro

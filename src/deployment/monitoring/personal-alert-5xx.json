@@ -1,0 +1,33 @@
+{
+  "displayName": "HealthOps Personal API: server errors (5xx)",
+  "documentation": {
+    "content": "The Cloud Run service healthops-personal-api returned HTTP 5xx responses in the last 5 minutes. Open the service's logs (resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"healthops-personal-api\" AND severity>=ERROR) and the HealthOps API dashboard. A 503 from /v1/assistant/ask usually means the model VM is stopped.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "5xx responses > 0 over 5 minutes",
+      "conditionThreshold": {
+        "filter": "metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\" resource.label.\"service_name\"=\"healthops-personal-api\" metric.label.\"response_code_class\"=\"5xx\"",
+        "aggregations": [
+          {
+            "alignmentPeriod": "300s",
+            "perSeriesAligner": "ALIGN_SUM",
+            "crossSeriesReducer": "REDUCE_SUM"
+          }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "alertStrategy": {
+    "autoClose": "1800s"
+  },
+  "enabled": true
+}

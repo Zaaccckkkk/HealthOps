@@ -1,0 +1,10 @@
+# Course-template entry point: `cd src && docker compose ...` reaches the same stack as the root file.
+# The stack is defined once, in ../docker-compose.yml at the repository root, because its services
+# mount folders that live beside src/ (configs/, data/, knowledge/) and read the root .env.
+# `project_directory: ..` resolves relative paths and the .env file from the root; `name` keeps
+# the project name, so containers and the postgres_data volume are shared with the root entry
+# point instead of a second copy named after this folder. Edit the root file, never this one.
+name: healthops-portfolio
+include:
+  - path: ../docker-compose.yml
+    project_directory: ..

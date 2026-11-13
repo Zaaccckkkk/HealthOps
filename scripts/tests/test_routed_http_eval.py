@@ -9,7 +9,6 @@ from uuid import uuid4
 
 import httpx
 import pytest
-
 from healthops.assistant.contracts import AskRequest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -72,8 +71,12 @@ def test_timeout_is_not_replayed():
     async def scenario():
         uid = uuid4()
         async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
-            assistant = module.HTTPAssistant(client, "https://fixture.run.app", {uid: {}})
-            await assistant.ask(AskRequest(question="Steps yesterday", timezone="UTC"), uid)
+            assistant = module.HTTPAssistant(
+                client, "https://fixture.run.app", {uid: {}}
+            )
+            await assistant.ask(
+                AskRequest(question="Steps yesterday", timezone="UTC"), uid
+            )
 
     with pytest.raises(httpx.ReadTimeout):
         asyncio.run(scenario())
@@ -97,29 +100,3 @@ def test_foreign_credential_identity_is_rejected(tmp_path):
     )
     with pytest.raises(ValueError, match="identity"):
         module.credential_headers(tmp_path, {"synthetic-00000": uid}, "fixture")
-
-
-def test_cloud_inspection_uses_operator_project_and_region(monkeypatch):
-    from types import SimpleNamespace
-
-    commands = []
-
-    def capture(command, **kwargs):
-        commands.append(command)
-        return '{"status": {}}'
-
-    monkeypatch.setattr(module, "command_output", capture)
-    args = SimpleNamespace(project="portfolio-fixture", region="us-west1")
-    assert module.describe_cloud_run(args, "revisions", "eval-fixture") == {"status": {}}
-    assert commands == [
-        [
-            "gcloud",
-            "run",
-            "revisions",
-            "describe",
-            "eval-fixture",
-            "--region=us-west1",
-            "--project=portfolio-fixture",
-            "--format=json",
-        ]
-    ]

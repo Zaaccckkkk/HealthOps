@@ -23,15 +23,14 @@ from eval_routed import (
     summarize,
     write,
 )
-from seed_synthetic import validate_target
-from sqlalchemy import select
-from sqlalchemy.orm import sessionmaker
-
 from healthops.assistant.contracts import AskResponse
 from healthops.assistant.prompts import SYSTEM_PROMPT
 from healthops.assistant.routing import ROUTER_PROMPT
 from healthops.db import build_engine
 from healthops.models import User
+from seed_synthetic import validate_target
+from sqlalchemy import select
+from sqlalchemy.orm import sessionmaker
 
 
 def command_output(*args, **kwargs):
@@ -71,7 +70,9 @@ def credential_headers(directory, users, iam):
     for user in report["users"]:
         uid = users[user["user_id"]]
         if UUID(user["api_user_id"]) != uid:
-            raise ValueError("Credential identity differs from frozen synthetic account")
+            raise ValueError(
+                "Credential identity differs from frozen synthetic account"
+            )
         path = (directory / user["credentials_file"]).resolve()
         if not path.is_relative_to(directory.resolve()):
             raise ValueError("Credential path is outside the private directory")
@@ -83,25 +84,6 @@ def credential_headers(directory, users, iam):
     if set(result) != set(users.values()):
         raise ValueError("Missing synthetic account credentials")
     return result
-
-
-def describe_cloud_run(args, resource: str, name: str):
-    """Inspect only the operator-selected project; never an embedded team account."""
-    return json.loads(
-        command_output(
-            [
-                "gcloud",
-                "run",
-                resource,
-                "describe",
-                name,
-                f"--region={args.region}",
-                f"--project={args.project}",
-                "--format=json",
-            ],
-            text=True,
-        )
-    )
 
 
 async def run(args):
@@ -120,20 +102,52 @@ async def run(args):
     users = identities(args.dataset, factory)
     with factory() as session:
         if set(session.scalars(select(User.id))) != set(users.values()):
-            raise ValueError("Database must contain exactly the three synthetic accounts")
+            raise ValueError(
+                "Database must contain exactly the three synthetic accounts"
+            )
     gold = {
-        c["id"]: [make_gold(c, t, factory, users[c["source_user_id"]]) for t in c["turns"]]
+        c["id"]: [
+            make_gold(c, t, factory, users[c["source_user_id"]]) for t in c["turns"]
+        ]
         for c in cases
     }
     engine.dispose()
     iam = command_output(["gcloud", "auth", "print-identity-token"], text=True).strip()
     headers = credential_headers(args.credentials, users, iam)
-    revision = describe_cloud_run(args, "revisions", args.revision)
+    revision = json.loads(
+        command_output(
+            [
+                "gcloud",
+                "run",
+                "revisions",
+                "describe",
+                args.revision,
+                "--region=us-east4",
+                "--project=ac215-project-509705",
+                "--format=json",
+            ],
+            text=True,
+        )
+    )
     container = revision["spec"]["containers"][0]
     env = {e["name"]: e.get("value") for e in container.get("env", [])}
     if env.get("HEALTHOPS_ASSISTANT_ALLOW_TODAY_OVERRIDE") != "true":
         raise ValueError("Expected an evaluation-only revision with frozen dates")
-    service = describe_cloud_run(args, "services", args.service)
+    service = json.loads(
+        command_output(
+            [
+                "gcloud",
+                "run",
+                "services",
+                "describe",
+                "healthops-ms3-api",
+                "--region=us-east4",
+                "--project=ac215-project-509705",
+                "--format=json",
+            ],
+            text=True,
+        )
+    )
     traffic = service["status"]["traffic"]
     if not any(
         t.get("revisionName") == args.revision
@@ -141,8 +155,12 @@ async def run(args):
         and not t.get("percent", 0)
         for t in traffic
     ):
-        raise ValueError("URL must point to the tagged, zero-default-traffic evaluation revision")
-    if any(t.get("revisionName") == args.revision and t.get("percent", 0) for t in traffic):
+        raise ValueError(
+            "URL must point to the tagged, zero-default-traffic evaluation revision"
+        )
+    if any(
+        t.get("revisionName") == args.revision and t.get("percent", 0) for t in traffic
+    ):
         raise ValueError("Evaluation revision must not receive normal traffic")
     args.output.mkdir(parents=True, exist_ok=False, mode=0o700)
     metadata = {
@@ -193,7 +211,9 @@ async def run(args):
                     flush=True,
                 )
                 if any("error_type" in t for t in result["turns"]):
-                    raise RuntimeError("HTTP transport failure; run stopped for diagnosis")
+                    raise RuntimeError(
+                        "HTTP transport failure; run stopped for diagnosis"
+                    )
         metadata["status"] = "completed"
     except BaseException:
         metadata["status"] = "interrupted"
@@ -211,9 +231,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--url", required=True)
     parser.add_argument("--revision", required=True)
-    parser.add_argument("--project", required=True)
-    parser.add_argument("--region", default="us-east4")
-    parser.add_argument("--service", default="healthops-ms3-api")
     parser.add_argument(
         "--ids", help="Comma-separated smoke-test scenario IDs; omit for full suite"
     )

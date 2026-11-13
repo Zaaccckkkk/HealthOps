@@ -9,16 +9,21 @@ import json
 import subprocess
 import tempfile
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid5
 
 import httpx
+from healthops.db import build_engine
+from healthops.models import User
+from healthops.synthetic_import import (
+    NAMESPACE,
+    ImportFailure,
+    atomic_report,
+    prepare,
+    provision,
+)
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
-
-from healthops.db import build_engine
-from healthops.models import User
-from healthops.synthetic_import import ImportFailure, atomic_report, prepare, provision
 
 
 def validate_target(database_url, api_url):
@@ -30,7 +35,9 @@ def validate_target(database_url, api_url):
         or url.database != "healthops_synthetic"
         or dict(url.query) != {"sslmode": "require"}
     ):
-        raise ImportFailure("Expected the explicit synthetic Cloud SQL operator tunnel.")
+        raise ImportFailure(
+            "Expected the explicit synthetic Cloud SQL operator tunnel."
+        )
     from urllib.parse import urlparse
 
     api = urlparse(api_url)
@@ -67,6 +74,7 @@ def upload(report, spool, output, api_url):
                 headers={
                     "X-Serverless-Authorization": f"Bearer {identity}",
                     "Authorization": f"Bearer {tokens[uid]}",
+                    "X-HealthOps-Data-Kind": "synthetic",
                 },
                 json={"observations": pending[uid]},
             )
@@ -87,6 +95,36 @@ def upload(report, spool, output, api_url):
             flush(uid)
 
 
+def allowed_previous_accounts(reports):
+    """Retain explicitly supplied prior synthetic imports; never allow arbitrary user UUIDs."""
+    import hashlib
+
+    result = {}
+    root = Path(__file__).resolve().parents[3]
+    for path in reports:
+        report = json.loads(path.read_text())
+        version = report.get("version")
+        if (
+            version not in {"synthetic-v0.1", "synthetic-v0.2"}
+            or report.get("status") != "completed"
+        ):
+            raise ImportFailure(
+                "Only completed known synthetic imports can be retained."
+            )
+        expected = hashlib.sha256(
+            (root / "data/manifests" / f"{version}.yaml").read_bytes()
+        ).hexdigest()
+        if report.get("manifest_sha256") != expected:
+            raise ImportFailure("Prior synthetic manifest mismatch.")
+        for user in report["users"]:
+            uid = uuid5(NAMESPACE, f"{version}:{expected}:{user['user_id']}")
+            name = f"Synthetic {user['cohort']} {str(uid)[:8]}"
+            if str(uid) != user["api_user_id"] or name != user["display_name"]:
+                raise ImportFailure("Prior synthetic identity mismatch.")
+            result[uid] = name
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, required=True)
@@ -95,6 +133,9 @@ def main():
     parser.add_argument("--api-url", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument(
+        "--retain-import-report", type=Path, action="append", default=[]
+    )
     args = parser.parse_args()
     database_url = args.database_url_file.read_text().strip()
     validate_target(database_url, args.api_url)
@@ -114,13 +155,21 @@ def main():
         engine = build_engine(database_url)
         try:
             with Session(engine) as session:
-                expected = {UUID(u["api_user_id"]) for u in report["users"]}
-                if not set(session.scalars(select(User.id))).issubset(expected):
+                expected = allowed_previous_accounts(args.retain_import_report)
+                expected.update(
+                    {UUID(u["api_user_id"]): u["display_name"] for u in report["users"]}
+                )
+                if any(
+                    expected.get(u.id) != u.display_name
+                    for u in session.scalars(select(User))
+                ):
                     raise ImportFailure(
                         "Database contains identities outside this synthetic cohort."
                     )
                 for user in report["users"]:
-                    provision(session, user, args.output_dir / f"{user['api_user_id']}.json")
+                    provision(
+                        session, user, args.output_dir / f"{user['api_user_id']}.json"
+                    )
             report["status"] = "running"
             atomic_report(args.output_dir / "report.json", report)
             try:
@@ -133,7 +182,11 @@ def main():
                 atomic_report(args.output_dir / "report.json", report)
         finally:
             engine.dispose()
-        print(json.dumps({k: report[k] for k in ("status", "records", "inserted", "duplicates")}))
+        print(
+            json.dumps(
+                {k: report[k] for k in ("status", "records", "inserted", "duplicates")}
+            )
+        )
 
 
 if __name__ == "__main__":

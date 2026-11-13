@@ -13,12 +13,11 @@ import time
 from pathlib import Path
 
 import httpx
-from prepare_cohort_baseline import encoded
-from run_cohort_baseline import grade
-
 from healthops.assistant.contracts import AskResponse
 from healthops.assistant.prompts import SYSTEM_PROMPT
 from healthops.assistant.toolbox import Toolbox
+from prepare_cohort_baseline import encoded
+from run_cohort_baseline import grade
 
 
 def digest(data):
@@ -43,7 +42,10 @@ def main():
         raise ValueError("Prompt changed")
     if digest(encoded(Toolbox(None).schemas())) != snapshot["tool_schema_sha256"]:
         raise ValueError("Tool schemas changed")
-    rows = [json.loads(x) for x in (args.dataset / "questions.jsonl").read_text().splitlines()]
+    rows = [
+        json.loads(x)
+        for x in (args.dataset / "questions.jsonl").read_text().splitlines()
+    ]
     probes = [json.loads(x) for x in args.probes.read_text().splitlines()]
     if len(rows) != 30 or len(probes) != 6:
         raise ValueError("Expected the original 30+6 cases")
@@ -68,12 +70,12 @@ def main():
         "dataset_lock_sha256": digest((args.dataset / "lock.json").read_bytes()),
         "probes_sha256": digest(args.probes.read_bytes()),
         "questions_sha256": digest((args.dataset / "questions.jsonl").read_bytes()),
-        "comparison_limit": (
-            "Different host/server version and enabled RAG; not a causal LangGraph experiment"
-        ),
+        "comparison_limit": "Different host/server version and enabled RAG; not a causal LangGraph experiment",
     }
     (args.output / "run.json").write_bytes(encoded(metadata))
-    iam = subprocess.check_output(["gcloud", "auth", "print-identity-token"], text=True).strip()
+    iam = subprocess.check_output(
+        ["gcloud", "auth", "print-identity-token"], text=True
+    ).strip()
     headers = {
         uid: {
             "X-Serverless-Authorization": "Bearer " + iam,
@@ -103,7 +105,9 @@ def main():
                 json=body,
             )
             if response.status_code == 429:
-                time.sleep(min(61, max(1, int(response.headers.get("retry-after", "60")))))
+                time.sleep(
+                    min(61, max(1, int(response.headers.get("retry-after", "60"))))
+                )
                 response = client.post(
                     args.url + "/v1/assistant/ask",
                     headers=headers[item["source_user_id"]],
@@ -144,7 +148,9 @@ def main():
     summary = {
         "questions": 30,
         "probes": 6,
-        "verified_explanations": sum(r["explanation_status"] == "verified" for r in scored),
+        "verified_explanations": sum(
+            r["explanation_status"] == "verified" for r in scored
+        ),
         "latency_p50_s": statistics.median(r["latency_s"] for r in scored),
     }
     for field in (

@@ -40,6 +40,7 @@ def command(config):
         raise ValueError("This deployment expects a private VPC model endpoint")
     env = {
         "HEALTHOPS_ENVIRONMENT": "cloud-dev",
+        "HEALTHOPS_DATA_MODE": "synthetic",
         "HEALTHOPS_ASSISTANT_MODEL_BASE_URL": config["model_url"],
         "HEALTHOPS_ASSISTANT_MODEL_BACKEND": "ollama",
         "HEALTHOPS_ASSISTANT_MODEL_NAME": "qwen3:8b",
@@ -47,6 +48,16 @@ def command(config):
         "HEALTHOPS_ASSISTANT_MAX_CONCURRENCY": "1",
         "HEALTHOPS_ASSISTANT_ALLOW_TODAY_OVERRIDE": "false",
     }
+    if type(config.get("narrative_enabled", False)) is not bool:
+        raise ValueError("narrative_enabled must be a boolean")
+    if config.get("narrative_enabled", False):
+        env["HEALTHOPS_ASSISTANT_NARRATIVE_ENABLED"] = "true"
+    if config.get("reconcile_model_dir"):
+        if config["reconcile_model_dir"] != "/app/models/reconcile":
+            raise ValueError(
+                "Expected the image-bundled reconciliation artifact directory"
+            )
+        env["HEALTHOPS_RECONCILE_MODEL_DIR"] = config["reconcile_model_dir"]
     return [
         "gcloud",
         "run",

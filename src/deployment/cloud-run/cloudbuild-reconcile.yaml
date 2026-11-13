@@ -1,0 +1,38 @@
+# Run with source=src/api-service; weights remain outside Git and are pinned by SHA-256.
+# The slim Cloud SDK image has no standalone python3; use an explicit Python image.
+steps:
+  - name: python:3.12-slim
+    entrypoint: python
+    args:
+      - -c
+      - |
+        import json, pathlib
+        manifest = json.loads(pathlib.Path("reconcile-model.json").read_text())
+        pathlib.Path(".reconcile-source-uri").write_text(manifest["uri"])
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        mkdir -p models/reconcile
+        uri=$$(cat .reconcile-source-uri)
+        gcloud storage cp "$${uri}transformer.pt" "$${uri}meta.json" models/reconcile/
+  - name: python:3.12-slim
+    entrypoint: python
+    args:
+      - -c
+      - |
+        import hashlib, json, pathlib, shutil
+        folder = pathlib.Path("models/reconcile")
+        manifest = json.loads(pathlib.Path("reconcile-model.json").read_text())
+        for name, digest in manifest["sha256"].items():
+            if hashlib.sha256((folder / name).read_bytes()).hexdigest() != digest:
+                raise ValueError(f"Reconciliation artifact checksum mismatch: {name}")
+        shutil.copyfile("reconcile-model.json", folder / "serving.json")
+        pathlib.Path(".reconcile-source-uri").unlink()
+  - name: gcr.io/cloud-builders/docker
+    args: [build, --build-arg, INSTALL_RECONCILE=true, -t, '${_IMAGE}', .]
+images: ['${_IMAGE}']
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s

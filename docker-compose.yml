@@ -1,10 +1,32 @@
 name: healthops-portfolio
 
+# Application stack (api-service + PostgreSQL): `docker compose up --build api`.
+# Data pipeline (profile "data"): `make run`, or
+#   docker compose --profile data up --build --attach-dependencies data-synthesizer
+# Data versions come from .env (see .env.example) and are logged by every data container.
+# RAG corpus (profile "rag"): `make rag` = docker compose --profile rag run --rm --build rag-ingest
+#   fetches the licence-checked reference sources, chunks and embeds them (nomic-embed-text through
+#   an Ollama on the host) and stores them in pgvector inside the same PostgreSQL as the API.
+
 x-app: &app
   build: ./src/api-service
   environment:
     HEALTHOPS_DATABASE_URL: postgresql+psycopg://healthops:local-only-password@db:5432/healthops
     HEALTHOPS_ENVIRONMENT: local
+
+x-data: &data
+  profiles: ["data"]
+  # Write files as the host user so ./data stays editable and DVC can read it.
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  volumes:
+    - ./data:/data
+    - ./configs:/configs:ro
+
+x-data-env: &data-env
+  DATA_ROOT: /data
+  CONFIG_DIR: /configs
+  GIT_COMMIT: ${GIT_COMMIT:-unknown}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
 
 services:
   db:
@@ -139,6 +161,80 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+
+  # ---------------------------------------------------------------------------------------
+  # Data pipeline: synthea-generator -> data-collector -> data-processor -> data-synthesizer.
+  # One-shot containers; each starts only after the previous one exited successfully.
+  synthea-generator:
+    <<: *data
+    build: ./src/synthea-generator
+    environment:
+      <<: *data-env
+      OUTPUT_DATA_VERSION: ${RAW_DATA_VERSION:-raw-v1}
+
+  data-collector:
+    <<: *data
+    build: ./src/data-collector
+    environment:
+      <<: *data-env
+      OUTPUT_DATA_VERSION: ${RAW_DATA_VERSION:-raw-v1}
+      BIDSLEEP_INCLUDE_MOTION: ${BIDSLEEP_INCLUDE_MOTION:-false}
+    depends_on:
+      synthea-generator:
+        condition: service_completed_successfully
+
+  data-processor:
+    <<: *data
+    build: ./src/data-processor
+    environment:
+      <<: *data-env
+      INPUT_DATA_VERSION: ${RAW_DATA_VERSION:-raw-v1}
+      OUTPUT_DATA_VERSION: ${CANONICAL_DATA_VERSION:-canonical-v0.1}
+    depends_on:
+      data-collector:
+        condition: service_completed_successfully
+
+  data-synthesizer:
+    <<: *data
+    build: ./src/data-synthesizer
+    environment:
+      <<: *data-env
+      INPUT_DATA_VERSION: ${CANONICAL_DATA_VERSION:-canonical-v0.1}
+      OUTPUT_DATA_VERSION: ${SYNTHETIC_DATA_VERSION:-synthetic-v0.1}
+      # LLM for context generation: Ollama on the host by default. If it is not running or the
+      # model is not pulled, the run logs why and uses the seed event library. "off" disables it.
+      CONTEXT_LLM_BASE_URL: ${CONTEXT_LLM_BASE_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # reach an Ollama running on the host
+    depends_on:
+      data-processor:
+        condition: service_completed_successfully
+
+  # ---------------------------------------------------------------------------------------
+  # Model training (profile "train"): cross-device reconciliation models on a synthetic version.
+  # `make train-smoke` runs the three models on 20 users with tiny settings; the same image is
+  # the Vertex AI custom job. W&B goes online when WANDB_API_KEY is set in .env, offline otherwise.
+  model-training:
+    build: ./src/model-training
+    profiles: ["train"]
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      DATA_ROOT: /data
+      TRAIN_DATA_VERSION: ${SYNTHETIC_DATA_VERSION:-synthetic-v0.2}
+      TRAIN_MODELS: ${TRAIN_MODELS:-lightgbm,transformer,diffusion}
+      TRAIN_USERS: ${TRAIN_USERS:-0}
+      TRAIN_SMOKE: ${TRAIN_SMOKE:-false}
+      TRAIN_OUT: ${TRAIN_OUT:-}
+      GIT_COMMIT: ${GIT_COMMIT:-unknown}
+      WANDB_API_KEY: ${WANDB_API_KEY:-}
+      WANDB_MODE: ${WANDB_MODE:-}
+      WANDB_PROJECT: ${WANDB_PROJECT:-healthops-m3}
+      WANDB_ENTITY: ${WANDB_ENTITY:-}
+      WANDB_DIR: /app/.local/wandb
+      HOME: /tmp
+    volumes:
+      - ./data:/data:ro
+      - ./src/model-training/.local:/app/.local   # runs, models, offline W&B files
 
 volumes:
   postgres_data:

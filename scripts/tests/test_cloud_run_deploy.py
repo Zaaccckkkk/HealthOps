@@ -36,3 +36,28 @@ def test_reject_unpinned_or_unsafe_deployment_config(change):
     config = json.loads((PATH.parent / "config.example.json").read_text()) | change
     with pytest.raises(ValueError):
         module.command(config)
+
+
+def test_reconciliation_directory_is_image_bundled_and_optional():
+    config = json.loads((PATH.parent / "config.example.json").read_text())
+    cmd = module.command(config | {"reconcile_model_dir": "/app/models/reconcile"})
+    assert any(
+        "HEALTHOPS_RECONCILE_MODEL_DIR=/app/models/reconcile" in item for item in cmd
+    )
+    with pytest.raises(ValueError):
+        module.command(config | {"reconcile_model_dir": "gs://arbitrary-model"})
+
+
+def test_synthetic_writer_can_be_enabled_without_changing_security_or_secrets():
+    config = json.loads((PATH.parent / "config.example.json").read_text())
+    baseline = module.command(config)
+    enabled = module.command(config | {"narrative_enabled": True})
+    assert not any("NARRATIVE_ENABLED" in arg for arg in baseline)
+    env = next(arg for arg in enabled if arg.startswith("--set-env-vars="))
+    assert env.count("HEALTHOPS_ASSISTANT_NARRATIVE_ENABLED=true") == 1
+    assert "--no-allow-unauthenticated" in enabled
+    assert [arg for arg in baseline if not arg.startswith("--set-env-vars=")] == [
+        arg for arg in enabled if not arg.startswith("--set-env-vars=")
+    ]
+    with pytest.raises(ValueError):
+        module.command(config | {"narrative_enabled": "false"})
