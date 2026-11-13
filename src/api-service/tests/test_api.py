@@ -211,6 +211,25 @@ def test_reissued_token_preserves_user_history(engine, client, tmp_path, record)
     renewed = json.loads(second.read_text())
     assert renewed["user_id"] == original["user_id"]
     assert renewed["token"] != original["token"]
+    # A reviewer token may live longer than the 7-day default, never beyond the maximum.
+    from datetime import UTC, datetime
+    from datetime import timedelta as delta
+
+    from healthops.cli import MAX_TOKEN_DAYS
+
+    with Session(engine) as session:
+        issue_token(session, UUID(original["user_id"]), tmp_path / "long.json", days=30)
+        with pytest.raises(ValueError, match="between 1 and"):
+            issue_token(
+                session,
+                UUID(original["user_id"]),
+                tmp_path / "too-long.json",
+                days=MAX_TOKEN_DAYS + 1,
+            )
+    long_lived = json.loads((tmp_path / "long.json").read_text())
+    remaining = datetime.fromisoformat(long_lived["expires_at"]) - datetime.now(UTC)
+    assert delta(days=29) < remaining <= delta(days=30)
+    assert not (tmp_path / "too-long.json").exists()
     assert not (tmp_path / "missing.json").exists()
     headers = {"Authorization": f"Bearer {renewed['token']}"}
     assert len(client.get("/v1/observations", headers=headers).json()["items"]) == 1

@@ -743,8 +743,9 @@ def test_structured_findings_are_verified_and_rendered_by_templates():
     response = ask(assistant)
     assert response.status == "answered" and response.explanation_status == "verified"
     assert response.answer == (
-        "On 2026-09-27, your resting_heart_rate (healthkit) was 62 bpm, mean of recorded samples "
-        "(not an all-day average). No resting_heart_rate records on 2026-09-28 (healthkit)."
+        "On 2026-09-27, your resting_heart_rate (Apple Health) was 62 bpm, "
+        "mean of recorded samples "
+        "(not an all-day average). No resting_heart_rate records on 2026-09-28 (Apple Health)."
     )
     assert [c.valid for c in response.claims] == [True, True]
     assert response.numeric_consistency.status == "consistent"
@@ -873,7 +874,7 @@ def test_langgraph_routes_findings_to_a_separate_verifier():
         request, USER, _RunState(resolve(NY, date(2026, 10, 2))), _Deadline(30)
     )
     nodes = graph.get_graph().nodes
-    assert {"model", "tools", "verify", "__start__", "__end__"} == set(nodes)
+    assert {"model", "tools", "verify", "narrate", "__start__", "__end__"} == set(nodes)
     assert graph.checkpointer is None
 
 

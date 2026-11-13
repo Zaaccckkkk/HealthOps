@@ -1,4 +1,4 @@
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     # "local": loopback development. "cloud-dev": one single-tester GPU VM behind HTTPS with
     # development bearer tokens, synthetic data only; not a multi-tenant or production setting.
     environment: str = "local"
+    # Declared by deployment, never inferred from account names or uploaded values.
+    data_mode: Literal["development", "synthetic", "personal"] = "development"
     # Per-user cap on assistant questions (sliding minute). GPU inference is never anonymous
     # and never unlimited: authentication happens before the limiter and the model.
     assistant_rate_limit_per_minute: int = 10
@@ -30,14 +32,19 @@ class Settings(BaseSettings):
     assistant_max_output_tokens: int = 800
     assistant_temperature: float = 0.0
     assistant_thinking: bool | None = None
-    assistant_max_tool_calls: int = 4
-    assistant_max_model_turns: int = 6
+    assistant_max_tool_calls: int = 12
+    assistant_max_model_turns: int = 14
     assistant_deadline_seconds: float = 120.0
-    assistant_model_context_budget_chars: int = 24_000
+    assistant_model_context_budget_chars: int = 48_000
     assistant_evidence_budget_bytes: int = 262_144
     assistant_max_concurrency: int = 2
+    assistant_narrative_enabled: bool = False
+    assistant_narrative_timeout_seconds: float = Field(default=30.0, gt=0, le=60)
     # Evaluation only: lets a request pin "today" so relative dates are reproducible.
     assistant_allow_today_override: bool = False
+
+    # Trusted local artifact directory; disabled when unset. No download during requests.
+    reconcile_model_dir: str | None = None
 
     # Google Health connector (server-side OAuth). Disabled unless all three are set. The
     # client secret and the token-encryption key live only in the server environment.

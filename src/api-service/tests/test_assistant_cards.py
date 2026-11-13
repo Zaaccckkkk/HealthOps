@@ -119,6 +119,8 @@ def test_daily_card_marks_missing_days_as_no_data_never_zero():
     )
     card = cards[0]
     assert card.evidence_id == "e1.healthkit" and card.kind == "daily_table"
+    assert card.provider == "healthkit"
+    assert card.title == "sleep_duration per day (Apple Health)"
     assert [r.display for r in card.rows] == ["6 h 45 min (24300 s)", "no data", "0 h 0 min (0 s)"]
     assert [r.kind for r in card.rows] == ["interval_total_sum", "none", "daily_total"]
     assert card.rows[1].value is None
@@ -268,7 +270,7 @@ def test_one_invalid_claim_degrades_the_whole_explanation():
     good = FindingsParams(findings=["value_on_date e1.healthkit 2026-10-01"])
     text, _, all_valid = render_explanation(good, cards)
     assert all_valid and text.startswith(
-        "On 2026-10-01, your resting_heart_rate (healthkit) was 55 bpm"
+        "On 2026-10-01, your resting_heart_rate (Apple Health) was 55 bpm"
     )
 
 
@@ -382,12 +384,14 @@ def test_records_without_a_reliable_value_are_not_reported_as_no_records():
     unusable = verify_claim(
         Claim(type="missing_data", evidence_id="e1.healthkit", date="2026-10-01"), cards
     )
-    assert unusable.valid and "records exist (healthkit) but no reliable value" in unusable.sentence
+    assert (
+        unusable.valid and "records exist (Apple Health) but no reliable value" in unusable.sentence
+    )
     assert "overlap" in unusable.sentence
     none = verify_claim(
         Claim(type="missing_data", evidence_id="e1.healthkit", date="2026-10-02"), cards
     )
-    assert none.valid and none.sentence == "No sleep_duration records on 2026-10-02 (healthkit)."
+    assert none.valid and none.sentence == "No sleep_duration records on 2026-10-02 (Apple Health)."
     whole = verify_claim(Claim(type="missing_data", evidence_id="e1.healthkit"), cards)
     assert not whole.valid  # the window has a recorded value on 10-03
 

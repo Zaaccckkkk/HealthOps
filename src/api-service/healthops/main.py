@@ -4,7 +4,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
@@ -30,6 +30,7 @@ from healthops.connectors.google_health import GoogleHealthClient, GoogleOAuthCo
 from healthops.db import build_engine
 from healthops.knowledge.embeddings import OllamaEmbedder
 from healthops.models import Observation, User
+from healthops.reconciliation.model import TransformerPredictor
 from healthops.repository import SourceConflict, ingest_batch
 from healthops.schemas import (
     BatchResult,
@@ -48,16 +49,20 @@ from healthops.tools.contracts import (
     DailySummaryResult,
     PeriodComparisonParams,
     PeriodComparisonResult,
+    ReconcileMetric,
+    ReconcileParams,
+    ReconcileResult,
 )
 from healthops.tools.daily_summary import daily_summary_tool
 from healthops.tools.local_days import ToolInputError
 from healthops.tools.period_comparison import period_comparison_tool
+from healthops.tools.reconcile import reconcile_tool
 
 TimezoneQuery = Annotated[str, Query(min_length=1, max_length=80)]
 
 
 def build_assistant(
-    settings: Settings, session_factory: sessionmaker, chat_model: ChatModel | None
+    settings: Settings, session_factory: sessionmaker, chat_model: ChatModel | None, predictor=None
 ):
     """The assistant exists only when a model endpoint is configured or a model is injected."""
     if chat_model is None:
@@ -92,7 +97,7 @@ def build_assistant(
         )
     return Assistant(
         chat_model,
-        Toolbox(session_factory, knowledge=knowledge),
+        Toolbox(session_factory, knowledge=knowledge, predictor=predictor),
         AssistantSettings(
             max_tool_calls=settings.assistant_max_tool_calls,
             max_model_turns=settings.assistant_max_model_turns,
@@ -101,6 +106,8 @@ def build_assistant(
             evidence_budget_bytes=settings.assistant_evidence_budget_bytes,
             max_concurrency=settings.assistant_max_concurrency,
             allow_today_override=settings.assistant_allow_today_override,
+            narrative_enabled=settings.assistant_narrative_enabled,
+            narrative_timeout_seconds=settings.assistant_narrative_timeout_seconds,
         ),
     )
 
@@ -121,7 +128,12 @@ def create_app(
 
     app = FastAPI(title="HealthOps local ingestion API", version="0.1.0", lifespan=lifespan)
     app.state.session_factory = sessionmaker(engine, expire_on_commit=False)
-    app.state.assistant = build_assistant(settings, app.state.session_factory, chat_model)
+    app.state.reconcile_predictor = (
+        TransformerPredictor(settings.reconcile_model_dir) if settings.reconcile_model_dir else None
+    )
+    app.state.assistant = build_assistant(
+        settings, app.state.session_factory, chat_model, app.state.reconcile_predictor
+    )
     app.state.assistant_limiter = RateLimiter(settings.assistant_rate_limit_per_minute)
     app.state.settings = settings
     # Google Health connector: present only when the OAuth client and the token key are set.
@@ -176,10 +188,21 @@ def create_app(
 
     @app.get("/v1/me", response_model=UserOut)
     def me(user: UserDep):
-        return user
+        return UserOut.model_validate(user).model_copy(update={"data_mode": settings.data_mode})
 
     @app.post("/v1/observations/batch", response_model=BatchResult)
-    def upload(batch: ObservationBatch, user: UserDep, session: SessionDep):
+    def upload(
+        batch: ObservationBatch,
+        user: UserDep,
+        session: SessionDep,
+        data_kind: Annotated[str | None, Header(alias="X-HealthOps-Data-Kind")] = None,
+    ):
+        # An accidental phone upload must fail before any database write. This declaration
+        # is an environment guard, not proof that a malicious client's payload is synthetic.
+        if settings.data_mode != "development" and data_kind != settings.data_mode:
+            raise HTTPException(403, "Upload data kind does not match this environment.")
+        if data_kind == "personal" and settings.data_mode != "personal":
+            raise HTTPException(403, "Personal uploads require a personal environment.")
         try:
             return ingest_batch(session, user.id, batch.observations)
         except SourceConflict as exc:
@@ -272,6 +295,30 @@ def create_app(
             return daily_summary_tool(session, user.id, params)
         except ToolInputError as exc:
             # Explicit, value-free messages: limits are refused, never silently truncated.
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.get("/v1/tools/reconcile", response_model=ReconcileResult)
+    def tool_reconcile(
+        user: UserDep,
+        session: SessionDep,
+        metric: ReconcileMetric,
+        timezone: TimezoneQuery,
+        query_date: date = Query(alias="date"),
+    ):
+        if app.state.reconcile_predictor is None:
+            raise HTTPException(503, "Reconciliation model is not configured.")
+        try:
+            return reconcile_tool(
+                session,
+                user.id,
+                ReconcileParams(
+                    metric=metric,
+                    timezone=timezone,
+                    date=query_date,
+                ),
+                app.state.reconcile_predictor,
+            )
+        except ToolInputError as exc:
             raise HTTPException(422, str(exc)) from exc
 
     @app.get("/v1/tools/period-comparison", response_model=PeriodComparisonResult)

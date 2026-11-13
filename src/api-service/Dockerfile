@@ -5,10 +5,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN pip install --no-cache-dir uv==0.8.17
 COPY pyproject.toml uv.lock ./
 ARG INSTALL_SYNTHETIC=false
-RUN if [ "$INSTALL_SYNTHETIC" = true ]; then uv sync --frozen --extra synthetic --no-install-project; else uv sync --frozen --no-install-project; fi
+ARG INSTALL_RECONCILE=false
+RUN extras=""; if [ "$INSTALL_SYNTHETIC" = true ]; then extras="$extras --extra synthetic"; fi; \
+    if [ "$INSTALL_RECONCILE" = true ]; then extras="$extras --extra reconcile"; fi; \
+    uv sync --frozen $extras --no-install-project
 COPY . .
-RUN if [ "$INSTALL_SYNTHETIC" = true ]; then uv sync --frozen --extra synthetic; else uv sync --frozen; fi \
-    && useradd --uid 10001 --create-home appuser
+RUN extras=""; if [ "$INSTALL_SYNTHETIC" = true ]; then extras="$extras --extra synthetic"; fi; \
+    if [ "$INSTALL_RECONCILE" = true ]; then extras="$extras --extra reconcile"; fi; \
+    uv sync --frozen $extras && useradd --uid 10001 --create-home appuser
 USER appuser
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000

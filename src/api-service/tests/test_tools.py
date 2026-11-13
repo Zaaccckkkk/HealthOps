@@ -119,6 +119,18 @@ def test_sample_mean_is_unweighted_and_rounded_half_even():
     assert "sample_mean" in DEFINITIONS and "Not a time-weighted" in DEFINITIONS["sample_mean"]
 
 
+def test_resting_heart_rate_samples_are_averaged_not_added():
+    records = [
+        obs(Metric.RESTING_HEART_RATE, "sample", 60, "2026-06-01T12:00:00Z"),
+        obs(Metric.RESTING_HEART_RATE, "sample", 70, "2026-06-01T13:00:00Z"),
+    ]
+    summary = day(summarize_days(records, Metric.RESTING_HEART_RATE, window("2026-06-01")))
+    assert summary.sample_count == 2
+    assert summary.sample_mean == Decimal("65.000000")
+    assert summary.interval_total_sum is None
+    assert summary.daily_total is None
+
+
 def test_local_date_follows_requested_timezone_not_utc():
     record = obs(Metric.HEART_RATE, "sample", 60, "2026-10-01T03:00:00Z")  # 23:00 Sep 30 in NY
     ny = summarize_days([record], Metric.HEART_RATE, window("2026-09-30", "2026-10-01"))

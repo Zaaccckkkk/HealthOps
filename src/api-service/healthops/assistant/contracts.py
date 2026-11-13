@@ -21,7 +21,8 @@ AskStatus = Literal[
 # verified: every claim checked against the cards; unverified: a claim failed or the model
 # produced prose instead of claims, so the fixed fallback text is shown; not_applicable: the
 # request did not reach the explanation step.
-ExplanationStatus = Literal["verified", "unverified", "not_applicable"]
+# model_generated: claims passed, but final prose passed only basic checks, not semantic proof.
+ExplanationStatus = Literal["verified", "model_generated", "unverified", "not_applicable"]
 ToolCallStatus = Literal["ok", "invalid_arguments", "rejected", "error", "not_executed"]
 
 
@@ -157,6 +158,13 @@ class ClarificationForm(BaseModel):
 
 
 class AskResponse(BaseModel):
+    # Generated prose passes only basic checks; verified claims remain separate below.
+    narrative_status: Literal["disabled", "generated", "fallback", "not_eligible"] = "disabled"
+    narrative_reason: str | None = None
+    # Initial checker feedback is retained even when the final editor returns an answer.
+    narrative_check_reason: str | None = None
+    narrative_edit_attempted: bool = False
+    narrative_prompt_version: str | None = None
     clarification: ClarificationForm | None = None
     conversation_expires_at: datetime | None = None
     coverage: list[CoverageItem] = Field(default_factory=list)
@@ -172,8 +180,8 @@ class AskResponse(BaseModel):
     status: AskStatus
     # Explanation status is independent: data can be present while the explanation failed.
     explanation_status: ExplanationStatus
-    # Rendered from verified claims by fixed templates, or the fixed fallback text. For
-    # refusals and errors this is the fixed message. Never free model prose.
+    # With narrative enabled this can be model prose after basic checks, explicitly
+    # labelled model_generated. Otherwise rendered claims or a fixed fallback/message.
     answer: str
     claims: list[VerifiedClaim]
     # Deterministic cards built from the evidence; shown regardless of the explanation.

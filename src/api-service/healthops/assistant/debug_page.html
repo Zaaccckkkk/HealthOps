@@ -80,6 +80,7 @@ cards and template sentences verified against them are.</p>
           ["current", c.current ? c.current.start_date + " to " + c.current.end_date : "", c.current ? c.current.display : "", c.current ? c.current.days_with_data + " of " + c.current.days_in_window : ""]]));
         box.appendChild(el("div", "Direction: " + c.direction + (c.difference ? " (difference " + c.difference + " " + c.unit + ")" : "")));
       }
+      if (c.kind === "reconciliation") box.appendChild(el("p", c.text || "No estimate available."));
       if (c.kind === "availability") box.appendChild(table(["channel", "metric", "aggregation", "records", "days"], c.series.map(s => [s.provider, s.metric, s.aggregation, s.record_count, s.local_days_with_records])));
       c.warning_text.forEach(w => box.appendChild(el("div", "Note: " + w, "muted")));
       out.appendChild(box);

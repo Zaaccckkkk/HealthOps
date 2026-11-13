@@ -392,3 +392,32 @@ def test_malformed_metric_feedback_allows_correction_without_executing_bad_scope
     assert len([c for c in tools.calls if c[0] == "daily_summary"]) == 1
     assert result.explanation_status == "verified"
     assert result.completion_status == "complete"
+
+
+def test_five_sequential_metrics_can_finalize_and_reach_writer_with_default_budgets():
+    metrics = ("resting_heart_rate", "steps", "hrv_sdnn", "hrv_rmssd", "sleep_duration")
+    turns = [ModelTurn(tool_calls=[query(metric)]) for metric in metrics]
+    turns.append(findings(*(f"missing_data e{i}" for i in range(1, 6))))
+    turns.append(
+        ModelTurn(
+            text=json.dumps(
+                {
+                    "answer": "No records are available for these metrics; "
+                    "missing data does not show inactivity.",
+                    "evidence_ids": [f"e{i}" for i in range(1, 6)],
+                }
+            )
+        )
+    )
+    result, model, tools = run(
+        turns,
+        spec(metrics),
+        {metric: data(metric, empty=True) for metric in metrics},
+        narrative_enabled=True,
+    )
+    assert result.completion_status == "complete"
+    assert result.narrative_status == "generated"
+    assert len(tools.calls) == 6  # Five SQL-tool calls and one state_findings call.
+    assert len(model.requests) == 7  # Plus the final writer.
+    assert {item.target for item in result.coverage} == set(metrics)
+    assert all(item.query_status == "no_records" for item in result.coverage)

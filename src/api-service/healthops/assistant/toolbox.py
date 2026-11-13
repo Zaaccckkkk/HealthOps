@@ -24,10 +24,12 @@ from healthops.tools.contracts import (
     AvailabilityParams,
     DailySummaryParams,
     PeriodComparisonParams,
+    ReconcileParams,
 )
 from healthops.tools.daily_summary import daily_summary_tool
 from healthops.tools.local_days import ToolInputError
 from healthops.tools.period_comparison import period_comparison_tool
+from healthops.tools.reconcile import reconcile_tool
 
 DECLINE_CATEGORIES = (
     "medical_advice",
@@ -257,6 +259,8 @@ def _windows_reversed(raw: dict[str, Any]) -> bool:
 
 def has_usable_data(name: str, result: dict[str, Any]) -> bool:
     """Per-tool definition of 'the result carries data the answer can rest on'."""
+    if name == "reconcile_devices":
+        return result.get("q50") is not None
     if name == "availability":
         return bool(result.get("series"))
     if name == "daily_summary":
@@ -319,8 +323,22 @@ def _compact_period_comparison(result: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in result.items() if k != "details"} | {"definitions": definitions}
 
 
-def build_registry(knowledge: KnowledgeContext | None = None) -> dict[str, ToolSpec]:
+def build_registry(
+    knowledge: KnowledgeContext | None = None, predictor=None
+) -> dict[str, ToolSpec]:
     specs = [
+        ToolSpec(
+            name="reconcile_devices",
+            description="Estimate one day's sleep_duration, steps or resting_heart_rate using "
+            "the trained cross-device model and its history window. Compare channels against "
+            "the estimate, not proven device accuracy. No month summaries or medical advice. "
+            "Returns q50 and a nominal 90% interval, readings, attribution and mandatory warnings.",
+            params=ReconcileParams,
+            run=lambda session, user_id, params: reconcile_tool(
+                session, user_id, params, predictor
+            ),
+            compact=lambda result: {k: v for k, v in result.items() if k != "definitions"},
+        ),
         ToolSpec(
             name="lookup_reference",
             description="Look up definitions and public guidelines in the reference library "
@@ -363,7 +381,7 @@ def build_registry(knowledge: KnowledgeContext | None = None) -> dict[str, ToolS
             "form '<type> <evidence_id> [<ISO date>]'. Types: value_on_date (date required), "
             "window_difference (no date), missing_data (date optional), window_summary "
             "(whole daily table; no date), available_series (inventory; no date), "
-            "reference (no date). Example: "
+            "reference (no date), device_attribution (reconciliation card; no date). Example: "
             "['value_on_date e1.healthkit 2026-10-01', 'missing_data e1.healthkit 2026-10-02']. "
             "The server reads the numbers and writes the sentences.",
             params=FindingsParams,
@@ -387,9 +405,10 @@ class Toolbox:
         session_factory: sessionmaker | None,
         registry: dict[str, ToolSpec] | None = None,
         knowledge: KnowledgeContext | None = None,
+        predictor=None,
     ):
         self._session_factory = session_factory
-        self.registry = registry or build_registry(knowledge)
+        self.registry = registry or build_registry(knowledge, predictor)
 
     def schemas(self) -> list[dict[str, Any]]:
         return [spec.schema() for spec in self.registry.values()]

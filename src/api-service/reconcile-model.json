@@ -1,0 +1,9 @@
+{
+  "model_version": "20261107T231608Z/w14/transformer",
+  "data_version": "synthetic-v0.2",
+  "sha256": {
+    "transformer.pt": "cb1f14d6e25872349bf5d46055c158d28d43a6a4254a19a925d21691fc0c6756",
+    "meta.json": "cfda1d3df118e8d545a2f61f13cf1a24c5481b5ae406f82c15595ab1a18b79df"
+  },
+  "uri": "gs://ac215-project-509705-healthops-data/pipelines/runs/20261107T231608Z/w14/models/transformer/"
+}

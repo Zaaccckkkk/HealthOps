@@ -2,7 +2,8 @@
 
 The model chooses tools and, at the end, structured claims. Python validates arguments, runs
 tools, builds data cards, verifies the claims against those cards and renders the explanation
-from fixed templates. The model's prose is never shown as the answer.
+from fixed templates. An opt-in final writer can replace that template with model prose
+after basic checks; it is labelled model_generated, never semantically verified.
 """
 
 import asyncio
@@ -18,8 +19,9 @@ from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
 
 from healthops.assistant import numeric
-from healthops.assistant.cards import build_cards
+from healthops.assistant.cards import answer_source_warnings, build_cards
 from healthops.assistant.claims import FALLBACK_EXPLANATION, FindingsParams, render_explanation
+from healthops.assistant.context import compact_messages, request_size
 from healthops.assistant.contracts import (
     AskRequest,
     AskResponse,
@@ -41,6 +43,7 @@ from healthops.assistant.model import (
 from healthops.assistant.prompts import DISCLAIMER, SYSTEM_PROMPT
 from healthops.assistant.reference_safety import BLOCKED, screen_result
 from healthops.assistant.routing import RequestSpec
+from healthops.assistant.security import LANGUAGE_REFUSAL, intake_issue, record_block, refusal
 from healthops.assistant.time_semantics import describe, resolve
 from healthops.assistant.toolbox import Toolbox
 from healthops.tools.local_days import ToolInputError
@@ -48,16 +51,20 @@ from healthops.tools.local_days import ToolInputError
 
 @dataclass
 class AssistantSettings:
-    max_tool_calls: int = 4
-    max_model_turns: int = 6
+    # Up to eight confirmed metrics, finalization and bounded correction.
+    max_tool_calls: int = 12
+    # Sequential metric queries plus finalization, correction and writer/editor.
+    max_model_turns: int = 14
     # Wall-clock budget for the whole request: queueing, model calls and tool execution.
     deadline_seconds: float = 120.0
     # Characters of the full request sent to the model (system prompt, question, tool schemas,
     # model output and tool results). Characters, not tokens: a conservative proxy.
-    model_context_budget_chars: int = 24_000
+    model_context_budget_chars: int = 48_000
     evidence_budget_bytes: int = 262_144
     max_concurrency: int = 2
     allow_today_override: bool = False
+    narrative_enabled: bool = False
+    narrative_timeout_seconds: float = 30.0
 
 
 class TodayOverrideNotAllowed(Exception):
@@ -72,7 +79,7 @@ CHANNEL_WORDS = re.compile(
 )
 # Tools that read the user's records; a channel named in the question must be chosen in the
 # interface before any of these run.
-DATA_TOOLS = frozenset({"availability", "daily_summary", "period_comparison"})
+DATA_TOOLS = frozenset({"availability", "daily_summary", "period_comparison", "reconcile_devices"})
 
 CLARIFICATION = (
     "Choose the data source in the interface; names of devices or channels written in the "
@@ -82,6 +89,7 @@ CLARIFICATION = (
 
 REFUSAL_PREFIX = "I can only describe your own recorded health history using the available tools. "
 REFUSAL_TEXT = {
+    "unsupported_language": LANGUAGE_REFUSAL,
     "medical_advice": REFUSAL_PREFIX
     + "This asks for medical advice, a diagnosis or a treatment decision, which I do not give.",
     "other_person": REFUSAL_PREFIX
@@ -104,6 +112,23 @@ ARGUMENT_NOTES = {
 
 def card_hint(card) -> dict:
     """What the model may legitimately claim about one card: types and dates."""
+    if card.kind == "reconciliation":
+        r = card.reconciliation
+        return {
+            "evidence_id": card.evidence_id,
+            "claim_types": (
+                ["value_on_date"] + (["device_attribution"] if r["attribution"] else [])
+            )
+            if r["q50"] is not None
+            else ["missing_data"],
+            "date": card.start_date,
+            "findings_example": [f"value_on_date {card.evidence_id} {card.start_date}"]
+            if r["q50"] is not None
+            else [f"missing_data {card.evidence_id}"],
+            "note": "Copy the complete evidence_id exactly. Do not append .healthkit or "
+            ".google_health: this ONE card contains both channels. One value_on_date finding "
+            "includes the estimate, interval, attribution if possible, and every warning.",
+        }
     if card.kind == "daily_table":
         return {
             "evidence_id": card.evidence_id,
@@ -161,6 +186,11 @@ class _RunState:
         self.channel_named = False
         self.request_spec: RequestSpec | None = None
         self.verification_attempts: list[VerificationAttempt] = []
+        self.narrative_status = "disabled"
+        self.narrative_reason = None
+        self.narrative_facts = None
+        self.narrative_check_reason = None
+        self.narrative_edit_attempted = False
 
     def finish(self, status: AskStatus, answer: str) -> None:
         if self.status is None:
@@ -178,7 +208,7 @@ class _GraphState(TypedDict):
     findings: FindingsParams | None
     verification_retry_used: bool
     repair_tools: list[str]
-    route: Literal["model", "tools", "verify", "end"]
+    route: Literal["model", "tools", "verify", "narrate", "end"]
 
 
 class Assistant:
@@ -212,6 +242,12 @@ class Assistant:
         deadline = _Deadline(self.settings.deadline_seconds)
         state = _RunState(semantics)
         state.request_spec = request_spec
+        # Protect direct/internal callers as well as the routed HTTP path.
+        if issue := intake_issue(request.question):
+            record_block("assistant_entry", issue)
+            state.finish("refused", refusal(request.question, issue))
+            state.explanation_status = "not_applicable"
+            return self._response(state)
         # A channel named in the question (Fitbit, Apple Watch, ...) is never applied as a filter.
         # It only matters when the model goes on to read data; definitional questions about a
         # channel are answered from the reference library without clarification.
@@ -232,7 +268,12 @@ class Assistant:
         return self._response(state)
 
     def _build_graph(
-        self, request: AskRequest, user_id: UUID, state: _RunState, deadline: _Deadline
+        self,
+        request: AskRequest,
+        user_id: UUID,
+        state: _RunState,
+        deadline: _Deadline,
+        context: str | None = None,
     ):
         """Build a request-local graph; authenticated identity stays outside model messages.
 
@@ -255,9 +296,8 @@ class Assistant:
                 else tools
             )
             # Full request size, not only tool results: the model receives all of this.
-            request_chars = len(json.dumps(messages, separators=(",", ":"))) + len(
-                json.dumps(active_tools, separators=(",", ":"))
-            )
+            model_messages = compact_messages(messages)
+            request_chars = request_size(model_messages, active_tools)
             if request_chars > self.settings.model_context_budget_chars:
                 state.finish(
                     "budget_exceeded",
@@ -267,7 +307,7 @@ class Assistant:
                 return {"route": "end"}
             try:
                 async with asyncio.timeout(max(deadline.remaining, 0)):
-                    turn: ModelTurn = await self.model.complete(messages, active_tools)
+                    turn: ModelTurn = await self.model.complete(model_messages, active_tools)
             except ModelConnectionError:
                 state.finish("model_error", MODEL_UNAVAILABLE)
                 return {"route": "end"}
@@ -330,7 +370,11 @@ class Assistant:
                         "budget_exceeded", "The question needed more tool calls than allowed."
                     )
                     return {"route": "end"}
-                if state.channel_named and call.name in DATA_TOOLS:
+                if (
+                    state.channel_named
+                    and call.name in DATA_TOOLS
+                    and call.name != "reconcile_devices"
+                ):
                     state.finish("needs_clarification", CLARIFICATION)
                     return {"route": "end"}
                 state.tool_calls_made += 1
@@ -354,7 +398,8 @@ class Assistant:
                         )
                         target = (
                             metric
-                            if state.request_spec.intent in {"summary", "comparison"}
+                            if state.request_spec.intent
+                            in {"summary", "comparison", "device_reconciliation"}
                             else state.request_spec.intent
                         )
                         if not any(
@@ -541,6 +586,7 @@ class Assistant:
                             "comparison": "period_comparison",
                             "availability": "availability",
                             "reference": "lookup_reference",
+                            "device_reconciliation": "reconcile_devices",
                         }[state.request_spec.intent]
                     )
                 messages = list(graph["messages"])
@@ -569,12 +615,79 @@ class Assistant:
                     "repair_tools": repair_tools,
                     "route": "model",
                 }
-            return {"route": "end"}
+            return {"route": "narrate" if accepted and self.settings.narrative_enabled else "end"}
+
+        async def narrate_node(graph: _GraphState):
+            from healthops.assistant import narrative
+
+            cards = build_cards(state.evidence)
+            language = state.request_spec.language if state.request_spec else "en"
+            state.narrative_status = "fallback"
+            if graph["model_turns"] >= self.settings.max_model_turns:
+                state.narrative_reason = "model_turn_budget"
+                return {"route": "end"}
+            try:
+                facts = narrative.packet(cards, str(state.semantics.today))
+            except ValueError:
+                state.narrative_status = "not_eligible"
+                state.narrative_reason = "unsupported_card_kind"
+                return {"route": "end"}
+            payload = narrative.messages(context or request.question, facts, language)
+            if request_size(payload) > self.settings.model_context_budget_chars:
+                state.narrative_reason = "context_budget"
+                return {"route": "end"}
+            # One editor opportunity, then a sensitive-output gate. Draft quality
+            # feedback is advisory; an edited answer can still contain factual errors.
+            attempts = 0
+            answer, reason = None, None
+            candidate = None
+            try:
+                async with asyncio.timeout(
+                    min(self.settings.narrative_timeout_seconds, max(0, deadline.remaining - 0.1))
+                ):
+                    attempts += 1
+                    turn = await self.model.complete(payload, [])
+                    answer, issues = narrative.check_draft(turn, facts)
+                    if not issues:
+                        candidate = turn
+                    if issues:
+                        state.narrative_check_reason = issues[0]["code"]
+                        payload = narrative.editor_messages(payload, turn, issues)
+                        if graph["model_turns"] + attempts >= self.settings.max_model_turns:
+                            reason = "model_turn_budget"
+                        elif request_size(payload) > self.settings.model_context_budget_chars:
+                            reason = "context_budget"
+                        else:
+                            attempts += 1
+                            state.narrative_edit_attempted = True
+                            edited = await self.model.complete(payload, [])
+                            candidate = edited
+                    if candidate is not None:
+                        answer, reason = narrative.finalize_draft(
+                            candidate,
+                            facts,
+                            language,
+                            context or request.question,
+                            narrative.qualifications(cards, language, str(state.semantics.today)),
+                        )
+                        if reason:
+                            record_block("final_answer", reason)
+            except (ModelError, TimeoutError):
+                answer, reason = None, "model_unavailable_or_timeout"
+            state.narrative_reason = reason
+            if answer is not None:
+                state.answer = answer
+                state.explanation_status = "model_generated"
+                state.narrative_status = "generated"
+                state.narrative_facts = facts
+            return {"model_turns": graph["model_turns"] + attempts, "route": "end"}
 
         builder = StateGraph(_GraphState)
         builder.add_node("model", model_node)
         builder.add_node("tools", tools_node)
         builder.add_node("verify", verify_node)
+        builder.add_node("narrate", narrate_node)
+        builder.add_edge("narrate", END)
         builder.add_edge(START, "model")
         builder.add_conditional_edges(
             "model", lambda graph: graph["route"], {"tools": "tools", "end": END}
@@ -585,7 +698,9 @@ class Assistant:
             {"model": "model", "verify": "verify", "end": END},
         )
         builder.add_conditional_edges(
-            "verify", lambda graph: graph["route"], {"model": "model", "end": END}
+            "verify",
+            lambda graph: graph["route"],
+            {"model": "model", "narrate": "narrate", "end": END},
         )
         # No checkpointer or external tracing: health evidence stays in the current request.
         return builder.compile()
@@ -598,7 +713,7 @@ class Assistant:
         deadline: _Deadline,
         context: str | None = None,
     ):
-        graph = self._build_graph(request, user_id, state, deadline)
+        graph = self._build_graph(request, user_id, state, deadline, context)
         with tracing_context(enabled=False):
             await graph.ainvoke(
                 {
@@ -636,18 +751,50 @@ class Assistant:
         status: AskStatus = state.status or (
             "insufficient_data" if state.usable_data and not any(state.usable_data) else "answered"
         )
-        diagnostic = (
-            numeric.check(state.answer, state.evidence)
-            if status in ("answered", "insufficient_data")
-            else NumericConsistency(status="not_applicable", numbers_in_answer=[], unmatched=[])
-        )
+        cards = build_cards(state.evidence)
+        # Connector limitations are server-owned facts, independent of the model's
+        # selected claims. Show them even when the model omits them or verification fails.
+        for text in answer_source_warnings(state.evidence):
+            if text not in state.answer:
+                state.answer += " " + text
+        if state.explanation_status not in {"verified", "model_generated"}:
+            # A failed claim must not hide the tool's safety qualifications. Keep the
+            # answer unverified; only append server-owned warnings, never model prose.
+            warnings = dict.fromkeys(
+                text
+                for card in cards
+                if card.kind == "reconciliation"
+                for text in card.warning_text
+            )
+            for text in warnings:
+                if text not in state.answer:
+                    state.answer += " " + text
+        from healthops.assistant.narrative import PROMPT_VERSION
+
+        if state.narrative_status == "generated":
+            diagnostic = NumericConsistency(
+                status="not_applicable",
+                numbers_in_answer=[],
+                unmatched=[],
+                note=(
+                    "Final formatted prose passed the sensitive-output screen. "
+                    "The template numeric scanner is not applicable to localized writer prose; "
+                    "draft quality feedback is advisory and edited facts are not revalidated."
+                ),
+            )
+        elif status in ("answered", "insufficient_data"):
+            diagnostic = numeric.check(state.answer, state.evidence)
+        else:
+            diagnostic = NumericConsistency(
+                status="not_applicable", numbers_in_answer=[], unmatched=[]
+            )
         explanation_status: ExplanationStatus = (
             state.explanation_status
             if status in ("answered", "insufficient_data")
             else "not_applicable"
         )
         report = (
-            coverage(state.request_spec, build_cards(state.evidence), state.records, state.claims)
+            coverage(state.request_spec, cards, state.records, state.claims)
             if state.request_spec
             else []
         )
@@ -658,11 +805,16 @@ class Assistant:
                 "complete"
                 if report
                 and all(item.reported for item in report)
-                and explanation_status == "verified"
+                and explanation_status in {"verified", "model_generated"}
                 else "incomplete"
             )
         )
         return AskResponse(
+            narrative_check_reason=state.narrative_check_reason,
+            narrative_edit_attempted=state.narrative_edit_attempted,
+            narrative_status=state.narrative_status,
+            narrative_reason=state.narrative_reason,
+            narrative_prompt_version=PROMPT_VERSION if self.settings.narrative_enabled else None,
             coverage=report,
             completion_status=completion,
             verification_attempts=state.verification_attempts,
@@ -670,7 +822,7 @@ class Assistant:
             explanation_status=explanation_status,
             answer=state.answer,
             claims=state.claims,
-            cards=build_cards(state.evidence),
+            cards=cards,
             model_text=state.model_text,
             tool_calls=state.records,
             evidence=self._bounded_evidence(state.evidence),

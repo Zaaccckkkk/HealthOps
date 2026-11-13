@@ -11,6 +11,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from healthops.assistant.presentation import duration_text, provider_name
 from healthops.assistant.reference_safety import SOURCE_ONLY, screen_result
 
 RowKind = Literal["sample_mean", "daily_total", "interval_total_sum", "daily_summary", "none"]
@@ -24,6 +25,10 @@ STATISTIC_LABELS = {
 }
 
 WARNING_TEXT = {
+    "google_heart_rate_not_synced": "Source limitation: the Google Health connector does not "
+    "import heart_rate samples from Fitbit. This answer covers records already stored in "
+    "HealthOps, not all heart-rate data in Fitbit. You can ask about resting_heart_rate "
+    "separately; resting heart rate is a different metric and is not substituted here.",
     "sparse_window": "Fewer than half of the days in this window have data.",
     "no_records_in_window": "No records in this window. This says nothing about activity, "
     "device wear or authorization.",
@@ -67,7 +72,7 @@ class CardRow(BaseModel):
 
 class Card(BaseModel):
     evidence_id: str
-    kind: Literal["daily_table", "comparison", "availability", "reference"]
+    kind: Literal["daily_table", "comparison", "availability", "reference", "reconciliation"]
     title: str
     tool: str
     timezone: str
@@ -78,6 +83,8 @@ class Card(BaseModel):
     unit: str | None
     statistic: str | None
     rows: list[CardRow] = Field(default_factory=list)
+    # Reconciliation output copied verbatim, including quantiles, provenance and warnings.
+    reconciliation: dict[str, Any] | None = None
     # Comparison cards only.
     baseline: dict[str, Any] | None = None
     current: dict[str, Any] | None = None
@@ -112,10 +119,10 @@ def format_value(value: str | None, unit: str | None) -> str:
     if number is None:
         return "no data"
     if unit == "s":
-        total = int(number)  # tool values are whole seconds for duration metrics
-        hours, rest = divmod(total, 3600)
-        minutes = rest // 60
-        return f"{hours} h {minutes} min ({total} s)"
+        raw = format(number, "f")
+        if "." in raw:
+            raw = raw.rstrip("0").rstrip(".")
+        return f"{duration_text(number, compact=True)} ({raw} s)"
     if unit in ("count",):
         return f"{int(number):,} {unit}"
     if number == number.to_integral_value():
@@ -176,7 +183,9 @@ def build_cards(evidence: list[dict[str, Any]]) -> list[Card]:
             continue
         evidence_id = f"e{index + 1}"
         tool = item["tool"]
-        if tool == "daily_summary":
+        if tool == "reconcile_devices":
+            cards.append(_reconcile_card(evidence_id, result))
+        elif tool == "daily_summary":
             cards.extend(_daily_cards(evidence_id, result))
         elif tool == "period_comparison":
             cards.extend(_comparison_cards(evidence_id, result))
@@ -185,6 +194,19 @@ def build_cards(evidence: list[dict[str, Any]]) -> list[Card]:
         elif tool == "lookup_reference":
             cards.extend(_reference_cards(evidence_id, result))
     return cards
+
+
+def answer_source_warnings(evidence: list[dict[str, Any]]) -> list[str]:
+    """Request-wide connector limits, never warnings about another source's card."""
+    for item in evidence:
+        result = item.get("result") or {}
+        if (
+            item["tool"] in {"daily_summary", "period_comparison"}
+            and result.get("metric") == "heart_rate"
+            and item.get("arguments", {}).get("provider") in (None, "google_health")
+        ):
+            return [WARNING_TEXT["google_heart_rate_not_synced"]]
+    return []
 
 
 def quotable(text: str, limit: int) -> str:
@@ -258,6 +280,15 @@ def _daily_cards(evidence_id: str, result: dict[str, Any]) -> list[Card]:
             )
         ]
     cards = []
+    # Result warnings include the union of every provider's day warnings. Those
+    # belong only on the affected provider card, not on every returned channel.
+    day_codes = {
+        code
+        for provider in providers
+        for day in provider.get("days", [])
+        for code in day.get("warnings", [])
+    }
+    common_codes = set(result.get("warnings", [])) - day_codes
     for provider in providers:
         rows = [_day_row(day, metric_class, unit) for day in provider.get("days", [])]
         kinds = {row.kind for row in rows if row.kind != "none"}
@@ -267,12 +298,12 @@ def _daily_cards(evidence_id: str, result: dict[str, Any]) -> list[Card]:
             statistic = "mixed statistics; see each row"
         else:
             statistic = STATISTIC_LABELS["none"]
-        codes = set(result.get("warnings", [])) | {w for row in rows for w in row.warnings}
+        codes = common_codes | {w for row in rows for w in row.warnings}
         cards.append(
             Card(
                 evidence_id=f"{evidence_id}.{provider['provider']}",
                 kind="daily_table",
-                title=f"{metric} per day ({provider['provider']})",
+                title=f"{metric} per day ({provider_name(provider['provider'])})",
                 provider=provider["provider"],
                 statistic=statistic,
                 rows=rows,
@@ -330,7 +361,7 @@ def _comparison_cards(evidence_id: str, result: dict[str, Any]) -> list[Card]:
             Card(
                 evidence_id=f"{evidence_id}.{provider['provider']}",
                 kind="comparison",
-                title=f"{metric}: two windows ({provider['provider']})",
+                title=f"{metric}: two windows ({provider_name(provider['provider'])})",
                 provider=provider["provider"],
                 statistic=str(before.get("method", "")).replace("_", " "),
                 baseline=_side(bwin, before, unit),
@@ -383,4 +414,41 @@ def _availability_card(evidence_id: str, result: dict[str, Any]) -> Card:
         ],
         warnings=[],
         warning_text=list(result.get("notes", [])),
+    )
+
+
+def _reconcile_card(evidence_id: str, result: dict[str, Any]) -> Card:
+    unit = result["unit"]
+    if result["q50"] is None:
+        display = "No usable reading on the requested date; no estimate is produced."
+    else:
+        display = (
+            f"Model estimate: {format_value(result['q50'], unit)}. "
+            f"Nominal 90% interval: {format_value(result['q05'], unit)} to "
+            f"{format_value(result['q95'], unit)}. "
+        )
+        display += " ".join(
+            f"{p['provider']}: {format_value(p['value'], unit)}." for p in result["providers"]
+        )
+        display += (
+            f" {result['attribution']} is farther from the estimate."
+            if result["attribution"]
+            else " No channel attribution is supported."
+        )
+    return Card(
+        text=display,
+        evidence_id=evidence_id,
+        kind="reconciliation",
+        title="Cross-device model estimate",
+        tool="reconcile_devices",
+        timezone=result["window"]["timezone"],
+        start_date=result["date"],
+        end_date=result["date"],
+        provider=None,
+        metric=result["metric"],
+        unit=result["unit"],
+        statistic="synthetic-trained q50 estimate",
+        reconciliation=result,
+        warnings=result["warnings"],
+        warning_text=[result["definitions"][f"warning:{w}"] for w in result["warnings"]],
     )

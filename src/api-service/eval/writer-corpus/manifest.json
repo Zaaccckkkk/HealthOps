@@ -1,0 +1,18 @@
+{
+  "version": "writer-silver-v2",
+  "new_prompts": 70,
+  "scenario_groups": 35,
+  "development_prompts": 50,
+  "reserved_test_prompts": 20,
+  "label_provenance": "assistant_authored_silver_not_gold",
+  "independent_human_review": false,
+  "model_evaluation_performed_at_creation": false,
+  "limitations": [
+    "Shared author and scenario templates across splits",
+    "English writing only; not Router, tools, medical correctness or multilingual coverage"
+  ],
+  "sha256": {
+    "development.synthetic.jsonl": "8046b823873725f7a569e3ef0fdb387739face4a268d41fb6f8d77f7b12fd620",
+    "reserved_test.synthetic.jsonl": "58cbe48d6203019175049d63ec10116d0fe4e776aed76811896ce21ed27bf98b"
+  }
+}

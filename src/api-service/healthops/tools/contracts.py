@@ -133,3 +133,41 @@ class PeriodComparisonResult(BaseModel):
     warnings: list[str]
     definitions: dict[str, str]
     details: dict[Literal["baseline", "current"], DailySummaryResult]
+
+
+ReconcileMetric = Literal["sleep_duration", "steps", "resting_heart_rate"]
+
+
+class ReconcileParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    metric: ReconcileMetric
+    timezone: str = Field(min_length=1, max_length=80)
+    date: date
+
+
+class ReconcileReading(BaseModel):
+    provider: Provider
+    value: Decimal | None
+    deviation: Decimal | None
+
+
+class ReconcileResult(BaseModel):
+    metric: ReconcileMetric
+    unit: str
+    date: date
+    window: ToolWindow
+    q05: Decimal | None
+    q50: Decimal | None
+    q95: Decimal | None
+    interval_level: float = 0.9
+    providers: list[ReconcileReading]
+    attribution: Provider | None
+    window_days: int
+    history_days: int
+    window_days_with_any: int
+    window_days_with_both: int
+    model_version: str
+    data_version: str
+    artifact_sha256: str
+    warnings: list[str]
+    definitions: dict[str, str]

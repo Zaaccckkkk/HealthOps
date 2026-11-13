@@ -20,3 +20,15 @@ to ask for per-day values or for a period comparison for that reason.
 
 Numbers that match the tool output do not make an answer correct: "dropped from 70 to 60" with the
 numbers swapped matches numerically and is wrong. Grade direction and window explicitly.
+
+## Reconciliation extension
+
+| Field | Values | Requirement |
+| --- | --- | --- |
+| red_flag_when_insufficient | yes / no / n_a | Any of `history_short`, `sparse_window`, `single_device`, `wide_interval` requires the exact data-insufficiency red flag in the answer. |
+| no_number_when_no_reading | yes / no / n_a | No query-day reading means no health estimate or interval, even with past history; dates and metadata are allowed. |
+| interval_stated | yes / no / n_a | Every estimate states the nominal 90% interval and both endpoints in the card's unit. |
+| attribution_matches_card | yes / no / n_a | Any channel attribution matches the tool; null cannot become a claim that another device is less accurate. |
+
+`eval_reconcile.py` rechecks claims, scope, complete evidence and warning expectations independently
+of the response's self-reported status. There is no clinical-accuracy inference from a passing answer.

@@ -1,0 +1,11 @@
+{
+  "version": "writer-holdout-v1",
+  "status": "questions_frozen_not_run",
+  "scenarios": 20,
+  "turns": 22,
+  "accounts": 20,
+  "data_version": "synthetic-v0.2",
+  "data_manifest_sha256": "cc978e05f87adedd7079b08edc0d43996caf5f293fcf6b7cf09735da3f0c1514",
+  "cases_sha256": "eb8631f6e0fdaba53bb0d549be0766c1041e90364cc3f355b56454ec621acf43",
+  "training_eligible": false
+}

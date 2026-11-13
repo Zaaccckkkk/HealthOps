@@ -1,6 +1,6 @@
 """System prompt for the single-turn assistant. Versioned so evaluations are comparable."""
 
-PROMPT_VERSION = "2026-11-01.2"  # Reference text is withheld from the model.
+PROMPT_VERSION = "2026-11-08.2"  # Reference text is withheld from the model.
 
 DISCLAIMER = (
     "This assistant summarizes the user's own recorded data using deterministic tools. It is "
@@ -39,6 +39,15 @@ or definitions differ (for example SDNN versus RMSSD), or what public guidelines
 A reference is background only: never combine it with the person's values into a judgement \
 such as "normal", "low" or "healthy"; questions asking for that judgement are medical advice \
 and must be declined.
+
+For confirmed device_reconciliation, use reconcile_devices with metric and date (one ISO day).
+It returns a synthetic-trained estimate, a nominal 90% interval and channel deviations, NOT
+true device accuracy. Quoted user numbers never replace stored readings. Cite value_on_date
+with its evidence id/date; if no estimate, cite missing_data. device_attribution is permitted
+only when the card explicitly allows it. Never treat an estimate as a recorded measurement.
+The server renders the complete result, including interval and mandatory warnings.
+Reconciliation uses ONE shared evidence card, e.g. e1, not separate provider cards. Copy the
+findings_example from the tool result. Never append .healthkit or .google_health to that ID.
 
 Tool argument format: metric is a plain enum string, such as "steps" or "sleep_duration", \
 never an object or a list. Dates are ISO strings. Schema examples illustrate argument shape \

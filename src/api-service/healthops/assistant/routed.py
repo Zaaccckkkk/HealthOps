@@ -16,6 +16,7 @@ from healthops.assistant.conversations import ConversationConflict
 from healthops.assistant.model import MODEL_UNAVAILABLE, ModelConnectionError, ModelError
 from healthops.assistant.orchestrator import REFUSAL_TEXT, TodayOverrideNotAllowed, _RunState
 from healthops.assistant.routing import RequestSpec, clarification, clarification_form, route
+from healthops.assistant.security import intake_issue, record_block, refusal
 from healthops.assistant.time_semantics import resolve
 
 
@@ -89,6 +90,13 @@ class RoutedAssistant:
             await save(False)
             return reply("refused", "Clarification cancelled. Start a new question.", "cancelled")
 
+        # Recheck saved user turns too. A rejected continuation is never persisted
+        # and does not consume the pending conversation version.
+        for message in messages:
+            if message["role"] == "user" and (issue := intake_issue(message["content"])):
+                record_block("intake", issue)
+                return reply("refused", refusal(request.question, issue), "unsupported")
+
         response = None
 
         async def intake(_):
@@ -117,7 +125,19 @@ class RoutedAssistant:
                     response.conversation_expires_at = expires_at
             elif decision == "unsupported":
                 await save(False)
-                response = reply("refused", REFUSAL_TEXT[reason], decision, spec_json)
+                answer = REFUSAL_TEXT[reason]
+                if (
+                    reason == "out_of_scope"
+                    and spec.intent == "device_reconciliation"
+                    and spec.window
+                    and spec.window.start_date != spec.window.end_date
+                ):
+                    answer = (
+                        "Reconciliation estimates one day at a time using its history window. "
+                        "Please ask for one date and one supported metric: sleep duration, "
+                        "steps, or resting heart rate."
+                    )
+                response = reply("refused", answer, decision, spec_json)
             else:
                 # Compare-and-swap BEFORE executing tools: only one reply can consume a version.
                 await save(False)

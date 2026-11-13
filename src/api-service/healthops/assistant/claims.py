@@ -14,6 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from healthops.assistant.cards import WARNING_TEXT, Card, format_value
+from healthops.assistant.presentation import provider_name
 from healthops.assistant.reference_safety import reference_allowed
 
 FALLBACK_EXPLANATION = (
@@ -28,6 +29,7 @@ CLAIM_TYPES = (
     "reference",
     "window_summary",
     "available_series",
+    "device_attribution",
 )
 _ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
@@ -41,6 +43,7 @@ class Claim(BaseModel):
         "reference",
         "window_summary",
         "available_series",
+        "device_attribution",
     ]
     evidence_id: str = Field(description="Card id to cite, e.g. e1.healthkit")
     date: str | None = Field(default=None, description="ISO date for value_on_date or missing_data")
@@ -57,7 +60,7 @@ class FindingsParams(BaseModel):
         max_length=31,  # a month of per-day findings degrades the explanation, not the protocol
         description="Each item: '<type> <evidence_id> [<ISO date>]' with type one of "
         "value_on_date, window_difference, missing_data, window_summary, available_series, "
-        "reference. Example: "
+        "reference, device_attribution. Example: "
         "'value_on_date e1.healthkit 2026-10-01'.",
     )
 
@@ -111,7 +114,7 @@ def _inside(card: Card, day: date) -> bool:
 
 def _row_sentence_unusable(card: Card, row) -> str:
     detail = "; ".join(WARNING_TEXT.get(code, code.replace("_", " ")) for code in row.warnings)
-    provider = f" ({card.provider})" if card.provider else ""
+    provider = f" ({provider_name(card.provider)})" if card.provider else ""
     return (
         f"On {row.date}, {card.metric} records exist{provider} but no reliable value could be "
         f"derived{': ' + detail if detail else ''}."
@@ -128,6 +131,12 @@ def verify_claim(claim: Claim, cards: list[Card]) -> VerifiedClaim:
         return VerifiedClaim(claim=claim, valid=False, reason="unknown evidence id")
     if claim.date is not None and _calendar_date(claim.date) is None:
         return VerifiedClaim(claim=claim, valid=False, reason="not a calendar date")
+    if card.kind == "reconciliation":
+        return _verify_reconciliation(claim, card)
+    if claim.type == "device_attribution":
+        return VerifiedClaim(
+            claim=claim, valid=False, reason="Attribution needs reconciliation evidence"
+        )
     if claim.type == "reference" or card.kind == "reference":
         if claim.type != "reference" or card.kind != "reference":
             return VerifiedClaim(
@@ -158,7 +167,7 @@ def verify_claim(claim: Claim, cards: list[Card]) -> VerifiedClaim:
             return VerifiedClaim(
                 claim=claim, valid=False, reason="window_summary needs a daily table and no date"
             )
-        provider = f" ({card.provider})" if card.provider else ""
+        provider = f" ({provider_name(card.provider)})" if card.provider else ""
         window = _window_text(card.start_date, card.end_date)
         if not card.rows:
             sentence = f"No {card.metric} records{provider} between {window}."
@@ -181,7 +190,10 @@ def verify_claim(claim: Claim, cards: list[Card]) -> VerifiedClaim:
                 reason="available_series needs an availability card and no date",
             )
         items = (
-            "; ".join(f"{r['metric']} ({r['provider']}, {r['aggregation']})" for r in card.series)
+            "; ".join(
+                f"{r['metric']} ({provider_name(r['provider'])}, {r['aggregation']})"
+                for r in card.series
+            )
             or "no recorded series"
         )
         return VerifiedClaim(
@@ -203,7 +215,8 @@ def verify_claim(claim: Claim, cards: list[Card]) -> VerifiedClaim:
         if row.value is None:
             return VerifiedClaim(claim=claim, valid=False, reason="no recorded value on that date")
         sentence = (
-            f"On {row.date}, your {card.metric} ({card.provider}) was {row.display}, "
+            f"On {row.date}, your {card.metric} ({provider_name(card.provider)}) "
+            f"was {row.display}, "
             f"{card.statistic}."
         )
         return VerifiedClaim(claim=claim, valid=True, sentence=sentence)
@@ -221,12 +234,14 @@ def verify_claim(claim: Claim, cards: list[Card]) -> VerifiedClaim:
         baseline_window = _window_text(b["start_date"], b["end_date"])
         if card.direction == "unchanged":
             sentence = (
-                f"Your {card.metric} ({card.provider}) was unchanged between {baseline_window} "
+                f"Your {card.metric} ({provider_name(card.provider)}) was unchanged "
+                f"between {baseline_window} "
                 f"and {current_window}: {c['display']} ({card.statistic})."
             )
         else:
             sentence = (
-                f"Your {card.metric} ({card.provider}) was {card.direction} in {current_window} "
+                f"Your {card.metric} ({provider_name(card.provider)}) was {card.direction} "
+                f"in {current_window} "
                 f"than in {baseline_window}: {c['display']} versus {b['display']} "
                 f"({card.statistic}; {c['days_with_data']} of {c['days_in_window']} and "
                 f"{b['days_with_data']} of {b['days_in_window']} days with data)."
@@ -234,7 +249,7 @@ def verify_claim(claim: Claim, cards: list[Card]) -> VerifiedClaim:
         return VerifiedClaim(claim=claim, valid=True, sentence=sentence)
     # missing_data: three states are distinguished, never collapsed into "no records".
     if card.kind == "daily_table":
-        provider = f" ({card.provider})." if card.provider else "."
+        provider = f" ({provider_name(card.provider)})." if card.provider else "."
         if claim.date is not None:
             row = next((r for r in card.rows if r.date == claim.date), None)
             if row is None and not card.rows and _inside(card, _calendar_date(claim.date)):
@@ -295,7 +310,7 @@ def render_explanation(
         for claim in findings.claims
     ]
     if all(v.valid for v in verified):
-        return " ".join(v.sentence for v in verified if v.sentence), verified, True
+        return " ".join(dict.fromkeys(v.sentence for v in verified if v.sentence)), verified, True
     return FALLBACK_EXPLANATION, verified, False
 
 
@@ -308,3 +323,50 @@ __all__ = [
     "verify_claim",
     "format_value",
 ]
+
+
+def _verify_reconciliation(claim: Claim, card: Card) -> VerifiedClaim:
+    r = card.reconciliation or {}
+    reason = None
+    if claim.date is not None and claim.date != card.start_date:
+        reason = "Date differs from reconciliation evidence"
+    elif claim.type == "value_on_date" and (claim.date is None or r.get("q50") is None):
+        reason = "A dated estimate needs a usable reading on that date"
+    elif claim.type == "missing_data" and r.get("q50") is not None:
+        reason = "An estimate exists; do not claim it is missing"
+    elif claim.type == "device_attribution" and r.get("attribution") is None:
+        reason = "No device attribution is supported for a single channel, absent readings or tie"
+    elif claim.type not in {"value_on_date", "device_attribution", "missing_data"}:
+        reason = "Unsupported reconciliation claim"
+    if reason:
+        return VerifiedClaim(claim=claim, valid=False, reason=reason)
+    # Every accepted reconciliation claim renders the COMPLETE qualified result. The LLM
+    # cannot omit an interval/warning by selecting only an attribution or only a value.
+    if r.get("q50") is None:
+        text = f"No usable {card.metric} reading on {card.start_date}; no estimate is produced."
+    else:
+        text = (
+            "A device comparison is not possible: only one channel has a usable reading. "
+            if "single_device" in r.get("warnings", [])
+            else ""
+        )
+        text += (
+            f"On {card.start_date}, the model estimate for {card.metric} is "
+            f"{format_value(r['q50'], card.unit)}; nominal 90% prediction interval "
+            f"{format_value(r['q05'], card.unit)} to {format_value(r['q95'], card.unit)}. "
+        )
+        text += " ".join(
+            f"{provider_name(p['provider'])}: {format_value(p['value'], card.unit)}."
+            if p["value"] is not None
+            else f"{provider_name(p['provider'])}: no usable reading."
+            for p in r["providers"]
+        )
+        text += (
+            f" {provider_name(r['attribution'])} is farther from the model estimate; "
+            "this does not establish which device is more accurate."
+            if r["attribution"]
+            else " No channel can be singled out as farther from the estimate."
+        )
+        text += f" Context window: {r['window_days']} days ending on {card.start_date}."
+    text += " " + " ".join(card.warning_text)
+    return VerifiedClaim(claim=claim, valid=True, sentence=text)

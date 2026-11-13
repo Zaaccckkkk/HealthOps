@@ -7,7 +7,7 @@ from healthops.assistant.claims import VerifiedClaim
 from healthops.assistant.contracts import CoverageItem, ToolCallRecord
 from healthops.assistant.routing import RequestSpec
 
-DATA_TOOLS = {"daily_summary", "period_comparison", "availability"}
+DATA_TOOLS = {"daily_summary", "period_comparison", "availability", "reconcile_devices"}
 
 
 def scope_error(name: str, arguments: str, spec: RequestSpec, timezone: str, provider: str | None):
@@ -16,6 +16,7 @@ def scope_error(name: str, arguments: str, spec: RequestSpec, timezone: str, pro
         "comparison": {"period_comparison", "availability", "lookup_reference"},
         "availability": {"availability"},
         "reference": {"lookup_reference"},
+        "device_reconciliation": {"reconcile_devices"},
     }
     if name in {"state_findings", "decline_request"}:
         return None
@@ -39,7 +40,13 @@ def scope_error(name: str, arguments: str, spec: RequestSpec, timezone: str, pro
         return "Metric is not in the confirmed request."
     if spec.window is None:
         return "No confirmed date window."
-    if name == "period_comparison":
+    if name == "reconcile_devices":
+        if provider is not None:
+            return "Reconciliation requires All channels selected in the interface."
+        if spec.window.start_date != spec.window.end_date:
+            return "Reconciliation supports one date only."
+        expected = {"date": str(spec.window.start_date)}
+    elif name == "period_comparison":
         if spec.baseline is None:
             return "No confirmed comparison baseline."
         expected = {
@@ -83,15 +90,24 @@ def coverage(
         "comparison": ("period_comparison", "comparison"),
         "availability": ("availability", "availability"),
         "reference": ("lookup_reference", "reference"),
+        "device_reconciliation": ("reconcile_devices", "reconciliation"),
     }[spec.intent]
-    targets = spec.metrics if spec.intent in {"summary", "comparison"} else [spec.intent]
+    targets = (
+        spec.metrics
+        if spec.intent in {"summary", "comparison", "device_reconciliation"}
+        else [spec.intent]
+    )
     result = []
     for target in targets:
         matching = [
             c
             for c in cards
             if c.kind == kind
-            and (c.metric == target if spec.intent in {"summary", "comparison"} else True)
+            and (
+                c.metric == target
+                if spec.intent in {"summary", "comparison", "device_reconciliation"}
+                else True
+            )
         ]
         calls = [
             r
@@ -99,7 +115,7 @@ def coverage(
             if r.name == tool
             and (
                 r.arguments.get("metric") == target
-                if spec.intent in {"summary", "comparison"}
+                if spec.intent in {"summary", "comparison", "device_reconciliation"}
                 else True
             )
         ]
@@ -112,6 +128,7 @@ def coverage(
                 any(r.quality == "value" for r in c.rows)
                 or c.series
                 or c.kind == "reference"
+                or (c.kind == "reconciliation" and c.reconciliation.get("q50") is not None)
                 or (c.kind == "comparison" and c.direction != "unavailable")
                 for c in matching
             ):
