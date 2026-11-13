@@ -22,9 +22,11 @@ No new license is asserted for upstream or third-party work.
 
 Included: all upstream tracked source, tests, dependency locks, deployment templates,
 configuration examples, data manifests/DVC pointers, and published documentation/evidence,
-except the root README. The November 12 portfolio README and its demo assets are preserved
-byte for byte at the owner's request; its narrative and feature summary await a separate
-update and should not be used as the current implementation inventory.
+except the root README. The November 12 synchronization preserved the portfolio README and
+its demo assets byte for byte. On November 13, the README's implementation summary, code map
+and authorship scope were updated in the existing portfolio format, and its pipeline figure
+was switched to the supplied simple PNG. The demo and Observed evaluation section remain
+unchanged; the evaluation still describes its original November 2 run.
 
 Portfolio-specific additions remain: the demo, quickstart, previous migration record,
 assistant workflow illustration, and this provenance file. Local artifact ignore rules and
