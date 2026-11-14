@@ -139,7 +139,13 @@ calls, even in quoted or mixed input. Language refusals ask users to rephrase in
 Chinese. The router also has an `unsupported_language` refusal for other languages sharing
 allowed scripts; that model-based decision is not guaranteed language detection.
 
-The writer/editor share one model and at most one edit opportunity. `narrative.finalize_draft`
+The writer/editor share one model and at most one edit opportunity. Set
+`HEALTHOPS_ASSISTANT_WRITER_MODEL_NAME` to select a Writer-only model on the configured
+backend; routing and tool calls retain `HEALTHOPS_ASSISTANT_MODEL_NAME`. When unset,
+all stages retain the original single-model behavior. The optional `narrative_model`
+response metadata identifies the configured Writer separately from the routing model.
+Model selection does not bypass evidence preparation, the editor budget or output guards.
+`narrative.finalize_draft`
 screens the actual formatted candidate, including server qualifications, for credential
 requests/leaks and protected prompt disclosure. The first draft checker still reports evidence
 coverage, date/number and markup findings to the single Editor. These quality findings do not
@@ -199,6 +205,12 @@ The routed path passes a typed `RequestSpec` to the tool graph. `assistant/guard
 intent, metrics, dates and source context before executing tools. The verify node checks all
 required metric/source cards and may return to the same model for one correction, without
 resetting budgets. `window_summary` and `available_series` are deterministic claim renderers.
+After that one correction, Python can complete omitted daily-summary coverage if all model
+findings are valid and every requested metric has already been queried within the confirmed
+scope. Added summaries pass through the same verifier; the final `state_findings` record
+retains the model arguments and records `server_added_findings` plus the
+`server_completed_daily_coverage` warning. This does not fetch missing metrics, repair invalid
+claims, widen source/date scope, or add model calls. Existing finding and request budgets apply.
 Responses include coverage and both verification attempts for evaluation. See
 [execution guard semantics](../../docs/assistant-execution-guards.md).
 

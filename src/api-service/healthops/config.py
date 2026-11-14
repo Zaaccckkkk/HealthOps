@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     assistant_evidence_budget_bytes: int = 262_144
     assistant_max_concurrency: int = 2
     assistant_narrative_enabled: bool = False
+    # Optional Writer-only model on the same private backend. Routing/tool calls keep
+    # assistant_model_name; unset preserves the original single-model behavior.
+    assistant_writer_model_name: str | None = Field(default=None, min_length=1)
     assistant_narrative_timeout_seconds: float = Field(default=30.0, gt=0, le=60)
     # Evaluation only: lets a request pin "today" so relative dates are reproducible.
     assistant_allow_today_override: bool = False

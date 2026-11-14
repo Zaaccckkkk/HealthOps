@@ -224,6 +224,95 @@ def test_all_returned_sources_must_be_reported():
     assert len(result.coverage[0].evidence_ids) == 2
 
 
+def test_repeated_valid_omission_is_completed_from_fetched_cards_before_writer():
+    from test_assistant_narrative import draft
+
+    incomplete = (
+        "window_summary e1.healthkit",
+        "window_summary e1.google_health",
+        "window_summary e2.google_health",
+    )
+    result, model, tools = run(
+        [
+            ModelTurn(tool_calls=[query(), query("sleep_duration")]),
+            findings(*incomplete),
+            findings(*incomplete),
+            draft(
+                "Both sources have recorded heart rate and sleep data.",
+                ids=[
+                    "e1.healthkit",
+                    "e1.google_health",
+                    "e2.healthkit",
+                    "e2.google_health",
+                ],
+            ),
+        ],
+        spec(("resting_heart_rate", "sleep_duration")),
+        {
+            "resting_heart_rate": data(paired=True),
+            "sleep_duration": data("sleep_duration", paired=True),
+        },
+        narrative_enabled=True,
+    )
+    assert result.verification_attempts[0].missing_targets == ["sleep_duration"]
+    assert len(result.verification_attempts) == 2
+    assert not result.verification_attempts[-1].missing_targets
+    assert all(item.reported for item in result.coverage)
+    assert result.narrative_status == "generated" and result.completion_status == "complete"
+    assert len(model.requests) == 4 and model.requests[-1][1] == []
+    assert len([c for c in tools.calls if c[0] == "daily_summary"]) == 2
+    record = result.tool_calls[-1]
+    assert record.arguments["server_added_findings"] == ["window_summary e2.healthkit"]
+    assert record.model_arguments["findings"] == list(incomplete)
+    assert "server_completed_daily_coverage" in record.warnings
+
+
+def test_daily_completion_never_substitutes_for_an_unqueried_metric():
+    result, _, _ = run(
+        [
+            ModelTurn(tool_calls=[query()]),
+            findings("window_summary e1.healthkit"),
+            findings("window_summary e1.healthkit"),
+        ],
+        spec(("resting_heart_rate", "sleep_duration")),
+    )
+    assert result.completion_status == "incomplete"
+    assert result.coverage[1].query_status == "not_queried"
+    assert not any("server_completed_daily_coverage" in r.warnings for r in result.tool_calls)
+
+
+@pytest.mark.parametrize("mismatch", ["date", "timezone", "provider", "metric", "invalid_claim"])
+def test_daily_completion_does_not_expand_scope_or_hide_invalid_claims(mismatch):
+    from healthops.assistant.cards import build_cards
+    from healthops.assistant.claims import FindingsParams, render_explanation
+    from healthops.assistant.guards import missing_daily_summaries
+
+    cards = build_cards([{"tool": "daily_summary", "result": data(paired=True)}])
+    _, claims, _ = render_explanation(
+        FindingsParams(findings=["window_summary e1.healthkit"]), cards
+    )
+    arguments = {
+        "metric": "resting_heart_rate",
+        "start_date": START,
+        "end_date": END,
+        "timezone": NY,
+        "provider": None,
+    }
+    provider = None
+    if mismatch == "date":
+        cards[1].start_date = "2020-01-01"
+    elif mismatch == "timezone":
+        cards[1].timezone = "UTC"
+    elif mismatch == "provider":
+        provider = arguments["provider"] = "healthkit"
+    elif mismatch == "metric":
+        cards[1].metric = "steps"
+    else:
+        claims[0].valid = False
+    records = [ToolCallRecord(name="daily_summary", arguments=arguments, status="ok")]
+    assert missing_daily_summaries(spec(), cards, records, claims, NY, provider) == []
+
+
 def test_query_failure_is_not_missing_data():
     result, _, _ = run([ModelTurn(tool_calls=[query()])], fail=True)
     assert result.status == "tool_error"

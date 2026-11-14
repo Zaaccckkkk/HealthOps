@@ -1,0 +1,8 @@
+# Optional override for keeping the routing model, separate Writer and embedding model resident.
+# Verify actual GPU residency and request lengths before enabling this on a host.
+services:
+  ollama:
+    environment:
+      OLLAMA_MAX_LOADED_MODELS: "3"
+      OLLAMA_CONTEXT_LENGTH: "14336"
+      OLLAMA_KEEP_ALIVE: "-1"

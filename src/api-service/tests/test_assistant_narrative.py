@@ -116,6 +116,59 @@ def test_verified_tools_feed_one_tool_free_writer_and_new_status():
     assert "Analyze my recorded" in model.requests[-1][0][1]["content"]
 
 
+@pytest.mark.parametrize("repair", [False, True])
+def test_dedicated_writer_keeps_tool_calls_on_base_and_editor_on_writer(repair):
+    base = ScriptedChatModel(
+        [ModelTurn(tool_calls=[query()]), findings("window_summary e1.healthkit")]
+    )
+    turns = ([ModelTurn(text="invalid JSON")] if repair else []) + [
+        draft("The available readings differ; gaps limit the comparison.")
+    ]
+    writer = ScriptedChatModel(turns)
+    writer.info.name = "healthops-writer-step32"
+    assistant = Assistant(
+        base,
+        FakeToolbox({"daily_summary": data()}),
+        AssistantSettings(narrative_enabled=True),
+        writer_model=writer,
+    )
+    response = asyncio.run(
+        assistant.ask(
+            AskRequest(question="Analyze my recorded resting heart rate.", timezone=NY),
+            USER,
+            request_spec=spec(),
+        )
+    )
+    assert len(base.requests) == 2 and all(tools for _, tools in base.requests)
+    assert len(writer.requests) == (2 if repair else 1)
+    assert all(not tools for _, tools in writer.requests)
+    assert writer.requests[0][0][0]["content"] == narrative.SYSTEM
+    assert response.narrative_status == "generated"
+    assert response.narrative_edit_attempted is repair
+    assert response.model.name == base.info.name
+    assert response.narrative_model.name == "healthops-writer-step32"
+
+
+def test_writer_configuration_leaves_router_and_embeddings_on_base():
+    from healthops.config import Settings
+    from healthops.main import build_assistant
+
+    settings = Settings(
+        _env_file=None,
+        assistant_model_base_url="http://model.test:11434",
+        assistant_model_name="qwen3:8b",
+        assistant_writer_model_name="writer-step32",
+        assistant_narrative_enabled=True,
+        assistant_thinking=False,
+    )
+    assistant = build_assistant(settings, None, None)
+    assert assistant.model.info.name == "qwen3:8b"
+    assert assistant.writer_model.info.name == "writer-step32"
+    assert assistant.writer_model.info.prompt_version == narrative.PROMPT_VERSION
+    assert assistant.writer_model.info.thinking is False
+    assert settings.knowledge_embedding_url == settings.assistant_model_base_url
+
+
 def test_malformed_editor_keeps_verified_template_and_explains_fallback():
     response, _ = run_writer(draft("Your heart rate was 999999 bpm."), ModelTurn(text="bad JSON"))
     assert response.narrative_status == "fallback"

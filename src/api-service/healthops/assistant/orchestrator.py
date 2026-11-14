@@ -32,7 +32,7 @@ from healthops.assistant.contracts import (
     ToolCallRecord,
     VerificationAttempt,
 )
-from healthops.assistant.guards import coverage, scope_error
+from healthops.assistant.guards import coverage, missing_daily_summaries, scope_error
 from healthops.assistant.model import (
     MODEL_UNAVAILABLE,
     ChatModel,
@@ -212,8 +212,16 @@ class _GraphState(TypedDict):
 
 
 class Assistant:
-    def __init__(self, model: ChatModel, toolbox: Toolbox, settings: AssistantSettings):
+    def __init__(
+        self,
+        model: ChatModel,
+        toolbox: Toolbox,
+        settings: AssistantSettings,
+        *,
+        writer_model: ChatModel | None = None,
+    ):
         self.model = model
+        self.writer_model = writer_model if writer_model is not None else model
         self.toolbox = toolbox
         self.settings = settings
         self._gate = asyncio.Semaphore(settings.max_concurrency)
@@ -556,6 +564,26 @@ class Assistant:
             assert graph["findings"] is not None
             cards = build_cards(state.evidence)
             text, verified, all_valid = render_explanation(graph["findings"], cards)
+            if state.request_spec is not None and graph["verification_retry_used"] and all_valid:
+                additions = missing_daily_summaries(
+                    state.request_spec,
+                    cards,
+                    state.records,
+                    verified,
+                    request.timezone,
+                    request.provider,
+                )
+                combined = graph["findings"].findings + additions
+                if additions and len(combined) <= 31:
+                    # Add only evidence handles; values and missing-data wording are
+                    # rendered by the same verifier, with no extra model/tool call.
+                    text, verified, all_valid = render_explanation(
+                        FindingsParams(findings=combined), cards
+                    )
+                    record = state.records[-1]
+                    if record.name == "state_findings":
+                        record.warnings.append("server_completed_daily_coverage")
+                        record.arguments["server_added_findings"] = additions
             state.claims = verified
             missing = []
             report = []
@@ -646,7 +674,7 @@ class Assistant:
                     min(self.settings.narrative_timeout_seconds, max(0, deadline.remaining - 0.1))
                 ):
                     attempts += 1
-                    turn = await self.model.complete(payload, [])
+                    turn = await self.writer_model.complete(payload, [])
                     answer, issues = narrative.check_draft(turn, facts)
                     if not issues:
                         candidate = turn
@@ -660,7 +688,7 @@ class Assistant:
                         else:
                             attempts += 1
                             state.narrative_edit_attempted = True
-                            edited = await self.model.complete(payload, [])
+                            edited = await self.writer_model.complete(payload, [])
                             candidate = edited
                     if candidate is not None:
                         answer, reason = narrative.finalize_draft(
@@ -815,6 +843,11 @@ class Assistant:
             narrative_status=state.narrative_status,
             narrative_reason=state.narrative_reason,
             narrative_prompt_version=PROMPT_VERSION if self.settings.narrative_enabled else None,
+            narrative_model=(
+                self.writer_model.info
+                if state.narrative_status in {"generated", "fallback"}
+                else None
+            ),
             coverage=report,
             completion_status=completion,
             verification_attempts=state.verification_attempts,

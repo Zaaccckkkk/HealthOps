@@ -52,11 +52,16 @@ def command(config):
         raise ValueError("narrative_enabled must be a boolean")
     if config.get("narrative_enabled", False):
         env["HEALTHOPS_ASSISTANT_NARRATIVE_ENABLED"] = "true"
+    if config.get("writer_model_name") is not None:
+        name = config["writer_model_name"]
+        if not isinstance(name, str) or not name or any(c in name for c in ",\n\r="):
+            raise ValueError("writer_model_name must be a nonempty model identifier")
+        if not config.get("narrative_enabled", False):
+            raise ValueError("Writer model selection requires narrative_enabled")
+        env["HEALTHOPS_ASSISTANT_WRITER_MODEL_NAME"] = name
     if config.get("reconcile_model_dir"):
         if config["reconcile_model_dir"] != "/app/models/reconcile":
-            raise ValueError(
-                "Expected the image-bundled reconciliation artifact directory"
-            )
+            raise ValueError("Expected the image-bundled reconciliation artifact directory")
         env["HEALTHOPS_RECONCILE_MODEL_DIR"] = config["reconcile_model_dir"]
     return [
         "gcloud",

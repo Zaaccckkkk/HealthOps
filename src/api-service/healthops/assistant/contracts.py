@@ -165,6 +165,7 @@ class AskResponse(BaseModel):
     narrative_check_reason: str | None = None
     narrative_edit_attempted: bool = False
     narrative_prompt_version: str | None = None
+    narrative_model: ModelInfo | None = None
     clarification: ClarificationForm | None = None
     conversation_expires_at: datetime | None = None
     coverage: list[CoverageItem] = Field(default_factory=list)

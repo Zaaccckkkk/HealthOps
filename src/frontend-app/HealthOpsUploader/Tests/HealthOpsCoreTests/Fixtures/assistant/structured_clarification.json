@@ -108,6 +108,7 @@
   "model_text": null,
   "narrative_check_reason": null,
   "narrative_edit_attempted": false,
+  "narrative_model": null,
   "narrative_prompt_version": null,
   "narrative_reason": null,
   "narrative_status": "disabled",

@@ -11,6 +11,14 @@ Both deployment renderers accept `"narrative_enabled": true` in the private JSON
 enable the optional Writer. The default remains disabled. Preserve this setting when
 redeploying the current synthetic or personal service; it is not baked into the API image.
 
+An optional `"writer_model_name"` selects a separately imported Writer model on that same
+private Ollama backend. It requires Writer to be enabled and leaves the routing/tool model
+unchanged. Synthetic and personal APIs can share inference weights while retaining their
+separate database credentials and account boundaries. Record the base revision, adapter hash,
+conversion precision and serving digest; validate converted outputs before promoting a
+zero-traffic revision. A quantized serving artifact is not numerically identical to BF16
+checkpoint evaluation. Preserve the previous revision and model for rollback.
+
 ```text
 Authorized operator / client
   -> HTTPS + Cloud Run IAM identity + application account token
@@ -334,3 +342,12 @@ The [2026-10-31 routed cloud diagnosis](../../../docs/evidence/cloud-routed-eval
 records 3/63 passed scenarios and no requests reaching execution. Migration 0005 was applied
 to the isolated synthetic DB. The new API remains a zero-traffic candidate; normal traffic was
 not promoted because the router contract failed real-model QA.
+
+### Separate Writer residency
+
+`compose.writer.yml` is an optional inference-host override for a shared routing,
+Writer, and embedding service. It sets a 14,336-token context and allows three
+loaded models. Verify actual GPU residency and long-request behavior on the host
+before enabling it; these settings are not a throughput guarantee. Model keep-alive
+does not override the VM's maximum run duration. A stopped VM must be started and
+warmed before the APIs can use inference. Keep the original Compose files for rollback.

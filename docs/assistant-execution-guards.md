@@ -55,9 +55,19 @@ The model must resubmit the complete findings, including previously valid items.
 If all evidence was already fetched, only `state_findings` is allowed during repair. If a target
 has not been queried, its intent's data tool is also exposed, and only still-unqueried targets can
 be fetched. Scope guards remain active. Existing tool/model/context/deadline limits are not reset.
-A second failed verification ends with the fixed fallback and `unverified`; there is no third
-verification attempt. Tool failures are not retried as missing data. Free model prose is not
-accepted as a corrected answer. No new LLM renderer or deployment was added.
+On the second verification, a summary request may receive deterministic coverage completion:
+all submitted findings must be valid, every requested metric must already have a successful
+query in the exact confirmed scope, and each added daily card must match the requested metric,
+dates, timezone and provider. Python adds only missing `window_summary` handles and runs the
+same claim verifier again. The combined findings must still fit the 31-item limit. This does
+not apply to comparisons, references or reconciliation, and never repairs invalid findings or
+fetches missing data. It adds no model call or verification-retry round.
+
+The final `state_findings` record preserves `model_arguments` and identifies server additions
+in `arguments.server_added_findings` with warning `server_completed_daily_coverage`. The first
+failed verification remains visible. If verification still fails, the fixed fallback and
+`unverified` remain; there is no third model correction. Tool failures are not retried as
+missing data. Free model prose is not accepted as a corrected finding.
 
 ## Synthetic regression examples
 
@@ -68,7 +78,9 @@ accepted as a corrected answer. No new LLM renderer or deployment was added.
   can cover the full card without emitting every day's value in prose.
 - Unknown `e1.healthkit` when the no-records card is actually `e1`: one corrected finding can
   pass without another database query. A second invalid ID ends unverified.
-- Two returned sources: omitting either source fails coverage.
+- Two returned sources: omitting either source fails initial coverage. If the one model
+  correction still omits a source but all findings and queries satisfy the conditions above,
+  Python can complete its daily summary; an invalid finding still ends unverified.
 - Database failure: `query_failed`, not zero or `no_records`.
 
 `tests/test_assistant_guards.py` uses scripted model calls and synthetic results to prove these
@@ -78,7 +90,7 @@ The execution prompt version changed; old frozen prompt hashes must not be relab
 runs. Real-model routing, first-attempt accuracy, repair success and final completeness will
 need a separate multi-turn evaluation. No real-model improvement is claimed by these tests.
 
-## Observed verification
+## Initial guard implementation verification
 
 Final isolated Compose suite: 298 passed, 5 skipped (Node/Swift absent in that image).
 Host-side policy, guard, DOM and Swift/Python contract selection: 49 passed, covering those

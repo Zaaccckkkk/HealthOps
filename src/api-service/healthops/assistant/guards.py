@@ -82,6 +82,54 @@ def card_reported(card: Card, claims: list[VerifiedClaim]) -> bool:
     return all(row.date in dates for row in card.rows)
 
 
+def missing_daily_summaries(
+    spec: RequestSpec,
+    cards: list[Card],
+    records: list[ToolCallRecord],
+    claims: list[VerifiedClaim],
+    timezone: str,
+    provider: str | None,
+) -> list[str]:
+    """Complete coverage from fetched daily cards, never repair invalid model claims.
+
+    The caller uses this only after the model's one verification repair. Every
+    requested metric must already have a successful, exactly scoped query.
+    Returned findings still go through the ordinary claim verifier.
+    """
+    if (
+        spec.intent != "summary"
+        or spec.window is None
+        or not claims
+        or not all(claim.valid for claim in claims)
+    ):
+        return []
+    for metric in spec.metrics:
+        if not any(
+            record.name == "daily_summary"
+            and record.status == "ok"
+            and record.arguments.get("metric") == metric
+            and scope_error(record.name, json.dumps(record.arguments), spec, timezone, provider)
+            is None
+            for record in records
+        ):
+            return []
+    return [
+        f"window_summary {card.evidence_id}"
+        for card in cards
+        if card.kind == "daily_table"
+        and card.metric in spec.metrics
+        and card.timezone == timezone
+        and card.start_date == str(spec.window.start_date)
+        and card.end_date == str(spec.window.end_date)
+        and (
+            provider is None
+            or card.provider == provider
+            or (card.provider is None and not card.rows)
+        )
+        and not card_reported(card, claims)
+    ]
+
+
 def coverage(
     spec: RequestSpec, cards: list[Card], records: list[ToolCallRecord], claims: list[VerifiedClaim]
 ) -> list[CoverageItem]:

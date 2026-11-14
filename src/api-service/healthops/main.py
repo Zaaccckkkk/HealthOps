@@ -65,6 +65,7 @@ def build_assistant(
     settings: Settings, session_factory: sessionmaker, chat_model: ChatModel | None, predictor=None
 ):
     """The assistant exists only when a model endpoint is configured or a model is injected."""
+    writer_model = None
     if chat_model is None:
         if not settings.assistant_model_base_url:
             return None
@@ -84,6 +85,19 @@ def build_assistant(
             temperature=settings.assistant_temperature,
             thinking=settings.assistant_thinking,
         )
+        if settings.assistant_writer_model_name:
+            from healthops.assistant.narrative import PROMPT_VERSION as WRITER_PROMPT_VERSION
+
+            writer_model = adapter(
+                settings.assistant_model_base_url,
+                settings.assistant_writer_model_name,
+                prompt_version=WRITER_PROMPT_VERSION,
+                timeout_seconds=settings.assistant_model_timeout_seconds,
+                connect_timeout_seconds=settings.assistant_model_connect_timeout_seconds,
+                max_output_tokens=settings.assistant_max_output_tokens,
+                temperature=settings.assistant_temperature,
+                thinking=settings.assistant_thinking,
+            )
     knowledge = None
     if settings.knowledge_embedding_url:
         knowledge = KnowledgeContext(
@@ -109,6 +123,7 @@ def build_assistant(
             narrative_enabled=settings.assistant_narrative_enabled,
             narrative_timeout_seconds=settings.assistant_narrative_timeout_seconds,
         ),
+        writer_model=writer_model,
     )
 
 
