@@ -1,35 +1,49 @@
-## Contributions
+# Contributions
 
+Project direction and implementation are distinguished where the work was shared. This
+portfolio includes the team's data and modeling components with their original attribution.
 
 | Area | Work item | Where | Owner(s) |
-|---|---|---|---|
-| Project | Course template migration (`src/<service>/` layout, Makefile, root Compose) | `docker-compose.yml`, `Makefile`, `src/` | Helena Li |
-| Project | One-command setup: `make app` (application) and `make all` (first-time setup: DVC pull → data → RAG → app); README quick start for a new machine and "Running the pipelines" | `Makefile`, `README.md` | Huihan Cui, Helena Li |
-| Data | Dataset selection and licence review (NetHealth Fitbit, BIDSleep Apple Watch, Synthea) | `data/README.md` | Huihan Cui, Helena Li, Zhentian Wu |
+| --- | --- | --- | --- |
+| Project | **Project Idea:** original HealthOps concept, product vision and problem framing | [Project overview](README.md) | **Zhentian Wu** |
+| Project | **Project Template:** proposed the service layout and directed adoption of the course template; implemented the migration into `src/<service>/` | `src/`, `docker-compose.yml`, `Makefile` | **Zhentian Wu** (proposal and direction); Helena Li (migration implementation) |
+| Project | **Project Setup:** proposed and directed the reproducible setup; implemented one-command application/data setup and setup instructions | `Makefile`, `.env.example`, `docker-compose.yml` | **Zhentian Wu** (proposal and direction); Huihan Cui, Helena Li (setup implementation) |
+| Application | Observation ingestion, token authentication, replay-safe deduplication, conflict reporting and database migrations | `src/api-service/healthops/`, `src/api-service/migrations/` | Zhentian Wu |
+| Application | Deterministic history tools: availability, daily summary, period comparison, date/timezone semantics and explicit limits | `src/api-service/healthops/tools/` | Zhentian Wu |
+| Application | Google Health connector: server-side OAuth, encrypted refresh tokens and incremental windowed sync | `src/api-service/healthops/connections.py`, `src/api-service/healthops/connectors/` | Zhentian Wu |
+| Assistant | LangGraph routing and tool execution; persistent, account-bound clarification with expiry and version checks | `src/api-service/healthops/assistant/routed.py`, `src/api-service/healthops/assistant/routing.py`, `src/api-service/healthops/assistant/orchestrator.py` | Zhentian Wu |
+| Assistant | Evidence cards, structured-claim verification, scope/coverage guards, one bounded correction and deterministic daily-summary coverage completion | `src/api-service/healthops/assistant/cards.py`, `src/api-service/healthops/assistant/claims.py`, `src/api-service/healthops/assistant/guards.py` | Zhentian Wu |
+| Assistant | Integrate the team's trained reconciliation model into account-scoped tools and evidence cards; verify artifacts and training/serving feature parity | `src/api-service/healthops/reconciliation/`, `src/api-service/healthops/tools/reconcile.py`, [serving contract](docs/reconciliation.md) | Zhentian Wu (application integration); model training credited below |
+| Assistant | Deterministic Writer evidence, duration/source presentation, draft checks, one Editor revision, sensitive-output screening and template fallback | `src/api-service/healthops/assistant/narrative.py`, `src/api-service/healthops/assistant/evidence_facts.py`, `src/api-service/healthops/assistant/presentation.py`, `src/api-service/healthops/assistant/output_format.py` | Zhentian Wu |
+| Assistant | Input guardrails, registered tool scopes, model/context budgets, timeouts and per-account rate limits | [Guardrails](docs/assistant-guardrails.md), [execution guards](docs/assistant-execution-guards.md) | Zhentian Wu |
+| LLM / RAG | Licence-checked reference manifest, source fetching and hashing, chunking, embeddings, pgvector retrieval and quotation limits | `knowledge/`, `src/api-service/healthops/knowledge/`, `src/api-service/scripts/knowledge/` | Zhentian Wu |
+| LLM / RAG | RAG ingestion container, `make rag`, retrieval examples and observed run records | `docker-compose.yml`, `docs/rag-retrieval-example.md`, `src/api-service/examples/` | Zhentian Wu |
+| LLM / Evaluation | Synthetic live-chain scenarios, offline Writer replay, evidence/input provenance audits, failure review and base/checkpoint comparisons | `src/api-service/eval/`, `src/api-service/scripts/eval_writer_chain.py`, `src/api-service/scripts/replay_writer_corpus.py`, `src/api-service/scripts/compare_writer_checkpoints.py` | Zhentian Wu |
+| LLM / Post-training | Writer-only DPO workflow with NeMo RL, Megatron Core and LoRA; reviewed preference data, split isolation, checkpoint restore/export and evaluation tooling | `src/model-training/writer_dpo/`, [training guide](src/model-training/writer_dpo/README.md) | Zhentian Wu |
+| LLM / Post-training | Experiment tracking, reviewed checkpoint selection, release/registry receipts and reproducible replay | `src/model-training/writer_dpo/tracking.py`, `src/model-training/writer_dpo/registry.py`, `src/model-training/writer_dpo/registry_replay.py` | Zhentian Wu |
+| LLM / Serving | Separate Writer model selection while preserving the base routing/tool model; Writer response metadata and deployment controls | `src/api-service/healthops/main.py`, `src/api-service/healthops/config.py`, `src/deployment/cloud-run/deploy.py` | Zhentian Wu |
+| Frontend | SwiftUI app: HealthKit consent, replay-safe upload, Overview charts, Ask/Setup tabs, Google Health connection and Swift tests | `src/frontend-app/HealthOpsUploader/` | Zhentian Wu |
+| Frontend | Chat clarification/history transitions, source switching, generated/fallback answer states and late-response handling | `src/frontend-app/HealthOpsUploader/App/`, `src/frontend-app/HealthOpsUploader/Sources/HealthOpsCore/AssistantConversation.swift` | Zhentian Wu |
+| Frontend / Isolation | Personal-versus-synthetic upload checks, data-kind headers and account/environment isolation at client and API boundaries | `src/frontend-app/HealthOpsUploader/Sources/HealthOpsCore/UploadDestination.swift`, `src/api-service/tests/test_upload_environment.py` | Zhentian Wu |
+| Frontend | Application mock-up, interaction diagrams, recorded app walkthrough and portfolio presentation | `docs/app-mockup/`, `docs/diagrams/`, `docs/demo/` | Zhentian Wu |
+| Infrastructure | Application Compose services, isolated ephemeral PostgreSQL integration tests and API containerization | `docker-compose.yml`, `src/api-service/Dockerfile`, `src/api-service/tests/` | Zhentian Wu |
+| Infrastructure | GPU development VM, Caddy/Ollama, operator scripts, IAP access and automatic-stop configuration | `src/deployment/cloud/`, `src/deployment/scripts/` | Zhentian Wu |
+| Infrastructure | Cloud Run deployment, Cloud SQL integration, reconciliation image builds and personal/synthetic deployment boundaries | `src/deployment/cloud-run/` | Zhentian Wu |
+| Infrastructure | Cloud Monitoring dashboards and 5xx alert definitions for application environments | `src/deployment/monitoring/` | Zhentian Wu |
+| Quality | Content policy, English public documentation, local-artifact exclusion and repository CI | `scripts/check_public_content.py`, `scripts/tests/`, `.github/workflows/`, `AGENTS.md` | Zhentian Wu |
+| Documentation | API contracts, assistant architecture, deployment/evaluation evidence and portfolio synchronization | `docs/`, `README.md` | Zhentian Wu; team-owned data documentation credited below |
+| Data | Dataset selection and licence review (NetHealth Fitbit, BIDSleep Apple Watch, Synthea) | `data/README.md` | Huihan Cui, Helena Li |
 | Data | Data pipeline orchestration: Compose `data` profile, `make run`, data versions in `.env`, every container logging `INPUT_DATA_VERSION` / `OUTPUT_DATA_VERSION` and the Git commit | `docker-compose.yml` (profile `data`), `Makefile`, `.env.example` | Helena Li |
 | Data | `synthea-generator` container (pinned Synthea run, patient tables) | `src/synthea-generator/` | Huihan Cui |
 | Data | `data-collector` container (checksum-verified downloads, raw manifest) | `src/data-collector/` | Huihan Cui |
-| Data | `data-processor` container (raw → canonical schema, time zones, sleep dating, validation) | `src/data-processor/` | Huihan Cui|
-| Data | Canonical schema and shared versioning helpers, kept identical across the data services | `src/*/…/schema.py`, `src/*/…/versioning.py` | Helena Li |
+| Data | `data-processor` container (raw → canonical schema, time zones, sleep dating, validation) | `src/data-processor/` | Huihan Cui |
+| Data | Canonical schema and shared versioning helpers, kept identical across the data services | `src/data-processor/processor/schema.py`, `src/data-processor/processor/versioning.py` | Helena Li |
 | Data | `data-synthesizer`: calibration on real data, baselines, day-to-day trajectory | `src/data-synthesizer/synthesizer/{calibrate,baseline,trajectory}.py` | Huihan Cui |
 | Data | `data-synthesizer`: LLM life-event context with `qwen3:4b`, JSON-schema constraints, caching | `src/data-synthesizer/synthesizer/context.py`, `configs/context_generation.yaml` | Helena Li |
-| Data | `data-synthesizer`: Synthea clinical profiles, Apple Watch and Fitbit observation models, missingness | `src/data-synthesizer/synthesizer/{clinical,observe,missingness}.py` | Huihan Cui|
-| Data | Generator configuration: cohort and baselines, trajectory effects, device models, missingness, calibration settings | `configs/*.yaml` | Huihan Cui|
+| Data | `data-synthesizer`: Synthea clinical profiles, Apple Watch and Fitbit observation models, missingness | `src/data-synthesizer/synthesizer/{clinical,observe,missingness}.py` | Huihan Cui |
+| Data | Generator configuration: cohort and baselines, trajectory effects, device models, missingness, calibration settings | `configs/*.yaml` | Huihan Cui |
 | Data | Data pipeline tests (NetHealth mapping edge cases, offline end-to-end synthesizer run) | `src/data-processor/tests/`, `src/data-synthesizer/tests/` | Helena Li |
 | Data | Versioning: manifests, immutable versions, DVC pointers and local remote, `make dvc-track` / `dvc-pull`; built and committed `raw-v1`, `canonical-v0.1`, `synthetic-v0.1` (5000 users) | `data/manifests/`, `data/**/*.dvc`, `.dvc/config`, `.gitignore`, `scripts/dvc_track.sh` | Helena Li |
-| Data | Data pipeline documentation and design-choice write-up | `data/README.md`, service READMEs, `README.md` ("Data pipeline and versioning"), `docs/architecture.md` (data rows) | Helena Li |
+| Data | Data pipeline documentation and design-choice write-up | `data/README.md`, service READMEs, `docs/architecture.md` (data rows) | Helena Li |
 | Data | Pipeline run logs, rerun log, screenshot and sample input → output artifacts | `docs/evidence/pipeline-run-*.log`, `docs/evidence/pipeline-rerun-*.log`, `docs/evidence/data-sample/`, `docs/screenshots/data-pipeline-run.png` | Huihan Cui |
-| Application | Ingestion API: canonical observation contract, token auth, replay-safe deduplication, conflict reporting, Alembic migrations | `src/api-service/healthops/{main,schemas,repository,auth,models}.py`, `migrations/` | Zhentian Wu |
-| Application | Deterministic history tools (availability, daily summary, period comparison) with explicit limits | `src/api-service/healthops/tools/` | Zhentian Wu |
-| Application | Assistant: tool-using orchestration, cards and claims verification, fixed refusals, budgets and rate limits | `src/api-service/healthops/assistant/` | Zhentian Wu |
-| Application | Google Health (Fitbit) connector: server-side OAuth, encrypted refresh tokens, windowed sync | `src/api-service/healthops/connections.py`, `connectors/` | Zhentian Wu |
-| LLM / RAG | Reference library: licence-checked source manifest, fetch and hash verification, chunking, `nomic-embed-text` embeddings, pgvector store, `lookup_reference` tool, licence-aware verbatim quotation | `knowledge/`, `src/api-service/healthops/knowledge/`, `scripts/knowledge/`, migration `0004` | Zhentian Wu |
-| LLM / RAG | `rag-ingest` container and `make rag`; retrieval example and ingest logs | `docker-compose.yml`, `docs/rag-retrieval-example.md`, `src/api-service/examples/` | Zhentian Wu |
-| LLM / RAG | Assistant evaluation: synthetic question sets, evaluation script, observed results on the Mac and the L4 VM | `src/api-service/eval/`, `scripts/eval_assistant.py` | Zhentian Wu |
-| Frontend | iOS app: HealthKit read access, consent, replay-safe sync engine, Overview charts, Ask tab, Setup tab, Google Health connection, Swift tests | `src/frontend-app/HealthOpsUploader/` | Zhentian Wu |
-| Frontend | Application mock-up: wireframe, Simulator screenshots, changes since Milestone 1 | `docs/app-mockup/` | Zhentian Wu |
-| Infrastructure | Local Compose stack (API, pgvector database, isolated test services) and the container test suite | `docker-compose.yml`, `src/api-service/tests/`, `Dockerfile` | Zhentian Wu |
-| Infrastructure | Single-GPU cloud VM: Compose with Caddy and Ollama, `vm.sh` / `remote.sh`, auto-stop, IAP-only SSH | `src/deployment/`, `docs/cloud-dev-deployment.md` | Zhentian Wu |
-| Infrastructure | Running-instance screenshots and end-to-end evidence for the application containers | `docs/screenshots/`, `docs/evidence/` (api, rag, test rows) | Zhentian Wu |
-| Quality | Repository policy: public-content check, CI workflow, synthetic-data-only rule, English-only public text | `scripts/check_public_content.py`, `.github/workflows/`, `AGENTS.md` | Zhentian Wu |
-| Documentation | API contract, architecture, deployment notes, README deliverables index | `docs/api-contract.md`, `docs/architecture.md`, `README.md` | Zhentian Wu |
+| Data / ML | Cross-device reconciliation model training and comparison: LightGBM, Transformer and Diffusion; windowed evaluation, training tracking and Vertex ML pipeline | `src/model-training/training/`, `src/model-training/vertex/`, `src/ml-workflow/`, [model results](docs/evidence/model-training-results.md) | Huihan Cui, Helena Li |

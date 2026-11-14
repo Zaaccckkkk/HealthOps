@@ -1,0 +1,32 @@
+{
+  "source_base": "65852283a20c5528403b611e4a78ef6135856e6a",
+  "source_kind": "user-authorized local working tree",
+  "sha256": {
+    "docs/assistant-execution-guards.md": "c1919100dd04e2e8cbe91b4014c4ee14da4d51b7e4dfdc724df65050f5149296",
+    "scripts/tests/test_cloud_run_deploy.py": "aed9e66a0ffc5380bdce0a2503aa13916c32d765ca2b45764649d0a3b663ca38",
+    "src/api-service/README.md": "7b3f4b5bb1da2b09c80f3896c35ecf9523a9364f88a08b5580e163dfe02275a4",
+    "src/api-service/healthops/assistant/contracts.py": "2169bcaa7c11ee952b6bc66c9b1985bb89b85a17b8750112f9e0129677bcce43",
+    "src/api-service/healthops/assistant/guards.py": "aff2020e228ad7d4f3364b0c85b6a6aabb05c10eb4910534378ee7f10dfd9378",
+    "src/api-service/healthops/assistant/orchestrator.py": "283204f6fa224db0cf7d38af022e08f60ca46792ca0949240af8a4649ed61b08",
+    "src/api-service/healthops/assistant/output_format.py": "ac4c85dccd5419dddb3d3337c8f1892872748370acb594f6b9b7573d8e3b65ab",
+    "src/api-service/healthops/config.py": "dce676faaa3c59180442b231f61ed41c3b05b050240ef1ac06e46a2f9b62d07d",
+    "src/api-service/healthops/main.py": "6e84777beac21ec9509bbaef9f87aa9d41b5ba778b5f13138214d42a7db0a185",
+    "src/api-service/tests/test_assistant_guards.py": "e9218d8c35d145fb7ecbc1b22866008f65bf660744ba09177d7257ce59d6b480",
+    "src/api-service/tests/test_assistant_narrative.py": "9899f4554f44153be5f851aaa0b6bfb876206fbf1f258f20a5bd7d633e946997",
+    "src/api-service/tests/test_writer_output_format.py": "5af0be057459623aa271aef140c4c9bdc06ef2035dbcd5d5e5bceff6d9854a99",
+    "src/deployment/cloud-run/README.md": "fb08f5119c3dcd034aee92b2d37875c84b6a8107ebfd365a9d5ef075d765bf80",
+    "src/deployment/cloud-run/deploy.py": "d74fdfe2165b2cfe84ca45c8d09c24b2da509956878bc68f9bfc7abd577e15d8",
+    "src/frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant/answered_reference.json": "31484da2bbd6fada371f946162ee3c27b89a3facb235159f9fa0678c04e5cf62",
+    "src/frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant/answered_unverified.json": "84d1dd8cd255a0b49c2bf1246b5bbee98426e5a04880264eeecf254b35bc6582",
+    "src/frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant/answered_verified.json": "80a6a22500e76e0d2393e1b153fe604055d35de15f7f9823d5a101aedced9f36",
+    "src/frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant/insufficient_data.json": "acf7aa9f600584c328675c9e9a4342628f0c1825bfae9c1dcf64b1a4952d956c",
+    "src/frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant/needs_clarification.json": "5994dd25908977d61932bfa18a8a6451d9d69e2d0cc0a9af186d9c00563b0cc1",
+    "src/frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant/refused.json": "78bd0c17b4fa80b9eb874e6c8c3a421637c7dfba35d466a567bd764ae0fde64a",
+    "src/frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant/structured_clarification.json": "a907179bff84642ccd7fdda8d8a3024557ab72b9ef33e535a4cb93482dde3437",
+    "src/frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant/tool_error.json": "8ce68d99e9d9c37c1b1ba6894ecb0a055415f6dfeea29afbf78b3837994d4ce5",
+    "src/frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant/unknown_status.json": "c80f393529193a0edbacefc49b12bb8b39c779b214ce0d072a72cd97e1e02637",
+    "src/frontend-app/HealthOpsUploader/Tests/HealthOpsCoreTests/Fixtures/assistant/unusable_records.json": "b80d6755b5e2327ab7074190a8ee176e91dc40b59626b7c307c48b4406d03e8d",
+    "src/model-training/writer_dpo/output_format.py": "ac4c85dccd5419dddb3d3337c8f1892872748370acb594f6b9b7573d8e3b65ab",
+    "src/deployment/cloud-run/compose.writer.yml": "a5a7d20ace4e78552093ead12544f4d19db75ccb7713b86684bddb8143a50bf4"
+  }
+}

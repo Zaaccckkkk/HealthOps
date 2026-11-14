@@ -4,16 +4,23 @@ This repository preserves the standalone HealthOps history and synchronizes the 
 [AC215 team project](https://github.com/HuihanCui/ac215_Megatron) `milestone3` branch at
 commit [`65852283a20c5528403b611e4a78ef6135856e6a`](https://github.com/HuihanCui/ac215_Megatron/commit/65852283a20c5528403b611e4a78ef6135856e6a).
 The earlier application-only import used `c23565d63b0236f969ea4672893a6b0784226974`.
-The current synchronization is organized into functional migration commits; their dates
+A November 13 update also imports 26 owner-authorized local working-tree files based on
+that same team commit; these changes had not yet been published on the team branch. See the
+[follow-up synchronization record](evidence/portfolio-sync-20261113.md) for the source snapshot
+and validation. Synchronization is organized into functional migration commits; their dates
 record this import, not when the underlying team implementation was originally written.
 
 ## Authorship
 
 Zhentian Wu's application work covers ingestion/authentication, deterministic tools,
 assistant orchestration and evaluation, reference retrieval, the iOS client, and application
-deployment. Huihan Cui and Helena Li contributed the data generation, processing, versioning,
-and cross-device model-training pipeline. The upstream
-[contribution table](../contributions-table.md) is retained with its original attribution.
+deployment, monitoring, and Writer post-training/evaluation tooling. Huihan Cui and Helena Li
+contributed the data generation, processing, versioning, and cross-device model-training
+pipeline. The [contribution table](../contributions-table.md) distinguishes project direction
+from implementation. The owner clarified on November 13 that the original idea, template proposal
+and setup direction are Zhentian Wu's; teammates retain credit for the corresponding migration
+and setup implementation. Dataset selection and licence review are credited to Huihan Cui
+and Helena Li. Data-related work is listed after application and infrastructure work.
 Shared components and team-developed pipelines are included to reproduce the complete project;
 this portfolio does not claim sole authorship of the team project or third-party libraries.
 No new license is asserted for upstream or third-party work.
@@ -25,8 +32,11 @@ configuration examples, data manifests/DVC pointers, and published documentation
 except the root README. The November 12 synchronization preserved the portfolio README and
 its demo assets byte for byte. On November 13, the README's implementation summary, code map
 and authorship scope were updated in the existing portfolio format, and its pipeline figure
-was switched to the supplied simple PNG. The demo and Observed evaluation section remain
-unchanged; the evaluation still describes its original November 2 run.
+was switched to the supplied simple PNG. The later November 13 update retains the demo and
+figure, refreshes implementation details and contributions, and replaces the README evaluation
+summary with the owner-supplied latest aggregate results. Historical run reports remain intact;
+they are not relabeled as evidence for the new aggregate. See the
+[results source note](evidence/portfolio-results-20261113.md).
 
 Portfolio-specific additions remain: the demo, quickstart, previous migration record,
 assistant workflow illustration, and this provenance file. Local artifact ignore rules and

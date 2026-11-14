@@ -1,7 +1,9 @@
 # Evidence that the containerized pipeline works end to end
 
-For the latest portfolio import and its local checks, see the
-[Milestone 3 synchronization record](milestone3-sync-20261112.md).
+For the latest portfolio update and its local checks, see the
+[November 13 synchronization record](portfolio-sync-20261113.md) and
+[portfolio evaluation summary](portfolio-results-20261113.md). The earlier full import is
+documented in the [Milestone 3 synchronization record](milestone3-sync-20261112.md).
 The records below retain their original run dates and environments.
 
 Milestone 2 deliverable 2: "Evidence it works end-to-end (logs + a small sample input →

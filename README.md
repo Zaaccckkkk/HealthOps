@@ -15,9 +15,9 @@
 HealthOps combines Apple HealthKit and Google Health / Fitbit records with a Qwen3-8B assistant.
 Recorded-history summaries come from deterministic Python tools; a pgvector reference library
 supports sourced definitions. A trained Transformer provides cross-device reconciliation estimates
-when its pinned weights are configured. Qwen selects tools and can write an explanation from the
-resulting evidence, while Python controls identity, request scope, structured claims and display
-formatting. Generated prose is distinguished from verified evidence.
+when its pinned weights are configured. The base Qwen model selects tools; a configurable
+Writer model explains the resulting evidence. Python controls identity, request scope,
+structured claims and display formatting. Generated prose is distinguished from verified evidence.
 
 Built with **FastAPI, LangGraph, PostgreSQL + pgvector, SwiftUI, PyTorch, Ollama and Google Cloud**.
 This is an engineering prototype with fixed synthetic evaluations, not a clinical product or
@@ -47,15 +47,17 @@ This is an illustrative interaction, not a transcript or a claim about a specifi
 
 - **Clarify before querying.** A typed Router distinguishes ready, underspecified and unsupported
   requests. PostgreSQL stores account-bound clarification state with expiry and version checks.
-- **One model, dynamic tools.** A LangGraph execution loop lets Qwen select history tools,
+- **Dynamic tools, stable routing.** A LangGraph execution loop lets the base Qwen model select history tools,
   reference lookup or `reconcile_devices`, inspect results and submit `state_findings`.
   Reconciliation reports model estimates, intervals and coverage warnings alongside recorded
   values; it does not establish a device's true accuracy.
 - **Check evidence before writing.** Python validates structured claims against evidence cards,
-  checks the requested scope and permits one bounded findings correction. Verified templates
-  provide an answer before the optional Writer runs.
-- **Grounded writing, bounded editing.** Python prepares the evidence and readable units; the same
-  Qwen model writes a draft. Draft checks can trigger one Editor revision. Formatting and a final
+  checks the requested scope and permits one bounded findings correction. For daily summaries,
+  Python can then complete omitted coverage from already-fetched, exactly scoped cards; it
+  cannot repair invalid claims or invent missing readings. Verified templates precede the Writer.
+- **Grounded writing, bounded editing.** Python prepares the evidence and readable units. Writer
+  and Editor use the same model, which can be configured separately from the base routing/tool
+  model. Draft checks can trigger one Editor revision. Formatting and a final
   sensitive-output check follow, with template fallback for blocked or unusable output. Generated
   prose is labeled separately: the final gate does not revalidate every edited factual claim.
 - **Defense in layers.** Input screening, server-injected identity, registered tool schemas,
@@ -72,24 +74,16 @@ and [assistant guardrails](docs/assistant-guardrails.md).
 
 ## Observed evaluation
 
-Qwen3-8B Q4_K_M, Ollama 0.35.1, temperature 0, thinking disabled; Cloud Run API,
-synthetic Cloud SQL data and a temporary V100 model server. Reported run: **2026-11-02 UTC**.
+| Evaluation | Cases / scenarios | Metric | Result |
+| --- | ---: | --- | ---: |
+| End-to-end live scenarios | 93 | Task success | **86.0%** |
+| Offline answers — Base Qwen3-8B | 112 | Answer acceptance | **80.4%** |
+| Offline answers — DPO-fine-tuned Qwen3-8B | 112 | Answer acceptance | **91.1%** |
 
-| Fixed evaluation suite | Scenarios | User turns | Scenario pass rate |
-| --- | ---: | ---: | ---: |
-| End-to-end diagnostic | 60 | 84 | **59/60 (98.3%)** |
-| Interaction suite | 36 | 72 | **32/36 (88.9%)** |
-| RAG routing only, excluded from end-to-end scores | 3 | 3 | 3/3 tool selection |
-
-The first two rows total **96 scenarios / 156 turns**. All three total **99 / 159**.
-Templates repeat across three synthetic accounts; follow-up replies are authored fixtures.
-These are fixed development diagnostics, not held-out production accuracy or clinical validation.
-Both suites include multi-turn behavior. The RAG routing checks did not establish successful retrieval.
-
-Known failures: two reproducible empty model answers after correct tool execution; three
-availability-versus-summary contract mismatches; SDNN retrieval below the similarity threshold.
-See the [full report](docs/evidence/v100-live-evaluation-20261102.md),
-[question-set guide](docs/assistant-routed-evaluation.md) and [evaluation index](docs/evidence/README.md).
+DPO improved answer acceptance from **80.4% to 91.1%** across 112 offline cases
+(**+10.7 percentage points**). The live end-to-end result is a separate evaluation;
+offline answer acceptance and live task success measure different scopes.
+See [evaluation scope and source notes](docs/evidence/portfolio-results-20261113.md).
 
 ## Reproduce locally
 
@@ -103,8 +97,8 @@ make test      # isolated ephemeral PostgreSQL integration suite
 ```
 
 The public fixture generator reproduces ingestion, tools and the assistant interface. Replaying
-the exact reported three-account scores additionally requires the team's versioned synthetic
-cohort and frozen run inputs; those datasets and private artifacts are not published here.
+the reported evaluation scores additionally requires the corresponding versioned datasets,
+frozen run inputs and model checkpoints; those private artifacts are not published here.
 Optional reference ingestion: `make rag` after pulling `nomic-embed-text`; this downloads
 manifest-listed third-party sources under their recorded usage terms.
 
@@ -121,6 +115,7 @@ They are not prerequisites for the public fixture demo.
 | Router and persistent clarification | [clarification contract](docs/assistant-clarification.md) |
 | Scope, evidence and completeness | [execution guards](docs/assistant-execution-guards.md) |
 | Writer, Editor and output checks | [writer implementation](src/api-service/healthops/assistant/narrative.py), [guardrails](docs/assistant-guardrails.md) |
+| Independent Writer model selection | [API configuration](src/api-service/README.md), [deployment](src/deployment/cloud-run/README.md) |
 | Device reconciliation and model serving | [reconciliation guide](docs/reconciliation.md) |
 | Reference retrieval and content screening | [knowledge library](knowledge/README.md), [safety design](docs/design/reference-safety.md) |
 | Native app and interaction design | [frontend](src/frontend-app/README.md), [UX specification](docs/design/assistant-experience.md) |
@@ -129,13 +124,14 @@ They are not prerequisites for the public fixture demo.
 | Writer preference training and checkpoints | [Writer DPO guide](src/model-training/writer_dpo/README.md) |
 | Cloud Run / Cloud SQL / model VM | [deployment guide](src/deployment/cloud-run/README.md) |
 | Monitoring | [dashboards and alerts](src/deployment/monitoring/README.md) |
-| Local verification of the synchronized code | [verification record](docs/evidence/milestone3-sync-20261112.md) |
+| Local verification of the synchronized code | [verification record](docs/evidence/portfolio-sync-20261113.md) |
 
 ## Authorship and scope
 
-**Application and assistant developed by Zhentian Wu.** My work covers ingestion and
-authentication, deterministic analytics, LangGraph orchestration, reference retrieval,
-the iOS client, application deployment and evaluation.
+**Project idea, application and assistant by Zhentian Wu.** I proposed HealthOps and directed
+the project template and setup. My implementation work covers ingestion and authentication,
+deterministic analytics, LangGraph orchestration, reference retrieval, the iOS client,
+Writer post-training/evaluation tooling, deployment and monitoring.
 
 HealthOps was developed within the [AC215 team project](https://github.com/HuihanCui/ac215_Megatron).
 This repository also includes the team's data generation, processing, versioning and
@@ -144,7 +140,7 @@ The reconciliation adapter connects trained predictions to the assistant's evide
 See the [contribution table](contributions-table.md) and
 [provenance and acknowledgments](docs/provenance.md) for ownership and source history.
 
-Writer DPO training, checkpoint evaluation and registry workflows are included as a separate
-experiment. The reported assistant scores above use the base Qwen3-8B model, not a fine-tuned
-Writer. Credentials, personal health records, downloaded corpora and private run artifacts
-are excluded from Git.
+Writer DPO training, checkpoint evaluation and registry workflows are included. The offline
+results above compare base and DPO-fine-tuned Qwen3-8B; the live result is reported separately.
+Credentials, personal health records, downloaded corpora and private run artifacts are
+excluded from Git.
