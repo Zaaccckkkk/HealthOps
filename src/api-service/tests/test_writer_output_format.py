@@ -137,3 +137,46 @@ def test_service_and_offline_formatter_are_identical():
     service = Path(__file__).parents[1] / "healthops/assistant/output_format.py"
     offline = Path(__file__).parents[2] / "model-training/writer_dpo/output_format.py"
     assert service.read_bytes() == offline.read_bytes()
+
+
+@pytest.mark.parametrize(
+    "baseline,current", [(None, None), (None, {"value": "3600"}), ({"value": "3600"}, None)]
+)
+def test_missing_sleep_comparison_does_not_crash_or_invent_a_duration(baseline, current):
+    evidence = {
+        "sources": [
+            {
+                "evidence_id": "e1",
+                "unit": "s",
+                "baseline": baseline,
+                "current": current,
+                "difference": None,
+                "model_estimate": None,
+                "recorded_values_summary": None,
+                "comparison_to_estimate": None,
+            }
+        ]
+    }
+    before = copy.deepcopy(evidence)
+    answer = "The comparison is unavailable because a period has no recordings."
+    assert format_answer(answer, evidence, "en").answer == answer
+    formatted = format_answer("The recorded duration was 3600 seconds.", evidence, "en")
+    assert ("1 hour" in formatted.answer) == (baseline is not None or current is not None)
+    assert evidence == before
+
+
+def test_empty_comparison_card_survives_final_draft_formatting():
+    from test_assistant_cards import comparison
+
+    from healthops.assistant import narrative
+    from healthops.assistant.cards import build_cards
+
+    evidence = comparison("sleep_duration", "s", None, None, None)
+    evidence["result"]["providers"] = []
+    facts = narrative.packet(build_cards([evidence]), "2026-10-03")
+    assert facts["sources"][0]["baseline"] is None
+    answer = "Neither period has sleep recordings, so no change can be calculated."
+    rendered, reason = narrative.finalize_draft(
+        draft(answer, ids=["e1"]), facts, "en", "Compare sleep.", []
+    )
+    assert reason is None and answer in rendered

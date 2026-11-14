@@ -62,10 +62,10 @@ def _seconds_values(facts):
             for row in source.get(key, []):
                 add(row.get("value"))
         for key in ("baseline", "current"):
-            add(source.get(key, {}).get("value"))
+            add((source.get(key) or {}).get("value"))
         add(source.get("difference"))
         for key in ("model_estimate", "recorded_values_summary"):
-            for field, value in source.get(key, {}).items():
+            for field, value in (source.get(key) or {}).items():
                 if field in {
                     "q05",
                     "q50",
@@ -78,8 +78,8 @@ def _seconds_values(facts):
                 }:
                     add(value)
         for value in (
-            source.get("comparison_to_estimate", {}).get("absolute_distances", {}).values()
-        ):
+            (source.get("comparison_to_estimate") or {}).get("absolute_distances") or {}
+        ).values():
             add(value)
     return values
 
